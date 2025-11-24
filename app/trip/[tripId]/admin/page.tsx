@@ -9,6 +9,8 @@ import WeatherCard from '@/app/components/trip/WeatherCard'
 import ItineraryCard from '@/app/components/trip/ItineraryCard'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 interface PageProps {
   params: { tripId: string }
 }
