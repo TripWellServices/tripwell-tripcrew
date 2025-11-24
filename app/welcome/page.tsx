@@ -6,12 +6,18 @@ import { auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
+interface TripCrew {
+  id: string
+  name: string
+  trips: Array<{ id: string; name: string }>
+}
+
 interface Traveler {
   id: string
   firstName: string | null
   lastName: string | null
   email: string | null
-  tripsOwned: Array<{ id: string; name: string }>
+  tripCrewsOwned: TripCrew[]
 }
 
 export default function WelcomePage() {
@@ -96,33 +102,35 @@ export default function WelcomePage() {
           <p className="text-gray-600">Your TripWell Trip Crew</p>
         </div>
 
-        {traveler && traveler.tripsOwned.length > 0 ? (
+        {traveler && traveler.tripCrewsOwned.length > 0 ? (
           <div className="space-y-4 mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Trips</h2>
-            {traveler.tripsOwned.map((trip) => (
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Your TripCrews</h2>
+            {traveler.tripCrewsOwned.map((tripCrew) => (
               <Link
-                key={trip.id}
-                href={`/trip/${trip.id}?admin=1`}
+                key={tripCrew.id}
+                href={`/tripcrew/${tripCrew.id}`}
                 className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
               >
-                <h3 className="font-semibold text-gray-800">{trip.name}</h3>
-                <p className="text-sm text-gray-600">Click to view and edit</p>
+                <h3 className="font-semibold text-gray-800">{tripCrew.name}</h3>
+                <p className="text-sm text-gray-600">
+                  {tripCrew.trips.length} trip{tripCrew.trips.length !== 1 ? 's' : ''}
+                </p>
               </Link>
             ))}
           </div>
         ) : (
           <div className="mb-8 p-6 bg-gray-50 rounded-lg text-center">
-            <p className="text-gray-600 mb-4">You don't have any trips yet.</p>
-            <p className="text-sm text-gray-500">Create your first trip to get started!</p>
+            <p className="text-gray-600 mb-4">You don't have any TripCrews yet.</p>
+            <p className="text-sm text-gray-500">Create your first TripCrew to get started!</p>
           </div>
         )}
 
         <div className="flex flex-col sm:flex-row gap-4">
           <Link
-            href="/trip/setup"
+            href="/tripcrew/setup"
             className="flex-1 px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-center"
           >
-            Create New Trip
+            Create TripCrew
           </Link>
           <button
             onClick={() => auth.signOut()}

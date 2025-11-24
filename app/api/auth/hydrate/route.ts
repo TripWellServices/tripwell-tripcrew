@@ -18,8 +18,13 @@ export async function POST(request: NextRequest) {
     let traveler = await prisma.traveler.findUnique({
       where: { firebaseId },
       include: {
-        tripsOwned: {
+        tripCrewsOwned: {
           orderBy: { createdAt: 'desc' },
+          include: {
+            trips: {
+              orderBy: { createdAt: 'desc' },
+            },
+          },
         },
       },
     })
@@ -36,8 +41,13 @@ export async function POST(request: NextRequest) {
           photoUrl: picture || null,
         },
         include: {
-          tripsOwned: {
+          tripCrewsOwned: {
             orderBy: { createdAt: 'desc' },
+            include: {
+              trips: {
+                orderBy: { createdAt: 'desc' },
+              },
+            },
           },
         },
       })
@@ -53,8 +63,13 @@ export async function POST(request: NextRequest) {
           photoUrl: picture || traveler.photoUrl,
         },
         include: {
-          tripsOwned: {
+          tripCrewsOwned: {
             orderBy: { createdAt: 'desc' },
+            include: {
+              trips: {
+                orderBy: { createdAt: 'desc' },
+              },
+            },
           },
         },
       })

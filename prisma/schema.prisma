@@ -8,95 +8,106 @@ generator client {
 }
 
 model Traveler {
-  id         String   @id @default(uuid())
-  firebaseId String?  @unique
-  email      String?  @unique
-  firstName  String?
-  lastName   String?
-  photoUrl   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  tripsOwned Trip[] @relation("TripOwner")
+  id             String     @id @default(uuid())
+  firebaseId     String?    @unique
+  email          String?    @unique
+  firstName      String?
+  lastName       String?
+  photoUrl       String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  tripCrewsOwned TripCrew[] @relation("TripCrewOwner")
+}
+
+model TripCrew {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  owner       Traveler @relation("TripCrewOwner", fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  trips       Trip[]
 }
 
 model Trip {
-  id           String   @id @default(uuid())
-  name         String
-  destination  String?
-  startDate    DateTime?
-  endDate      DateTime?
-  coverImage   String?
-  ownerId      String
-  owner        Traveler @relation("TripOwner", fields: [ownerId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  lodging      Lodging?
-  dining       Dining[]
-  attractions  Attraction[]
-  logistics    LogisticItem[]
-  packItems    PackItem[]
+  id          String         @id @default(uuid())
+  name        String
+  destination String?
+  startDate   DateTime?
+  endDate     DateTime?
+  coverImage  String?
+  tripCrewId  String
+  tripCrew    TripCrew       @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  lodging     Lodging?
+  dining      Dining[]
+  attractions Attraction[]
+  logistics   LogisticItem[]
+  packItems   PackItem[]
 }
 
 model Lodging {
-  id          String @id @default(uuid())
-  tripId      String @unique
-  title       String
-  address     String?
-  website     String?
-  phone       String?
+  id            String  @id @default(uuid())
+  tripId        String  @unique
+  title         String
+  address       String?
+  website       String?
+  phone         String?
   googlePlaceId String?
-  imageUrl    String?
-  rating      Float?
-  lat         Float?
-  lng         Float?
-  trip        Trip @relation(fields: [tripId], references: [id])
+  imageUrl      String?
+  rating        Float?
+  lat           Float?
+  lng           Float?
+  trip          Trip    @relation(fields: [tripId], references: [id])
 }
 
 model Dining {
-  id            String @id @default(uuid())
-  tripId        String
-  title         String
-  category      String?
-  address       String?
-  phone         String?
-  website       String?
-  googlePlaceId String? @unique
-  imageUrl      String?
-  rating        Float?
-  lat           Float?
-  lng           Float?
+  id                  String    @id @default(uuid())
+  tripId              String
+  title               String
+  category            String?
+  address             String?
+  phone               String?
+  website             String?
+  googlePlaceId       String?   @unique
+  imageUrl            String?
+  rating              Float?
+  lat                 Float?
+  lng                 Float?
   distanceFromLodging Float?
   driveTimeMinutes    Int?
-  itineraryDay DateTime?
-  trip          Trip @relation(fields: [tripId], references: [id])
+  itineraryDay        DateTime?
+  trip                Trip      @relation(fields: [tripId], references: [id])
 }
 
 model Attraction {
-  id            String @id @default(uuid())
-  tripId        String
-  title         String
-  category      String?
-  address       String?
-  phone         String?
-  website       String?
-  googlePlaceId String? @unique
-  imageUrl      String?
-  rating        Float?
-  lat           Float?
-  lng           Float?
+  id                  String    @id @default(uuid())
+  tripId              String
+  title               String
+  category            String?
+  address             String?
+  phone               String?
+  website             String?
+  googlePlaceId       String?   @unique
+  imageUrl            String?
+  rating              Float?
+  lat                 Float?
+  lng                 Float?
   distanceFromLodging Float?
   driveTimeMinutes    Int?
-  itineraryDay DateTime?
-  trip          Trip @relation(fields: [tripId], references: [id])
+  itineraryDay        DateTime?
+  trip                Trip      @relation(fields: [tripId], references: [id])
 }
 
 model LogisticItem {
-  id        String   @id @default(uuid())
-  tripId    String
-  title     String
-  detail    String?
+  id         String  @id @default(uuid())
+  tripId     String
+  title      String
+  detail     String?
   isComplete Boolean @default(false)
-  trip      Trip @relation(fields: [tripId], references: [id])
+  trip       Trip    @relation(fields: [tripId], references: [id])
 }
 
 model PackItem {
@@ -104,6 +115,5 @@ model PackItem {
   tripId   String
   title    String
   isPacked Boolean @default(false)
-  trip     Trip @relation(fields: [tripId], references: [id])
+  trip     Trip    @relation(fields: [tripId], references: [id])
 }
-
