@@ -8,42 +8,46 @@ generator client {
 }
 
 model Traveler {
-  id             String     @id @default(uuid())
-  firebaseId     String?    @unique
-  email          String?    @unique
-  firstName      String?
-  lastName       String?
-  photoUrl       String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  tripCrewsOwned TripCrew[] @relation("TripCrewOwner")
-  tripsOwned     Trip[]     @relation("TripOwner") // Universal personhood - Traveler owns trips
+  id                String           @id @default(uuid())
+  firebaseId         String?          @unique
+  email              String?          @unique
+  firstName          String?
+  lastName           String?
+  photoUrl           String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  
+  // TripCrew Relations (matching GoFast RunCrew pattern)
+  tripCrewMemberships TripCrewMember[] @relation("TravelerTripCrewMemberships")
+  tripCrewRoles       TripCrewRole[]   @relation("TravelerTripCrewRoles")
 }
 
 model TripCrew {
   id          String   @id @default(uuid())
   name        String
   description String?
-  ownerId     String
-  owner       Traveler @relation("TripCrewOwner", fields: [ownerId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  trips       Trip[]
+  
+  // Relations (matching GoFast RunCrew pattern)
+  memberships TripCrewMember[] // Junction table for members
+  roles       TripCrewRole[]   // Junction table for admin/manager roles
+  trips       Trip[]           // Trips belong to TripCrew
 }
 
 model Trip {
   id          String         @id @default(uuid())
+  tripCrewId  String         // Required: trip belongs to a TripCrew
   name        String
   destination String?
   startDate   DateTime?
   endDate     DateTime?
   coverImage  String?
-  ownerId     String         // Traveler who owns/created this trip (universal personhood)
-  owner       Traveler       @relation("TripOwner", fields: [ownerId], references: [id])
-  tripCrewId  String?        // Optional: trip can belong to a TripCrew
-  tripCrew    TripCrew?      @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  
+  // Relations
+  tripCrew    TripCrew       @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
   lodging     Lodging?
   dining      Dining[]
   attractions Attraction[]
@@ -119,4 +123,40 @@ model PackItem {
   title    String
   isPacked Boolean @default(false)
   trip     Trip    @relation(fields: [tripId], references: [id])
+}
+
+// TripCrew Membership - Junction table (matching GoFast RunCrewMembership pattern)
+model TripCrewMember {
+  id         String   @id @default(uuid())
+  tripCrewId String
+  travelerId String   // ATHLETE-FIRST: Foreign key to Traveler
+
+  // Timestamps
+  joinedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  tripCrew TripCrew @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  traveler Traveler @relation("TravelerTripCrewMemberships", fields: [travelerId], references: [id], onDelete: Cascade)
+
+  @@unique([tripCrewId, travelerId]) // Prevent duplicate memberships
+  @@map("trip_crew_members")
+}
+
+// TripCrew Roles - Junction table for admin/manager roles (matching GoFast RunCrewManager pattern)
+model TripCrewRole {
+  id         String   @id @default(uuid())
+  tripCrewId String
+  travelerId String
+  role       String   // "admin" | "manager"
+
+  createdAt  DateTime @default(now())
+
+  // Relations
+  tripCrew TripCrew @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  traveler Traveler @relation("TravelerTripCrewRoles", fields: [travelerId], references: [id], onDelete: Cascade)
+
+  @@unique([tripCrewId, travelerId])
+  @@map("trip_crew_roles")
 }

@@ -1,6 +1,13 @@
 # TripCrew Architecture
 
-## Core Principle: TravelerID = Universal Personhood
+**Last Updated**: January 2025  
+**Schema Status**: ✅ Complete (TripCrew, TripCrewMember, TripCrewRole, Trip)  
+**Pattern**: Matching GoFast RunCrew architecture exactly  
+**Architecture**: Traveler-first schema - all TripCrew features link back to Traveler model
+
+---
+
+## Core Principle: Traveler = Universal Personhood
 
 **Traveler is the universal identity model** - every person in the system is a Traveler, linked to Firebase auth.
 
@@ -8,153 +15,279 @@
 - Traveler = Universal personhood (like Athlete in GoFast)
 - firebaseId = Links to Firebase authentication
 - email = Unique identifier
-- All other models reference Traveler via ownerId
+- All relationships flow through junction tables (membership + roles)
 
-## Concept (Modeled After RunCrew)
+---
 
-**TripCrew = A shared trip planning group**
+## Architecture Philosophy
 
-- One person (Traveler) creates the TripCrew → becomes the **Owner/Admin**
-- TripCrew has a **public URL** for sharing with family/friends
-- Others can view the trip via the public URL (view-only by default)
-- Owner has full admin access to edit everything
-- The TripCrew itself IS the "crew" - it's the shared container for multiple trips
+### Traveler-First Identity
+
+**Key Concept**: All TripCrew features link back to Traveler as central identity.
+
+**Lookup Flow**:
+1. **Start with travelerId** → `GET /api/tripcrew` (finds all crews for authenticated traveler)
+2. **Transition to tripCrewId** → `GET /api/tripcrew/:id` (tripCrewId becomes primary relationship manager)
+
+**Why This Matters**:
+- Initial lookup uses `travelerId` (from Firebase token) to find crews
+- Once in crew context, `tripCrewId` is primary
+- All relationships within crew (members, roles, trips) use `tripCrewId`
+- Security checks still use `travelerId` for auth verification
+
+---
 
 ## Database Schema
 
-### Traveler (Universal Personhood)
+### Traveler Model (Universal Identity)
+**Table**: `travelers`
+
 ```prisma
 model Traveler {
-  id             String     @id @default(uuid())
-  firebaseId     String?    @unique  // Links to Firebase auth (REQUIRED for auth)
-  email          String?    @unique  // Unique email identifier
-  firstName      String?
-  lastName       String?
-  photoUrl       String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id                String           @id @default(uuid())
+  firebaseId         String?          @unique
+  email              String?          @unique
+  firstName          String?
+  lastName           String?
+  photoUrl           String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
   
-  // Relations - Traveler owns everything
-  tripCrewsOwned TripCrew[] @relation("TripCrewOwner") // Traveler can own multiple TripCrews
-  tripsOwned     Trip[]     @relation("TripOwner")      // Traveler can own trips directly (REQUIRED)
+  // TripCrew Relations (matching GoFast RunCrew pattern)
+  tripCrewMemberships TripCrewMember[] @relation("TravelerTripCrewMemberships")
+  tripCrewRoles       TripCrewRole[]   @relation("TravelerTripCrewRoles")
 }
 ```
 
 **Key Points**:
 - **Traveler is source of truth** - All identity flows through Traveler
 - **firebaseId is REQUIRED** - Links to Firebase authentication
-- **Every Trip MUST have ownerId (Traveler)** - Universal personhood
-- **Every TripCrew MUST have ownerId (Traveler)** - Universal personhood
+- **No direct ownership** - Relationships via junction tables only
 
-### TripCrew (Group Container)
+### TripCrew Model (Container)
+**Table**: `trip_crews`
+
 ```prisma
 model TripCrew {
   id          String   @id @default(uuid())
   name        String
   description String?
-  ownerId     String   // Traveler who owns this TripCrew (REQUIRED - universal personhood)
-  owner       Traveler @relation("TripCrewOwner", fields: [ownerId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  trips       Trip[]   // Multiple trips can belong to this crew
+  
+  // Relations (matching GoFast RunCrew pattern)
+  memberships TripCrewMember[] // Junction table for members
+  roles       TripCrewRole[]   // Junction table for admin/manager roles
+  trips       Trip[]           // Trips belong to TripCrew
 }
 ```
 
-**Purpose**: A TripCrew is a group/container that can hold multiple trips. Like a "family travel planning group."
+**Key Fields**:
+- `id`: Unique identifier (uuid)
+- `name`: Display name of the crew
+- `description`: Optional description
+- **NO ownerId** - Admin determined via `TripCrewRole` junction table
 
-### Trip (Individual Trip)
+### TripCrewMember Model (Membership Junction Table)
+**Table**: `trip_crew_members`
+
+```prisma
+model TripCrewMember {
+  id         String   @id @default(uuid())
+  tripCrewId String
+  travelerId String   // ATHLETE-FIRST: Foreign key to Traveler
+
+  // Timestamps
+  joinedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  tripCrew TripCrew @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  traveler Traveler @relation("TravelerTripCrewMemberships", fields: [travelerId], references: [id], onDelete: Cascade)
+
+  @@unique([tripCrewId, travelerId]) // Prevent duplicate memberships
+  @@map("trip_crew_members")
+}
+```
+
+**Purpose**: Junction table enabling many-to-many relationship (traveler can be in multiple crews)
+
+**Key Points**:
+- **NO role field** - Roles are separate in `TripCrewRole`
+- Unique constraint prevents duplicate memberships
+- Cascade deletes when TripCrew or Traveler is deleted
+
+### TripCrewRole Model (Roles Junction Table)
+**Table**: `trip_crew_roles`
+
+```prisma
+model TripCrewRole {
+  id         String   @id @default(uuid())
+  tripCrewId String
+  travelerId String
+  role       String   // "admin" | "manager"
+
+  createdAt  DateTime @default(now())
+
+  // Relations
+  tripCrew TripCrew @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  traveler Traveler @relation("TravelerTripCrewRoles", fields: [travelerId], references: [id], onDelete: Cascade)
+
+  @@unique([tripCrewId, travelerId])
+  @@map("trip_crew_roles")
+}
+```
+
+**Purpose**: Source of truth for admin/manager roles
+
+**Key Points**:
+- **Separate from membership** - Roles managed independently
+- **Role values**: `"admin"` or `"manager"` (string, not enum)
+- **MVP1**: Single admin only (via `TripCrewRole` with role='admin')
+- **Future**: Multiple managers via this junction table
+
+### Trip Model (Belongs to TripCrew)
+**Table**: `trips`
+
 ```prisma
 model Trip {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
+  tripCrewId  String         // Required: trip belongs to a TripCrew
   name        String
   destination String?
   startDate   DateTime?
   endDate     DateTime?
   coverImage  String?
-  ownerId     String   // Traveler who owns/created this trip (REQUIRED - universal personhood)
-  owner       Traveler @relation("TripOwner", fields: [ownerId], references: [id])
-  tripCrewId  String?  // Optional: trip can belong to a TripCrew
-  tripCrew    TripCrew? @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  // ... modules (lodging, dining, attractions, etc.)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  // Relations
+  tripCrew    TripCrew       @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  lodging     Lodging?
+  dining      Dining[]
+  attractions Attraction[]
+  logistics   LogisticItem[]
+  packItems   PackItem[]
 }
 ```
 
 **Key Points**:
-- **Every Trip MUST have an ownerId (Traveler)** - This is universal personhood (REQUIRED)
-- Trip can optionally belong to a TripCrew (for group organization)
-- Trip can exist independently OR as part of a TripCrew
-- When creating a Trip, ownerId is ALWAYS required
+- **NO ownerId** - Permissions determined via TripCrew roles
+- **tripCrewId is REQUIRED** - All trips belong to a TripCrew
+- **Cascade delete** - Deleting TripCrew deletes all trips
 
-## Architecture Flow
+---
 
-### For Trip Creator (Owner):
-1. Splash → Sign In/Up → Welcome (hydrates Traveler from Firebase)
-2. Welcome → "Create TripCrew" → TripCrew Setup Form
-3. TripCrew Setup → Creates TripCrew (with ownerId = Traveler) → Redirects to `/tripcrew/[tripCrewId]`
-4. TripCrew Hub → "Add Trip" → Creates Trip (with ownerId = Traveler, tripCrewId = TripCrew)
-5. Trip View → Owner can share public URL: `/trip/[tripId]` (view-only for others)
+## Role Logic (Following GoFast Pattern)
 
-### For Family/Friends (Viewers):
-1. Receive public URL: `/trip/[tripId]`
-2. View trip in read-only mode
-3. Can see all modules but cannot edit
+### Admin Check
 
-## Important Design Decisions
+```javascript
+const isAdmin = tripCrew.roles.some(r => 
+  r.travelerId === currentTravelerId && r.role === "admin"
+);
+```
 
-1. **TravelerID is Universal Personhood (Like AthleteID in GoFast)**
-   - Every trip has an ownerId (Traveler) - REQUIRED
-   - Every TripCrew has an ownerId (Traveler) - REQUIRED
-   - Traveler is the source of truth for identity
-   - Pattern matches GoFast's Athlete model exactly
+### Membership Check
 
-2. **Trips Can Be Standalone OR In a Crew**
-   - Trip.tripCrewId is optional
-   - Trip can exist without a TripCrew (direct ownership via ownerId)
-   - Trip can belong to a TripCrew (group organization)
-   - But Trip ALWAYS has ownerId (Traveler)
+```javascript
+const isMember = tripCrew.memberships.some(m => 
+  m.travelerId === currentTravelerId
+);
+```
 
-3. **TripCrew is a Container**
-   - TripCrew holds multiple trips
-   - Useful for organizing trips by group/family
-   - Owner can add multiple trips to the crew
-   - Each trip still has its own ownerId (Traveler)
+### Viewer (Public)
 
-## Current Status
+- Requires no membership or identity
+- Public trip pages ignore membership
+- Rely solely on admin checks for editing
 
-### ✅ What's Built:
-1. **Splash Page** (`/splash`) - Landing page with sign in/sign up
-2. **Sign In/Sign Up** - Firebase auth pages
-3. **Welcome Page** (`/welcome`) - Hydrates Traveler from Firebase
-4. **TripCrew Setup** (`/tripcrew/setup`) - Create new TripCrew
-5. **TripCrew Hub** (`/tripcrew/[tripCrewId]`) - View trips, add new trips
-6. **Trip Pages** - Public view and admin view
-7. **Trip Modules** - All working (Dining, Attractions, Lodging, Itinerary, Logistics, Pack List, Weather)
+---
 
-### ⚠️ What Needs Fixing:
-1. **Schema Migration** - Need to add ownerId back to Trip (currently removed)
-2. **Trip Creation** - Ensure all trip creation endpoints set ownerId (Traveler)
-3. **Public URL generation** - Generate shareable URLs for trips
-4. **Owner verification** - Check if user is trip owner for admin access
+## Key Design Principles
 
-## Migration Strategy
+1. **Traveler-First**: All TripCrew features link back to Traveler as central identity
+2. **No ownerId**: Admin determined via `TripCrewRole` junction table (matching GoFast)
+3. **Separate Concerns**: Membership (`TripCrewMember`) vs Roles (`TripCrewRole`)
+4. **Junction Tables**: Many-to-many relationships use junction tables
+5. **TripCrew Required**: All trips must belong to a TripCrew (no standalone trips)
+6. **Cascade Deletes**: Deleting TripCrew cascades to members, roles, trips, etc.
 
-Since we have existing data:
-1. Make tripCrewId optional (already done)
-2. Add ownerId to Trip (REQUIRED, but allow null temporarily for migration)
-3. Create migration script to:
-   - Find all trips without ownerId
-   - Create a default Traveler or link to existing Traveler
-   - Set ownerId on all trips
-4. Then make ownerId required (non-nullable)
+---
 
-## Next Steps (After Architecture Review)
+## Permissions Model
 
-1. ✅ Document Traveler as universal personhood (this doc)
-2. ⏸️ **PAUSE** - Review architecture before proceeding
-3. Fix schema to add ownerId back to Trip
-4. Update all trip creation endpoints to require ownerId
-5. Add public URL display on trip pages
-6. Add owner check middleware for admin routes
-7. Update seed script to create TripCrew and link trips with ownerId
+### Admin Permissions
+- Create/edit/delete trips
+- Manage crew members
+- Assign roles (future)
+- Full access to all trip modules
+
+### Manager Permissions (Future)
+- Create/edit trips
+- Manage members
+- Limited admin capabilities
+
+### Member Permissions
+- View trips
+- View crew members
+- Read-only access
+
+### Public/Viewer Permissions
+- View trips via public URL
+- Read-only access
+- No editing capabilities
+
+---
+
+## API Endpoints (To Be Implemented)
+
+### TripCrew Management
+- `POST /api/tripcrew/create` - Create TripCrew (creates membership + admin role)
+- `POST /api/tripcrew/join` - Join TripCrew via invite code
+- `GET /api/tripcrew/:id` - Hydrate TripCrew (with members, roles, trips)
+- `GET /api/tripcrew` - List user's TripCrews
+
+### Trip Management
+- `POST /api/tripcrew/:tripCrewId/trips` - Create trip (admin only)
+- `GET /api/tripcrew/:tripCrewId/trips` - List trips
+- `GET /api/trips/:tripId` - Get trip details
+- `PATCH /api/trips/:tripId` - Update trip (admin only)
+- `DELETE /api/trips/:tripId` - Delete trip (admin only)
+
+### Membership Management
+- `POST /api/tripcrew/:tripCrewId/members` - Add member (admin only)
+- `DELETE /api/tripcrew/:tripCrewId/members/:travelerId` - Remove member (admin only)
+
+### Role Management (Future)
+- `POST /api/tripcrew/:tripCrewId/roles` - Assign role (admin only)
+- `DELETE /api/tripcrew/:tripCrewId/roles/:travelerId` - Remove role (admin only)
+
+---
+
+## Migration Notes
+
+### Breaking Changes
+1. **Removed `ownerId` from TripCrew** - Use `TripCrewRole` instead
+2. **Removed `ownerId` from Trip** - Use `TripCrew` membership/roles instead
+3. **Made `tripCrewId` required on Trip** - All trips must belong to a TripCrew
+
+### Migration Strategy
+1. Create `TripCrewMember` records for existing relationships
+2. Create `TripCrewRole` records for existing admins
+3. Ensure all trips have a `tripCrewId` before making it required
+4. Update all API endpoints to use new permission model
+
+---
+
+## Related Documentation
+
+- **GoFast RunCrew Architecture** - Source pattern for this implementation
+- **GoFast RunCrewMembership.md** - Membership pattern details
+- **GoFast RunCrewManager.md** - Role management pattern
+
+---
+
+**Last Updated**: January 2025  
+**Maintained By**: TripWell Development Team
