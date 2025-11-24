@@ -17,6 +17,7 @@ model Traveler {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   tripCrewsOwned TripCrew[] @relation("TripCrewOwner")
+  tripsOwned     Trip[]     @relation("TripOwner") // Universal personhood - Traveler owns trips
 }
 
 model TripCrew {
@@ -37,8 +38,10 @@ model Trip {
   startDate   DateTime?
   endDate     DateTime?
   coverImage  String?
-  tripCrewId  String
-  tripCrew    TripCrew       @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  ownerId     String         // Traveler who owns/created this trip (universal personhood)
+  owner       Traveler       @relation("TripOwner", fields: [ownerId], references: [id])
+  tripCrewId  String?        // Optional: trip can belong to a TripCrew
+  tripCrew    TripCrew?      @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   lodging     Lodging?
