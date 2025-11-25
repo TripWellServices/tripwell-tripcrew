@@ -3,6 +3,7 @@
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 
+// Firebase config from TripWell OG frontend
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyCjpoH763y2GH4VDc181IUBaZHqE_ryZ1c',
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'gofast-a5f94.firebaseapp.com',
@@ -13,9 +14,34 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-L0NGHRBSDE',
 }
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
-export const auth = getAuth(app)
+// Initialize Firebase with error handling (matching TripWell OG)
+let app, auth
 
-export { app }
+try {
+  if (typeof window !== 'undefined') {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+    auth = getAuth(app)
+    console.log('✅ Firebase initialized successfully')
+  }
+} catch (error) {
+  console.error('❌ Firebase initialization error:', error)
+  // Fallback initialization
+  if (typeof window !== 'undefined') {
+    app = initializeApp(firebaseConfig)
+    auth = getAuth(app)
+  }
+}
+
+// Handle IndexedDB errors globally (matching TripWell OG)
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    if (event.error && event.error.message && event.error.message.includes('IndexedDB')) {
+      console.warn('⚠️ IndexedDB error detected, this is usually harmless:', event.error.message)
+      // Prevent the error from breaking the app
+      event.preventDefault()
+    }
+  })
+}
+
+export { app, auth }
 
