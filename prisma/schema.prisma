@@ -7,6 +7,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// TripWell Enterprises - Master Container (like GoFastCompany)
+model TripWellEnterprise {
+  id          String     @id @default(uuid())
+  name        String     @default("TripWell Enterprises")
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  travelers   Traveler[] // All travelers belong to TripWell Enterprises
+}
+
 model Traveler {
   id                String           @id @default(uuid())
   firebaseId         String?          @unique
@@ -14,10 +26,12 @@ model Traveler {
   firstName          String?
   lastName           String?
   photoUrl           String?
+  tripWellEnterpriseId String?        // Optional initially for migration, then required
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   
-  // TripCrew Relations (matching GoFast RunCrew pattern)
+  // Relations
+  tripWellEnterprise TripWellEnterprise? @relation(fields: [tripWellEnterpriseId], references: [id])
   tripCrewMemberships TripCrewMember[] @relation("TravelerTripCrewMemberships")
   tripCrewRoles       TripCrewRole[]   @relation("TravelerTripCrewRoles")
 }

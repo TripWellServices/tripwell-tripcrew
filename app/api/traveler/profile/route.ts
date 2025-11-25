@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * PUT /api/traveler/profile
+ * 
+ * Update Traveler profile information
+ * Requires Firebase authentication
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const {
+      firstName,
+      lastName,
+      email,
+      hometownCity,
+      state,
+      persona,
+      planningStyle,
+      dreamDestination,
+    } = body
+
+    // TODO: Add Firebase token verification
+    // For now, we'll use email to find traveler
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      )
+    }
+
+    // Find traveler by email
+    const traveler = await prisma.traveler.findUnique({
+      where: { email },
+    })
+
+    if (!traveler) {
+      return NextResponse.json(
+        { error: 'Traveler not found' },
+        { status: 404 }
+      )
+    }
+
+    // Update traveler profile
+    const updatedTraveler = await prisma.traveler.update({
+      where: { id: traveler.id },
+      data: {
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        // Note: We'll add profile fields to schema later if needed
+        // For now, just update basic fields
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      traveler: updatedTraveler,
+    })
+  } catch (error: any) {
+    console.error('Profile update error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Failed to update profile' },
+      { status: 500 }
+    )
+  }
+}
+

@@ -95,6 +95,15 @@ export default function WelcomePage() {
   }
 
   const displayName = traveler?.firstName || traveler?.email || 'Traveler'
+  
+  // Check if profile is complete (has firstName and lastName)
+  const isProfileComplete = traveler?.firstName && traveler?.lastName
+
+  // Redirect to profile setup if profile incomplete
+  if (!isProfileComplete) {
+    router.push('/profile/setup')
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 flex items-center justify-center p-6">

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { TravelerFindOrCreateService } from '@/lib/services/TravelerFindOrCreateService'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * POST /api/auth/hydrate
+ * 
+ * Hydrate Traveler from Firebase auth
+ * Uses TravelerFindOrCreateService to find or create traveler
+ * Links to TripWell Enterprises master container
+ */
 export async function POST(request: NextRequest) {
   try {
     const { firebaseId, email, name, picture } = await request.json()
@@ -14,84 +21,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find or create Traveler
-    let traveler = await prisma.traveler.findUnique({
-      where: { firebaseId },
-      include: {
-        tripCrewMemberships: {
-          include: {
-            tripCrew: {
-              include: {
-                trips: {
-                  orderBy: { createdAt: 'desc' },
-                },
-              },
-            },
-          },
-        },
-      },
+    // Use service to find or create traveler (handles TripWell Enterprises linking)
+    const traveler = await TravelerFindOrCreateService.findOrCreate({
+      firebaseId,
+      email,
+      displayName: name,
+      picture,
     })
-
-    if (!traveler) {
-      // Create new Traveler
-      const nameParts = name?.split(' ') || []
-      traveler = await prisma.traveler.create({
-        data: {
-          firebaseId,
-          email: email || null,
-          firstName: nameParts[0] || null,
-          lastName: nameParts.slice(1).join(' ') || null,
-          photoUrl: picture || null,
-        },
-        include: {
-          tripCrewMemberships: {
-            include: {
-              tripCrew: {
-                include: {
-                  trips: {
-                    orderBy: { createdAt: 'desc' },
-                  },
-                },
-              },
-            },
-          },
-        },
-      })
-    } else {
-      // Update existing Traveler with latest Firebase data
-      const nameParts = name?.split(' ') || []
-      traveler = await prisma.traveler.update({
-        where: { id: traveler.id },
-        data: {
-          email: email || traveler.email,
-          firstName: nameParts[0] || traveler.firstName,
-          lastName: nameParts.slice(1).join(' ') || traveler.lastName,
-          photoUrl: picture || traveler.photoUrl,
-        },
-        include: {
-          tripCrewMemberships: {
-            include: {
-              tripCrew: {
-                include: {
-                  trips: {
-                    orderBy: { createdAt: 'desc' },
-                  },
-                },
-              },
-            },
-          },
-        },
-      })
-    }
 
     return NextResponse.json({
       success: true,
       traveler,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Hydrate error:', error)
     return NextResponse.json(
-      { error: 'Failed to hydrate user' },
+      { error: error.message || 'Failed to hydrate user' },
       { status: 500 }
     )
   }
