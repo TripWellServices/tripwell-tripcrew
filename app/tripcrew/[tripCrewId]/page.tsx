@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { auth } from '@/lib/firebase'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
@@ -36,6 +36,7 @@ export default function TripCrewPage() {
   const [addingTrip, setAddingTrip] = useState(false)
 
   useEffect(() => {
+    const auth = getFirebaseAuth()
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (!firebaseUser) {
         router.push('/splash')

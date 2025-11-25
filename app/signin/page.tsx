@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import Link from 'next/link'
 
@@ -19,6 +19,7 @@ export default function SignInPage() {
     setLoading(true)
 
     try {
+      const auth = getFirebaseAuth()
       await signInWithEmailAndPassword(auth, email, password)
       router.push('/welcome')
     } catch (err: any) {
@@ -34,6 +35,7 @@ export default function SignInPage() {
 
     try {
       const provider = new GoogleAuthProvider()
+      const auth = getFirebaseAuth()
       await signInWithPopup(auth, provider)
       router.push('/welcome')
     } catch (err: any) {

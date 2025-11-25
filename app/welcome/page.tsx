@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
@@ -31,6 +31,7 @@ export default function WelcomePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const auth = getFirebaseAuth()
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         router.push('/splash')
@@ -146,7 +147,10 @@ export default function WelcomePage() {
             Create TripCrew
           </Link>
           <button
-            onClick={() => auth.signOut()}
+            onClick={() => {
+              const auth = getFirebaseAuth()
+              auth.signOut()
+            }}
             className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition"
           >
             Sign Out

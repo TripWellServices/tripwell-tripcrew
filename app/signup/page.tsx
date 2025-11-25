@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
+import { getFirebaseAuth } from '@/lib/firebase'
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth'
 import Link from 'next/link'
 
@@ -20,6 +20,7 @@ export default function SignUpPage() {
     setLoading(true)
 
     try {
+      const auth = getFirebaseAuth()
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       if (firstName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName: firstName })
@@ -38,6 +39,7 @@ export default function SignUpPage() {
 
     try {
       const provider = new GoogleAuthProvider()
+      const auth = getFirebaseAuth()
       await signInWithPopup(auth, provider)
       router.push('/welcome')
     } catch (err: any) {

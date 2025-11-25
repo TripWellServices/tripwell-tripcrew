@@ -1,7 +1,7 @@
 'use client'
 
-import { initializeApp, getApps } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
+import { getAuth, type Auth } from 'firebase/auth'
 
 // Firebase config from TripWell OG frontend
 const firebaseConfig = {
@@ -15,18 +15,17 @@ const firebaseConfig = {
 }
 
 // Initialize Firebase with error handling (matching TripWell OG)
-let app, auth
+let app: FirebaseApp | undefined
+let auth: Auth | undefined
 
-try {
-  if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined') {
+  try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
     auth = getAuth(app)
     console.log('✅ Firebase initialized successfully')
-  }
-} catch (error) {
-  console.error('❌ Firebase initialization error:', error)
-  // Fallback initialization
-  if (typeof window !== 'undefined') {
+  } catch (error) {
+    console.error('❌ Firebase initialization error:', error)
+    // Fallback initialization
     app = initializeApp(firebaseConfig)
     auth = getAuth(app)
   }
@@ -43,5 +42,14 @@ if (typeof window !== 'undefined') {
   })
 }
 
+// Export auth with type assertion for client-side usage
+export const getFirebaseAuth = (): Auth => {
+  if (!auth) {
+    throw new Error('Firebase Auth not initialized. This should only be called on the client side.')
+  }
+  return auth
+}
+
+// Export typed auth for server-side usage (when available)
 export { app, auth }
 
