@@ -13,11 +13,33 @@ async function main() {
     },
   })
 
+  // Create TripCrew first
+  const tripCrew = await prisma.tripCrew.upsert({
+    where: { id: 'seed-tripcrew-id' },
+    update: {},
+    create: {
+      id: 'seed-tripcrew-id',
+      name: 'Cole Family TripCrew',
+      description: 'Family travel planning',
+      memberships: {
+        create: {
+          travelerId: owner.id,
+        },
+      },
+      roles: {
+        create: {
+          travelerId: owner.id,
+          role: 'admin',
+        },
+      },
+    },
+  })
+
   // Check if trip already exists
   const existingTrip = await prisma.trip.findFirst({
     where: {
       name: 'Cole Family Thanksgiving',
-      ownerId: owner.id,
+      tripCrewId: tripCrew.id,
     },
   })
 
@@ -25,15 +47,18 @@ async function main() {
     data: {
       name: 'Cole Family Thanksgiving',
       destination: 'Richlands, VA',
-      ownerId: owner.id,
+      tripCrewId: tripCrew.id,
       startDate: new Date('2024-11-28'),
       endDate: new Date('2024-12-01'),
     },
   })
 
+  console.log('✅ Seeded TripCrew:', tripCrew.id)
   console.log('✅ Seeded trip:', trip.id)
   console.log('📍 Trip name:', trip.name)
   console.log('👤 Owner:', owner.firstName, owner.lastName)
+  console.log('\n🌐 View TripCrew at:')
+  console.log(`   http://localhost:3000/tripcrew/${tripCrew.id}`)
   console.log('\n🌐 View trip at:')
   console.log(`   http://localhost:3000/trip/${trip.id}`)
   console.log(`   http://localhost:3000/trip/${trip.id}?admin=1`)

@@ -14,7 +14,16 @@ export async function GET(
         trips: {
           orderBy: { createdAt: 'desc' },
         },
-        owner: true,
+        memberships: {
+          include: {
+            traveler: true,
+          },
+        },
+        roles: {
+          include: {
+            traveler: true,
+          },
+        },
       },
     })
 
@@ -37,4 +46,5 @@ export async function GET(
     )
   }
 }
+
 

@@ -18,11 +18,14 @@ export async function POST(request: NextRequest) {
     let traveler = await prisma.traveler.findUnique({
       where: { firebaseId },
       include: {
-        tripCrewsOwned: {
-          orderBy: { createdAt: 'desc' },
+        tripCrewMemberships: {
           include: {
-            trips: {
-              orderBy: { createdAt: 'desc' },
+            tripCrew: {
+              include: {
+                trips: {
+                  orderBy: { createdAt: 'desc' },
+                },
+              },
             },
           },
         },
@@ -41,11 +44,14 @@ export async function POST(request: NextRequest) {
           photoUrl: picture || null,
         },
         include: {
-          tripCrewsOwned: {
-            orderBy: { createdAt: 'desc' },
+          tripCrewMemberships: {
             include: {
-              trips: {
-                orderBy: { createdAt: 'desc' },
+              tripCrew: {
+                include: {
+                  trips: {
+                    orderBy: { createdAt: 'desc' },
+                  },
+                },
               },
             },
           },
@@ -63,11 +69,14 @@ export async function POST(request: NextRequest) {
           photoUrl: picture || traveler.photoUrl,
         },
         include: {
-          tripCrewsOwned: {
-            orderBy: { createdAt: 'desc' },
+          tripCrewMemberships: {
             include: {
-              trips: {
-                orderBy: { createdAt: 'desc' },
+              tripCrew: {
+                include: {
+                  trips: {
+                    orderBy: { createdAt: 'desc' },
+                  },
+                },
               },
             },
           },

@@ -23,7 +23,20 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   const trip = await prisma.trip.findUnique({
     where: { id: params.tripId },
     include: {
-      owner: true,
+      tripCrew: {
+        include: {
+          memberships: {
+            include: {
+              traveler: true,
+            },
+          },
+          roles: {
+            include: {
+              traveler: true,
+            },
+          },
+        },
+      },
       lodging: true,
       dining: true,
       attractions: true,

@@ -12,12 +12,16 @@ interface TripCrew {
   trips: Array<{ id: string; name: string }>
 }
 
+interface TripCrewMembership {
+  tripCrew: TripCrew
+}
+
 interface Traveler {
   id: string
   firstName: string | null
   lastName: string | null
   email: string | null
-  tripCrewsOwned: TripCrew[]
+  tripCrewMemberships: TripCrewMembership[]
 }
 
 export default function WelcomePage() {
@@ -102,18 +106,18 @@ export default function WelcomePage() {
           <p className="text-gray-600">Your TripWell Trip Crew</p>
         </div>
 
-        {traveler && traveler.tripCrewsOwned.length > 0 ? (
+        {traveler && traveler.tripCrewMemberships.length > 0 ? (
           <div className="space-y-4 mb-8">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Your TripCrews</h2>
-            {traveler.tripCrewsOwned.map((tripCrew) => (
+            {traveler.tripCrewMemberships.map((membership) => (
               <Link
-                key={tripCrew.id}
-                href={`/tripcrew/${tripCrew.id}`}
+                key={membership.tripCrew.id}
+                href={`/tripcrew/${membership.tripCrew.id}`}
                 className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
               >
-                <h3 className="font-semibold text-gray-800">{tripCrew.name}</h3>
+                <h3 className="font-semibold text-gray-800">{membership.tripCrew.name}</h3>
                 <p className="text-sm text-gray-600">
-                  {tripCrew.trips.length} trip{tripCrew.trips.length !== 1 ? 's' : ''}
+                  {membership.tripCrew.trips.length} trip{membership.tripCrew.trips.length !== 1 ? 's' : ''}
                 </p>
               </Link>
             ))}

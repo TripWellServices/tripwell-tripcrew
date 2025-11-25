@@ -65,7 +65,7 @@ export default function TripCrewSetupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          ownerId: travelerId,
+          travelerId: travelerId,
         }),
       })
 
@@ -145,4 +145,5 @@ export default function TripCrewSetupPage() {
     </div>
   )
 }
+
 

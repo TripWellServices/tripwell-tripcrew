@@ -5,23 +5,38 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, description, ownerId } = await request.json()
+    const { name, description, travelerId } = await request.json()
 
-    if (!name || !ownerId) {
+    if (!name || !travelerId) {
       return NextResponse.json(
-        { error: 'Name and ownerId are required' },
+        { error: 'Name and travelerId are required' },
         { status: 400 }
       )
     }
 
+    // Create TripCrew
     const tripCrew = await prisma.tripCrew.create({
       data: {
         name,
         description: description || null,
-        ownerId,
+        // Create membership for creator
+        memberships: {
+          create: {
+            travelerId,
+          },
+        },
+        // Create admin role for creator
+        roles: {
+          create: {
+            travelerId,
+            role: 'admin',
+          },
+        },
       },
       include: {
         trips: true,
+        memberships: true,
+        roles: true,
       },
     })
 
@@ -37,4 +52,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
 
