@@ -21,7 +21,7 @@ export default function TripCrewSetupPage() {
     const auth = getFirebaseAuth()
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
-        router.push('/splash')
+        router.push('/')
         return
       }
 
