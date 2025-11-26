@@ -7,6 +7,34 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Trip Enums
+enum TripPurpose {
+  FAMILY
+  ANNIVERSARY
+  WORK
+  RACE
+  FRIENDS
+  COUPLES
+  GENERAL
+}
+
+enum TripType {
+  BEACH
+  CITY
+  MOUNTAIN
+  ADVENTURE
+  SKI
+  CRUISE
+  THEMEPARK
+  GENERAL
+}
+
+enum TripBudget {
+  BUDGET
+  MODERATE
+  LUXURY
+}
+
 // TripWell Enterprises - Master Container (like GoFastCompany)
 model TripWellEnterprise {
   id          String     @id @default(uuid())
@@ -80,12 +108,17 @@ model JoinCode {
 
 model Trip {
   id          String         @id @default(uuid())
-  tripCrewId  String?        // Optional for migration, will be required later
+  tripCrewId  String?        // Will be required after migration
   name        String
   destination String?
+  purpose     TripPurpose?
+  tripType    TripType?
+  budgetLevel TripBudget?
+  notes       String?
+  attendees   String[]       @default([]) // travelerId[]
+  coverImage  String?
   startDate   DateTime?
   endDate     DateTime?
-  coverImage  String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   

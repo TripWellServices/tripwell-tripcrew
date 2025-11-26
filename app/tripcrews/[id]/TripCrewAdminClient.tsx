@@ -11,12 +11,11 @@ import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getTripCrew, generateInviteLink } from '@/lib/actions/tripcrew'
-import { createTrip } from '@/lib/actions/trip'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import InviteMemberModal from './InviteMemberModal'
-import CreateTripModal from './CreateTripModal'
+import CreateTripModal from '@/components/trip/CreateTripModal'
 
 interface TripCrewAdminClientProps {
   tripCrewId: string
@@ -135,35 +134,7 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
     }
   }
 
-  const handleCreateTrip = async (tripData: {
-    name: string
-    destination?: string
-    startDate?: Date
-    endDate?: Date
-  }) => {
-    if (!travelerId) return { success: false, error: 'Not authenticated' }
-
-    try {
-      const result = await createTrip({
-        ...tripData,
-        tripCrewId,
-        travelerId,
-      })
-
-      if (result.success && result.trip) {
-        // Reload TripCrew data
-        await loadTripCrew(travelerId)
-        setShowCreateTripModal(false)
-        // Redirect to trip admin page
-        router.push(`/trip/${result.trip.id}/admin`)
-        return { success: true }
-      } else {
-        return { success: false, error: result.error || 'Failed to create trip' }
-      }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Failed to create trip' }
-    }
-  }
+  // New modal handles trip creation internally
 
   if (loading) {
     return (
@@ -350,9 +321,10 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
         />
       )}
 
-      {showCreateTripModal && (
+      {showCreateTripModal && travelerId && (
         <CreateTripModal
-          onCreate={handleCreateTrip}
+          tripCrew={tripCrew}
+          travelerId={travelerId}
           onClose={() => setShowCreateTripModal(false)}
         />
       )}

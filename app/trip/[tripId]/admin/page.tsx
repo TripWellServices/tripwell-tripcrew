@@ -32,13 +32,101 @@ export default async function AdminPage({ params }: PageProps) {
           <p className="text-yellow-800 font-semibold">🔧 Admin Mode Active</p>
         </div>
 
-        <TripHeader
-          name={trip.name}
-          destination={trip.destination}
-          startDate={trip.startDate}
-          endDate={trip.endDate}
-          coverImage={trip.coverImage}
-        />
+        {/* Trip Header with Full Metadata */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          {trip.coverImage && (
+            <div className="mb-6 rounded-lg overflow-hidden">
+              <img
+                src={trip.coverImage}
+                alt={trip.name}
+                className="w-full h-64 object-cover"
+              />
+            </div>
+          )}
+          
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">{trip.name}</h1>
+              <p className="text-xl text-gray-600 mb-4">📍 {trip.destination}</p>
+              
+              {/* Metadata Badges */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {trip.purpose && (
+                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                    {trip.purpose}
+                  </span>
+                )}
+                {trip.tripType && (
+                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    {trip.tripType}
+                  </span>
+                )}
+                {trip.budgetLevel && (
+                  <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                    {trip.budgetLevel}
+                  </span>
+                )}
+              </div>
+
+              {/* Date Range */}
+              {trip.startDate && trip.endDate && (
+                <p className="text-gray-600 mb-4">
+                  📅 {new Date(trip.startDate).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })} - {new Date(trip.endDate).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </p>
+              )}
+
+              {/* Attendees */}
+              {trip.attendees && trip.attendees.length > 0 && trip.tripCrew?.memberships && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Attendees:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {trip.tripCrew.memberships
+                      .filter((m: any) => trip.attendees.includes(m.traveler.id))
+                      .map((membership: any) => (
+                        <div
+                          key={membership.traveler.id}
+                          className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full"
+                        >
+                          {membership.traveler.photoURL ? (
+                            <img
+                              src={membership.traveler.photoURL}
+                              alt={membership.traveler.firstName || 'Member'}
+                              className="w-6 h-6 rounded-full"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center">
+                              <span className="text-gray-600 text-xs">
+                                {membership.traveler.firstName?.[0] || '?'}
+                              </span>
+                            </div>
+                          )}
+                          <span className="text-sm text-gray-700">
+                            {membership.traveler.firstName} {membership.traveler.lastName}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {trip.notes && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Notes:</p>
+                  <p className="text-gray-600 whitespace-pre-wrap">{trip.notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">

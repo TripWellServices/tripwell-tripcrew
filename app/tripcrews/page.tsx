@@ -52,34 +52,33 @@ export default function TripCrewsPage() {
         setTravelerId(storedTravelerId)
         loadTripCrews(storedTravelerId)
       } else {
-          // Hydrate if not in localStorage
-          try {
-            const response = await fetch('/api/auth/hydrate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                firebaseId: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: firebaseUser.displayName,
-                picture: firebaseUser.photoURL,
-              }),
-            })
+        // Hydrate if not in localStorage
+        try {
+          const response = await fetch('/api/auth/hydrate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firebaseId: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: firebaseUser.displayName,
+              picture: firebaseUser.photoURL,
+            }),
+          })
 
-            if (response.ok) {
-              const data = await response.json()
-              const travelerId = data.traveler.id
-              setTravelerId(travelerId)
-              LocalStorageAPI.setFullHydrationModel(data.traveler)
-              loadTripCrews(travelerId)
-            } else {
-              setError('Failed to load your account')
-              setLoading(false)
-            }
-          } catch (err) {
-            console.error('Error hydrating:', err)
+          if (response.ok) {
+            const data = await response.json()
+            const travelerId = data.traveler.id
+            setTravelerId(travelerId)
+            LocalStorageAPI.setFullHydrationModel(data.traveler)
+            loadTripCrews(travelerId)
+          } else {
             setError('Failed to load your account')
             setLoading(false)
           }
+        } catch (err) {
+          console.error('Error hydrating:', err)
+          setError('Failed to load your account')
+          setLoading(false)
         }
       }
     })
