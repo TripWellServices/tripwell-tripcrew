@@ -68,7 +68,7 @@ export class TravelerFindOrCreateService {
         email: email || undefined, // Update email if changed in Firebase
         firstName, // Update firstName from displayName
         lastName, // Update lastName from displayName
-        photoUrl: picture || null, // Update photoUrl from Firebase
+        photoURL: picture || null, // Update photoURL from Firebase Google profile
         tripWellEnterpriseId: enterpriseId, // ALWAYS ensure linked to master container
       },
       create: {
@@ -76,7 +76,7 @@ export class TravelerFindOrCreateService {
         email: email || null,
         firstName,
         lastName,
-        photoUrl: picture || null,
+        photoURL: picture || null, // Google profile picture from Firebase
         tripWellEnterpriseId: enterpriseId, // Link to master container
       },
       include: {
@@ -117,7 +117,7 @@ export class TravelerFindOrCreateService {
         email: traveler.email,
         firstName: traveler.firstName,
         lastName: traveler.lastName,
-        photoUrl: traveler.photoUrl,
+        photoURL: traveler.photoURL,
         tripWellEnterpriseId: traveler.tripWellEnterpriseId,
         createdAt: traveler.createdAt,
         updatedAt: traveler.updatedAt,

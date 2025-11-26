@@ -22,7 +22,7 @@ interface Traveler {
   email: string | null
   firstName: string | null
   lastName: string | null
-  photoUrl: string | null
+  photoURL: string | null
   hometownCity: string | null
   homeState: string | null
   persona: string | null
