@@ -93,11 +93,21 @@ export default function ProfileSetupPage() {
     setError('')
 
     try {
-      // Update profile via API
+      // Get firebaseId from localStorage (set during hydration)
+      const firebaseId = typeof window !== 'undefined' ? localStorage.getItem('firebaseId') : null
+      
+      if (!firebaseId) {
+        throw new Error('Not authenticated. Please sign in again.')
+      }
+
+      // Update profile via API (include firebaseId for upsert)
       const response = await fetch('/api/traveler/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          firebaseId, // Required for upsert
+        }),
       })
 
       if (!response.ok) {

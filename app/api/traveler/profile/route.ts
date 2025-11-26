@@ -6,13 +6,14 @@ export const dynamic = 'force-dynamic'
 /**
  * PUT /api/traveler/profile
  * 
- * Update Traveler profile information
- * Requires Firebase authentication
+ * Upsert Traveler profile information by firebaseId
+ * Uses firebaseId from request body (sent from client localStorage)
  */
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
     const {
+      firebaseId, // Required - from localStorage
       firstName,
       lastName,
       email,
@@ -23,47 +24,53 @@ export async function PUT(request: NextRequest) {
       dreamDestination,
     } = body
 
-    // TODO: Add Firebase token verification
-    // For now, we'll use email to find traveler
-    if (!email) {
+    // Require firebaseId to identify traveler
+    if (!firebaseId) {
       return NextResponse.json(
-        { error: 'Email is required' },
+        { error: 'firebaseId is required' },
         { status: 400 }
       )
     }
 
-    // Find traveler by email
-    const traveler = await prisma.traveler.findUnique({
-      where: { email },
+    console.log('📝 PROFILE UPDATE: Upserting traveler profile for firebaseId:', firebaseId)
+
+    // Upsert traveler by firebaseId (find or create)
+    // This ensures the traveler exists and updates all profile fields
+    const updatedTraveler = await prisma.traveler.upsert({
+      where: { firebaseId },
+      update: {
+        // Update all profile fields
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        email: email || undefined,
+        hometownCity: hometownCity || undefined,
+        homeState: state || undefined,
+        persona: persona || undefined,
+        planningStyle: planningStyle || undefined,
+        dreamDestination: dreamDestination || undefined,
+      },
+      create: {
+        // Create if doesn't exist (shouldn't happen, but safe fallback)
+        firebaseId,
+        email: email || null,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        hometownCity: hometownCity || null,
+        homeState: state || null,
+        persona: persona || null,
+        planningStyle: planningStyle || null,
+        dreamDestination: dreamDestination || null,
+      },
     })
 
-    if (!traveler) {
-      return NextResponse.json(
-        { error: 'Traveler not found' },
-        { status: 404 }
-      )
-    }
-
-        // Update traveler profile with all fields
-        const updatedTraveler = await prisma.traveler.update({
-          where: { id: traveler.id },
-          data: {
-            firstName: firstName || undefined,
-            lastName: lastName || undefined,
-            hometownCity: hometownCity || undefined,
-            homeState: state || undefined,
-            persona: persona || undefined,
-            planningStyle: planningStyle || undefined,
-            dreamDestination: dreamDestination || undefined,
-          },
-        })
+    console.log('✅ PROFILE UPDATE: Traveler profile updated:', updatedTraveler.id)
 
     return NextResponse.json({
       success: true,
       traveler: updatedTraveler,
     })
   } catch (error: any) {
-    console.error('Profile update error:', error)
+    console.error('❌ PROFILE UPDATE: Error:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to update profile' },
       { status: 500 }
