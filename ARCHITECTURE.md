@@ -56,7 +56,7 @@ Traveler
   ├── id (UUID)
   ├── firebaseId (unique, from Firebase Auth)
   ├── email (unique)
-  ├── firstName, lastName, photoUrl
+  ├── firstName, lastName, photoURL
   ├── hometownCity, homeState, persona, planningStyle, dreamDestination
   ├── tripWellEnterpriseId → TripWellEnterprise // REQUIRED - all travelers linked
   └── Relations:

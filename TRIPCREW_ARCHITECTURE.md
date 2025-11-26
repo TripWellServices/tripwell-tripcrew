@@ -49,7 +49,7 @@ model Traveler {
   email              String?          @unique
   firstName          String?
   lastName           String?
-  photoUrl           String?
+  photoURL           String?  // Google profile picture URL (from Firebase)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   

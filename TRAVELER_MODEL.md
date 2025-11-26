@@ -12,7 +12,7 @@ model Traveler {
   email              String?          @unique
   firstName          String?
   lastName           String?
-  photoUrl           String?
+  photoURL           String?  // Google profile picture URL (from Firebase)
   
   // Profile fields (from OG TripWell ProfileSetup)
   hometownCity       String?
@@ -42,7 +42,7 @@ model Traveler {
 ### Basic Profile Fields
 - `firstName`: User's first name
 - `lastName`: User's last name
-- `photoUrl`: Profile photo URL from Firebase
+- `photoURL`: Google profile picture URL from Firebase (synced automatically)
 
 ### Extended Profile Fields (from OG TripWell ProfileSetup)
 - `hometownCity`: City the user calls home
