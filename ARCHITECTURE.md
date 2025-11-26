@@ -3,7 +3,8 @@
 **Last Updated**: December 2024  
 **Pattern**: RunCrew for Travel (modeled after GoFast RunCrew)  
 **Identity Model**: Traveler-first (universal personhood)  
-**Container Model**: TripWell Enterprise → TripCrew → Trip
+**Container Model**: TripWell Enterprise → TripCrew → Trip  
+**Invite System**: JoinCode Registry (authoritative source)
 
 ---
 
@@ -15,6 +16,7 @@
 TripWell Enterprise (Master Container)
   └── Traveler (Universal Personhood)
         └── TripCrew (Group Container)
+              ├── JoinCode (Invite Registry)
               └── Trip (Individual Trip)
                     ├── Lodging (1 per trip)
                     ├── Dining (many per trip)
@@ -29,6 +31,109 @@ TripWell Enterprise (Master Container)
 2. **Container Pattern**: TripWell Enterprise → TripCrew → Trip (nested containers)
 3. **Junction Tables**: Many-to-many relationships via `TripCrewMember` and `TripCrewRole`
 4. **Trip Modules**: All trip data (Dining, Attraction, Lodging, etc.) belongs to `Trip`
+5. **JoinCode Registry**: Authoritative source for invite codes (prevents duplicates, enables expiration)
+
+---
+
+## Invite System (JoinCode Registry)
+
+### ✅ **Implemented: JoinCode Registry Pattern**
+
+Following GoFast's proven pattern, TripWell uses a **JoinCode registry** as the authoritative source for invite codes.
+
+#### JoinCode Model
+```prisma
+model JoinCode {
+  id        String    @id @default(uuid())
+  code      String    @unique // Normalized, uppercase code
+  tripCrewId String
+  tripCrew  TripCrew  @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime? // Optional expiration
+  isActive  Boolean   @default(true) // Can deactivate without deleting
+
+  @@index([code])
+  @@index([tripCrewId])
+  @@map("join_codes")
+}
+```
+
+#### TripCrew Model (Updated)
+```prisma
+model TripCrew {
+  id                String   @id @default(uuid())
+  name              String
+  description       String?
+  inviteCode        String?  @default(uuid()) @unique // Legacy field (backward compatibility)
+  createdByTravelerId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  memberships       TripCrewMember[]
+  roles             TripCrewRole[]
+  trips             Trip[]
+  joinCodes         JoinCode[] // Registry entries (authoritative)
+  
+  @@index([inviteCode])
+}
+```
+
+### Invite Flow
+
+#### 1. **Create TripCrew** → Auto-generates JoinCode
+```typescript
+// Server Action: createTripCrew()
+// - Generates unique 6-character code (e.g., "ABC123")
+// - Creates JoinCode registry entry
+// - Also sets TripCrew.inviteCode (backward compatibility)
+```
+
+#### 2. **Lookup TripCrew** → Via JoinCode Registry
+```typescript
+// Server Action: lookupTripCrewByCode(code)
+// - Normalizes code (uppercase, trimmed)
+// - Checks JoinCode registry first
+// - Falls back to TripCrew.inviteCode (backward compatibility)
+// - Validates: isActive, not expired
+// - Returns crew preview (name, member count, admin info)
+```
+
+#### 3. **Join TripCrew** → Via JoinCode Registry
+```typescript
+// Server Action: joinTripCrew(code, travelerId)
+// - Looks up via JoinCode registry
+// - Validates code is active and not expired
+// - Creates TripCrewMember entry
+// - Redirects to /tripcrews/[id]
+```
+
+#### 4. **Generate Invite Link** → Direct URL
+```typescript
+// Server Action: generateInviteLink(tripCrewId, travelerId)
+// - Gets active JoinCode from registry
+// - Returns: /join?code=ABC123
+// - Users can share this link directly
+```
+
+### Join Page (`/join?code=ABC123`)
+
+**Purpose**: Direct link to join a TripCrew (works for authenticated and unauthenticated users)
+
+**Flow**:
+1. User clicks invite link → `/join?code=ABC123`
+2. Page loads → Calls `lookupTripCrewByCode(code)`
+3. Shows crew preview (name, description, member count, admin)
+4. If authenticated → "Join This TripCrew" button
+5. If not authenticated → "Sign Up to Join" / "Sign In to Join" buttons
+6. After join → Redirects to `/tripcrews/[id]`
+
+**Features**:
+- ✅ Works for unauthenticated users (shows sign up/sign in options)
+- ✅ Works for authenticated users (direct join)
+- ✅ Validates code is active and not expired
+- ✅ Shows crew preview before joining
+- ✅ Handles invalid/expired codes gracefully
 
 ---
 
@@ -71,15 +176,29 @@ Traveler
 TripCrew
   ├── id (UUID)
   ├── name, description
+  ├── inviteCode (legacy, backward compatibility)
   └── Relations:
       ├── memberships: TripCrewMember[] // Junction table
       ├── roles: TripCrewRole[] // Admin/manager roles
-      └── trips: Trip[] // All trips belong to a TripCrew
+      ├── trips: Trip[] // All trips belong to a TripCrew
+      └── joinCodes: JoinCode[] // Invite code registry
 ```
 
 **Purpose**: Group container (like RunCrew) - "Cole Family", "Friends Trip", etc.
 
-#### 4. Junction Tables (Many-to-Many)
+#### 4. JoinCode Registry (NEW)
+```prisma
+JoinCode
+  ├── code (unique, normalized uppercase)
+  ├── tripCrewId → TripCrew
+  ├── isActive (can deactivate without deleting)
+  ├── expiresAt (optional expiration)
+  └── createdAt
+```
+
+**Purpose**: Authoritative source for invite codes (prevents duplicates, enables expiration)
+
+#### 5. Junction Tables (Many-to-Many)
 ```prisma
 TripCrewMember
   ├── tripCrewId → TripCrew
@@ -94,7 +213,7 @@ TripCrewRole
 
 **Purpose**: Enable many-to-many relationships (travelers can be in multiple crews)
 
-#### 5. Trip Layer
+#### 6. Trip Layer
 ```prisma
 Trip
   ├── id (UUID)
@@ -110,7 +229,7 @@ Trip
 
 **Purpose**: Individual trip container - all trip modules belong here
 
-#### 6. Trip Modules (All Connected to Trip)
+#### 7. Trip Modules (All Connected to Trip)
 ```prisma
 Lodging
   ├── tripId → Trip (unique, 1:1)
@@ -139,137 +258,126 @@ PackItem
 
 ---
 
-## Relationship Integrity
+## Server Actions
 
-### ✅ **All Objects Are Connected**
+### TripCrew Actions (`lib/actions/tripcrew.ts`)
 
-| Model | Connected To | Relationship Type | Required? |
-|-------|-------------|------------------|-----------|
-| `Traveler` | `TripWellEnterprise` | Many-to-One | ✅ Yes (via `tripWellEnterpriseId`) |
-| `TripCrewMember` | `Traveler` + `TripCrew` | Junction (Many-to-Many) | ✅ Yes |
-| `TripCrewRole` | `Traveler` + `TripCrew` | Junction (Many-to-Many) | ✅ Yes |
-| `Trip` | `TripCrew` | Many-to-One | ✅ Yes (via `tripCrewId`) |
-| `Lodging` | `Trip` | One-to-One | ✅ Yes (via `tripId`, unique) |
-| `Dining` | `Trip` | Many-to-One | ✅ Yes (via `tripId`) |
-| `Attraction` | `Trip` | Many-to-One | ✅ Yes (via `tripId`) |
-| `LogisticItem` | `Trip` | Many-to-One | ✅ Yes (via `tripId`) |
-| `PackItem` | `Trip` | Many-to-One | ✅ Yes (via `tripId`) |
+#### ✅ `createTripCrew(data)`
+- Creates TripCrew
+- Generates unique 6-character join code
+- Creates JoinCode registry entry
+- Creates membership (creator joins automatically)
+- Creates admin role (creator is admin)
+- Returns: `{ success, tripCrew, joinCode }`
 
-**Result**: No orphaned records. Every object has a parent.
+#### ✅ `getTripCrew(tripCrewId, travelerId)`
+- Verifies traveler is a member
+- Returns TripCrew with members, roles, trips
+- Security: Only members can access
+
+#### ✅ `getTravelerTripCrews(travelerId)`
+- Returns all TripCrews traveler belongs to
+- Includes trip counts, member counts
+
+#### ✅ `lookupTripCrewByCode(joinCode)` (NEW)
+- Normalizes code (uppercase, trimmed)
+- Checks JoinCode registry first
+- Falls back to TripCrew.inviteCode (backward compatibility)
+- Validates: isActive, not expired
+- Returns crew preview (name, description, member count, admin info)
+- Used by `/join` page
+
+#### ✅ `joinTripCrew(joinCode, travelerId)` (UPDATED)
+- Looks up via JoinCode registry
+- Validates code is active and not expired
+- Checks if already a member
+- Creates TripCrewMember entry
+- Returns: `{ success, tripCrewId }`
+
+#### ✅ `generateInviteLink(tripCrewId, travelerId)` (UPDATED)
+- Verifies requester is admin
+- Gets active JoinCode from registry
+- Returns: `{ success, inviteUrl, inviteCode }`
+- URL format: `/join?code=ABC123`
+
+#### ✅ `addTripCrewMember(tripCrewId, travelerId, email)`
+- Only admins can add members
+- Finds traveler by email
+- Creates membership
 
 ---
 
-## Data Flow
+## Pages & Routes
 
-### User Journey
+### ✅ Authentication Flow
+- `/` → Redirects to `/splash`
+- `/splash` → Landing page (sign in/sign up)
+- `/signin` → Sign in page
+- `/signup` → Sign up page
 
-1. **Sign Up** → Firebase Auth → `Traveler` created → Linked to `TripWellEnterprise`
-2. **Create TripCrew** → `TripCrew` created → `TripCrewMember` created (traveler joins)
-3. **Create Trip** → `Trip` created → Linked to `TripCrew`
-4. **Add Modules** → `Lodging`, `Dining`, `Attraction`, etc. → All linked to `Trip`
+### ✅ Core User Flow
+- `/welcome` → Universal hydrator → Redirects to `/tripcrews` (after profile check)
+- `/profile/setup` → Complete profile → Redirects to `/tripcrews`
+- `/profile/settings` → Edit profile
 
-### Query Patterns
+### ✅ TripCrew Pages
+- `/tripcrews` → List all TripCrews + Create-or-Join fork
+- `/tripcrews/new` → Create TripCrew (single form, no wizard)
+- `/tripcrews/[id]` → TripCrew Admin Page (members, trips, invite)
+- `/join?code=ABC123` → **NEW** - Direct join page (works for authenticated/unauthenticated)
 
-#### Get Traveler's TripCrews
-```typescript
-const traveler = await prisma.traveler.findUnique({
-  where: { firebaseId },
-  include: {
-    tripCrewMemberships: {
-      include: {
-        tripCrew: {
-          include: {
-            trips: true
-          }
-        }
-      }
-    }
-  }
-})
+### ✅ Trip Pages
+- `/trip/[tripId]` → Trip detail (public view)
+- `/trip/[tripId]/admin` → Trip admin (edit mode)
+
+---
+
+## Navigation Flow
+
+### New User Journey
+```
+/splash → /signup → /welcome → /profile/setup → /tripcrews → /tripcrews/new → /tripcrews/[id]
 ```
 
-#### Get Trip with All Modules
-```typescript
-const trip = await prisma.trip.findUnique({
-  where: { id: tripId },
-  include: {
-    tripCrew: true,
-    lodging: true,
-    dining: true,
-    attractions: true,
-    logistics: true,
-    packItems: true
-  }
-})
+### Returning User Journey
+```
+/splash → /signin → /welcome → /tripcrews → 
+  ├─ No TripCrews → /tripcrews/new
+  └─ Has TripCrews → /tripcrews/[id] (first crew)
+```
+
+### Invite Flow (NEW)
+```
+User receives link: /join?code=ABC123
+  ├─ Not authenticated → Shows sign up/sign in options
+  └─ Authenticated → Shows "Join This TripCrew" → /tripcrews/[id]
 ```
 
 ---
 
-## Architecture Assessment
+## JoinCode Generation
 
-### ✅ **Is "Loose Objects" a Problem? NO**
+### Code Format
+- **Length**: 6 characters
+- **Characters**: A-Z, 2-9 (removed confusing: 0, O, I, 1)
+- **Case**: Uppercase (normalized)
+- **Uniqueness**: Enforced by `@@unique` constraint on `JoinCode.code`
 
-**Why the architecture is solid:**
+### Generation Logic
+```typescript
+async function generateUniqueJoinCode(): Promise<string> {
+  // Try up to 10 times to generate unique code
+  // Format: 6 random characters (A-Z, 2-9)
+  // Fallback: UUID-based if random fails
+}
+```
 
-1. **Clear Hierarchy**: Enterprise → Traveler → TripCrew → Trip → Modules
-2. **Foreign Key Constraints**: All relationships enforced at database level
-3. **Cascade Deletes**: Deleting a Trip deletes all modules (via `onDelete: Cascade`)
-4. **Junction Tables**: Proper many-to-many relationships (not loose references)
-5. **Single Source of Truth**: Each object has one parent (no ambiguity)
-
-### What Makes It "Not Loose"
-
-- ✅ Every `Traveler` **must** belong to `TripWellEnterprise`
-- ✅ Every `Trip` **must** belong to a `TripCrew`
-- ✅ Every module (`Dining`, `Attraction`, etc.) **must** belong to a `Trip`
-- ✅ Junction tables enforce relationships (can't have orphaned memberships)
-- ✅ Database constraints prevent invalid relationships
-
-### Comparison to "Loose Objects" (What We're NOT Doing)
-
-❌ **Bad (Loose)**:
-- Objects with no parent (orphaned records)
-- String references instead of foreign keys
-- No cascade deletes (orphaned data)
-- Multiple sources of truth
-
-✅ **Good (Current Architecture)**:
-- All objects have parents (enforced by FK)
-- Foreign key relationships (database-enforced)
-- Cascade deletes (data integrity)
-- Single source of truth (clear hierarchy)
-
----
-
-## Module Design
-
-### Trip Modules (All Scoped to Trip)
-
-Each module is **tightly coupled** to its parent `Trip`:
-
-1. **Lodging** (1:1 with Trip)
-   - One lodging per trip
-   - Used for distance calculations
-
-2. **Dining** (Many:1 with Trip)
-   - Multiple restaurants per trip
-   - Can be assigned to `itineraryDay`
-   - Distance calculated from lodging
-
-3. **Attraction** (Many:1 with Trip)
-   - Multiple attractions per trip
-   - Can be assigned to `itineraryDay`
-   - Distance calculated from lodging
-
-4. **LogisticItem** (Many:1 with Trip)
-   - Simple checklist items
-   - `isComplete` flag
-
-5. **PackItem** (Many:1 with Trip)
-   - Packing checklist
-   - `isPacked` flag
-
-**All modules are deleted when Trip is deleted** (cascade delete).
+### Registry Benefits
+1. **Prevents Duplicates**: Unique constraint on `code`
+2. **Enables Expiration**: `expiresAt` field
+3. **Can Deactivate**: `isActive` flag (soft delete)
+4. **Multiple Codes**: Can have multiple codes per crew (future)
+5. **Backward Compatible**: Falls back to `TripCrew.inviteCode`
 
 ---
 
@@ -281,6 +389,7 @@ Each module is **tightly coupled** to its parent `Trip`:
 2. **Traveler**: Scoped to Enterprise (all travelers belong to same enterprise)
 3. **TripCrew**: Scoped to members (via `TripCrewMember` junction)
 4. **Trip**: Scoped to TripCrew (via `tripCrewId`)
+5. **JoinCode**: Scoped to TripCrew (via `tripCrewId`)
 
 ### Query Security
 
@@ -307,6 +416,31 @@ const trips = await prisma.trip.findMany({
 
 ---
 
+## Current Implementation Status
+
+### ✅ Completed
+- [x] JoinCode registry model
+- [x] Unique code generation
+- [x] `lookupTripCrewByCode` server action
+- [x] `joinTripCrew` updated to use registry
+- [x] `generateInviteLink` updated to use registry
+- [x] `/join` page (works for authenticated/unauthenticated)
+- [x] `createTripCrew` auto-generates JoinCode
+- [x] Backward compatibility (falls back to `TripCrew.inviteCode`)
+
+### 🚧 In Progress
+- [ ] Migration script to populate JoinCode for existing TripCrews
+- [ ] Admin UI to regenerate/expire codes
+- [ ] Analytics on code usage
+
+### 📋 Future Enhancements
+- [ ] Multiple codes per crew
+- [ ] Code expiration UI
+- [ ] Code usage tracking
+- [ ] Custom code selection (admin chooses code)
+
+---
+
 ## Summary
 
 ### ✅ **Architecture is Solid**
@@ -316,6 +450,7 @@ const trips = await prisma.trip.findMany({
 - **Data integrity**: Cascade deletes, unique constraints, required relationships
 - **Scalable**: Junction tables support many-to-many (travelers in multiple crews)
 - **Secure**: All queries scoped by traveler/tripCrew/trip
+- **Invite System**: JoinCode registry prevents duplicates, enables expiration
 
 ### Key Strengths
 
@@ -324,6 +459,6 @@ const trips = await prisma.trip.findMany({
 3. **Junction tables**: Proper many-to-many relationships
 4. **Module scoping**: All trip data belongs to Trip (no orphaned records)
 5. **Database constraints**: Foreign keys enforce relationships
+6. **JoinCode registry**: Authoritative source for invites (prevents duplicates)
 
 ### No "Loose Objects" - Everything is Connected! ✅
-

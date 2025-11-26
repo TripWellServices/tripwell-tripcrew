@@ -49,7 +49,7 @@ model TripCrew {
   id                String   @id @default(uuid())
   name              String
   description       String?
-  inviteCode        String   @default(uuid()) @unique // Unique invite code for joining
+  inviteCode        String?  @default(uuid()) @unique // Legacy field (backward compatibility)
   createdByTravelerId String? // Creator (for reference, admin determined by TripCrewRole)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -58,6 +58,24 @@ model TripCrew {
   memberships       TripCrewMember[] // Junction table for members
   roles             TripCrewRole[]   // Junction table for admin/manager roles
   trips             Trip[]           // Trips belong to TripCrew
+  joinCodes         JoinCode[]       // JoinCode registry (authoritative source for invites)
+  
+  @@index([inviteCode])
+}
+
+// JoinCode Registry - Authoritative source for TripCrew invites
+model JoinCode {
+  id        String    @id @default(uuid())
+  code      String    @unique // Normalized, uppercase code
+  tripCrewId String
+  tripCrew  TripCrew  @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  isActive  Boolean   @default(true)
+
+  @@index([code])
+  @@index([tripCrewId])
+  @@map("join_codes")
 }
 
 model Trip {
@@ -186,6 +204,8 @@ model TripCrewMember {
   traveler Traveler @relation("TravelerTripCrewMemberships", fields: [travelerId], references: [id], onDelete: Cascade)
 
   @@unique([tripCrewId, travelerId]) // Prevent duplicate memberships
+  @@index([tripCrewId])
+  @@index([travelerId])
   @@map("trip_crew_members")
 }
 
@@ -197,11 +217,14 @@ model TripCrewRole {
   role       String   // "admin" | "manager"
 
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 
   // Relations
   tripCrew TripCrew @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
   traveler Traveler @relation("TravelerTripCrewRoles", fields: [travelerId], references: [id], onDelete: Cascade)
 
   @@unique([tripCrewId, travelerId])
+  @@index([tripCrewId])
+  @@index([travelerId])
   @@map("trip_crew_roles")
 }
