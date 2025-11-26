@@ -3,15 +3,15 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
 
-// Firebase config from TripWell OG frontend
+// Firebase config for TripWell (separate project from GoFast)
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyCjpoH763y2GH4VDc181IUBaZHqE_ryZ1c',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'gofast-a5f94.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'gofast-a5f94',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'gofast-a5f94.appspot.com',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '500941094498',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:500941094498:web:eee09da6918f9e53889b3b',
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-L0NGHRBSDE',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBeYbEC-ZDdPCFV6aUgw0GhDSFqhGYQFH4',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'tripwell-794c9.firebaseapp.com',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'tripwell-794c9',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'tripwell-794c9.firebasestorage.app',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '841880382902',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:841880382902:web:72c9514c21d7d6c4dae517',
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-MMJEC80CNB',
 }
 
 // Initialize Firebase with error handling (matching TripWell OG)
