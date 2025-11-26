@@ -382,8 +382,30 @@ export async function lookupTripCrewByCode(joinCode: string) {
 /**
  * Join TripCrew by invite code (via JoinCode registry)
  * Creates membership for the traveler
+ * 
+ * Supports both old signature (joinCode, travelerId) and new object signature
  */
-export async function joinTripCrew(joinCode: string, travelerId: string) {
+export async function joinTripCrew(
+  joinCodeOrOptions: string | { inviteCode: string; travelerId: string },
+  travelerId?: string
+) {
+  // Handle both signatures for backward compatibility
+  let joinCode: string
+  let finalTravelerId: string
+
+  if (typeof joinCodeOrOptions === 'string') {
+    // Old signature: joinTripCrew(joinCode, travelerId)
+    joinCode = joinCodeOrOptions
+    finalTravelerId = travelerId!
+  } else {
+    // New signature: joinTripCrew({ inviteCode, travelerId })
+    joinCode = joinCodeOrOptions.inviteCode
+    finalTravelerId = joinCodeOrOptions.travelerId
+  }
+
+  if (!finalTravelerId) {
+    throw new Error('Traveler ID is required')
+  }
   try {
     // Normalize join code
     const normalizedCode = joinCode.toUpperCase().trim()
@@ -461,7 +483,7 @@ export async function joinTripCrew(joinCode: string, travelerId: string) {
     revalidatePath('/tripcrews')
     revalidatePath(`/tripcrews/${tripCrew.id}`)
 
-    return { success: true, tripCrewId: tripCrew.id }
+    return { success: true, tripCrewId: tripCrew.id, id: tripCrew.id }
   } catch (error: any) {
     console.error('Join TripCrew error:', error)
     return { success: false, error: error.message || 'Failed to join TripCrew' }
