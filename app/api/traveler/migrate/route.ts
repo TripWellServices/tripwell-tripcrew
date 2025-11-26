@@ -136,6 +136,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (!traveler) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to create or find traveler',
+        },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Traveler migrated/upserted successfully',
