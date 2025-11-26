@@ -34,7 +34,7 @@ export default function WelcomePage() {
     const auth = getFirebaseAuth()
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
-        router.push('/splash')
+        router.push('/')
         return
       }
 
@@ -91,7 +91,7 @@ export default function WelcomePage() {
         <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Link
-            href="/splash"
+            href="/"
             className="text-sky-600 hover:underline"
           >
             Go back
