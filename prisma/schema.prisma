@@ -46,16 +46,17 @@ model Traveler {
 }
 
 model TripCrew {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(uuid())
+  name              String
+  description       String?
+  createdByTravelerId String? // Creator (for reference, admin determined by TripCrewRole)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   
   // Relations (matching GoFast RunCrew pattern)
-  memberships TripCrewMember[] // Junction table for members
-  roles       TripCrewRole[]   // Junction table for admin/manager roles
-  trips       Trip[]           // Trips belong to TripCrew
+  memberships       TripCrewMember[] // Junction table for members
+  roles             TripCrewRole[]   // Junction table for admin/manager roles
+  trips             Trip[]           // Trips belong to TripCrew
 }
 
 model Trip {
