@@ -9,6 +9,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { appConfig } from '@/config/appConfig'
 
 /**
  * Generate a unique join code
@@ -546,8 +547,7 @@ export async function generateInviteLink(tripCrewId: string, travelerId: string)
     }
 
     // Generate invite URL (direct link to crew)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    const inviteUrl = `${baseUrl}/join?code=${encodeURIComponent(joinCode.code)}`
+    const inviteUrl = appConfig.getInviteUrl(joinCode.code)
 
     return { success: true, inviteUrl, inviteCode: joinCode.code }
   } catch (error: any) {
