@@ -80,8 +80,8 @@ model Trip {
 }
 
 model Lodging {
-  id            String  @id @default(uuid())
-  tripId        String  @unique
+  id            String   @id @default(uuid())
+  tripId        String   @unique
   title         String
   address       String?
   website       String?
@@ -91,7 +91,11 @@ model Lodging {
   rating        Float?
   lat           Float?
   lng           Float?
-  trip          Trip    @relation(fields: [tripId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  
+  @@index([tripId])
 }
 
 model Dining {
@@ -110,7 +114,11 @@ model Dining {
   distanceFromLodging Float?
   driveTimeMinutes    Int?
   itineraryDay        DateTime?
-  trip                Trip      @relation(fields: [tripId], references: [id])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  trip                Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  
+  @@index([tripId])
 }
 
 model Attraction {
@@ -129,24 +137,36 @@ model Attraction {
   distanceFromLodging Float?
   driveTimeMinutes    Int?
   itineraryDay        DateTime?
-  trip                Trip      @relation(fields: [tripId], references: [id])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  trip                Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  
+  @@index([tripId])
 }
 
 model LogisticItem {
-  id         String  @id @default(uuid())
+  id         String   @id @default(uuid())
   tripId     String
   title      String
   detail     String?
-  isComplete Boolean @default(false)
-  trip       Trip    @relation(fields: [tripId], references: [id])
+  isComplete Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  
+  @@index([tripId])
 }
 
 model PackItem {
-  id       String  @id @default(uuid())
+  id       String   @id @default(uuid())
   tripId   String
   title    String
-  isPacked Boolean @default(false)
-  trip     Trip    @relation(fields: [tripId], references: [id])
+  isPacked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  
+  @@index([tripId])
 }
 
 // TripCrew Membership - Junction table (matching GoFast RunCrewMembership pattern)

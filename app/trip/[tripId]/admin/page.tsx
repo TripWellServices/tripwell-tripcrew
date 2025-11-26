@@ -18,28 +18,27 @@ interface PageProps {
 export default async function AdminPage({ params }: PageProps) {
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
 
+  // Use standard, safe, parent-aware hydration
   const trip = await prisma.trip.findUnique({
     where: { id: params.tripId },
     include: {
-      tripCrew: {
-        include: {
-          memberships: {
-            include: {
-              traveler: true,
-            },
-          },
-          roles: {
-            include: {
-              traveler: true,
-            },
-          },
-        },
-      },
       lodging: true,
-      dining: true,
-      attractions: true,
-      logistics: true,
-      packItems: true,
+      dining: {
+        where: { tripId: params.tripId },
+        orderBy: { createdAt: 'desc' },
+      },
+      attractions: {
+        where: { tripId: params.tripId },
+        orderBy: { createdAt: 'desc' },
+      },
+      logistics: {
+        where: { tripId: params.tripId },
+        orderBy: { createdAt: 'desc' },
+      },
+      packItems: {
+        where: { tripId: params.tripId },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   })
 

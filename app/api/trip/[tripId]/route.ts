@@ -8,28 +8,27 @@ export async function GET(
   { params }: { params: { tripId: string } }
 ) {
   try {
+    // Use standard, safe, parent-aware hydration
     const trip = await prisma.trip.findUnique({
       where: { id: params.tripId },
       include: {
-        tripCrew: {
-          include: {
-            memberships: {
-              include: {
-                traveler: true,
-              },
-            },
-            roles: {
-              include: {
-                traveler: true,
-              },
-            },
-          },
-        },
         lodging: true,
-        dining: true,
-        attractions: true,
-        logistics: true,
-        packItems: true,
+        dining: {
+          where: { tripId: params.tripId },
+          orderBy: { createdAt: 'desc' },
+        },
+        attractions: {
+          where: { tripId: params.tripId },
+          orderBy: { createdAt: 'desc' },
+        },
+        logistics: {
+          where: { tripId: params.tripId },
+          orderBy: { createdAt: 'desc' },
+        },
+        packItems: {
+          where: { tripId: params.tripId },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
 

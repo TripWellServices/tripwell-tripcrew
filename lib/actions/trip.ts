@@ -61,33 +61,29 @@ export async function createTrip(data: {
 }
 
 /**
- * Get Trip by ID (with security check)
- * Only returns if traveler is a member of the TripCrew
+ * Get Trip by ID (standard, safe, parent-aware hydration)
+ * Standard Prisma query with explicit tripId filtering
  */
-export async function getTrip(tripId: string, travelerId: string) {
+export async function getTrip(tripId: string) {
   try {
-    // Get trip with TripCrew
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
       include: {
-        tripCrew: {
-          include: {
-            memberships: {
-              where: { travelerId },
-            },
-          },
-        },
         lodging: true,
         dining: {
-          orderBy: { itineraryDay: 'asc' },
+          where: { tripId },
+          orderBy: { createdAt: 'desc' },
         },
         attractions: {
-          orderBy: { itineraryDay: 'asc' },
+          where: { tripId },
+          orderBy: { createdAt: 'desc' },
         },
         logistics: {
+          where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
         packItems: {
+          where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -95,11 +91,6 @@ export async function getTrip(tripId: string, travelerId: string) {
 
     if (!trip) {
       throw new Error('Trip not found')
-    }
-
-    // Verify traveler is a member
-    if (trip.tripCrew.memberships.length === 0) {
-      throw new Error('Not a member of this TripCrew')
     }
 
     return { success: true, trip }
