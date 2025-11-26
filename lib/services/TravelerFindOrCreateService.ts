@@ -33,22 +33,18 @@ export class TravelerFindOrCreateService {
 
     console.log('🔍 TRAVELER SERVICE: Finding or creating traveler for firebaseId:', firebaseId)
 
-    // Ensure TripWell Enterprises exists
+    // Ensure TripWell Enterprises exists (upsert pattern - like GoFastCompany)
     const enterpriseId = getTripWellEnterpriseId()
-    let enterprise = await prisma.tripWellEnterprise.findUnique({
+    const enterprise = await prisma.tripWellEnterprise.upsert({
       where: { id: enterpriseId },
+      update: {}, // No updates needed if exists
+      create: {
+        id: enterpriseId,
+        name: 'TripWell Enterprises',
+        description: 'Master container for all TripWell travelers',
+      },
     })
-
-    if (!enterprise) {
-      enterprise = await prisma.tripWellEnterprise.create({
-        data: {
-          id: enterpriseId,
-          name: 'TripWell Enterprises',
-          description: 'Master container for all TripWell travelers',
-        },
-      })
-      console.log('✅ TRAVELER SERVICE: Created TripWell Enterprises master container')
-    }
+    console.log('✅ TRAVELER SERVICE: TripWell Enterprises ready')
 
     // Parse displayName into firstName/lastName if available
     const firstName = displayName?.split(' ')[0] || null

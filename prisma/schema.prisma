@@ -51,7 +51,7 @@ model TripCrew {
 
 model Trip {
   id          String         @id @default(uuid())
-  tripCrewId  String         // Required: trip belongs to a TripCrew
+  tripCrewId  String?        // Optional for migration, will be required later
   name        String
   destination String?
   startDate   DateTime?
@@ -61,7 +61,7 @@ model Trip {
   updatedAt   DateTime       @updatedAt
   
   // Relations
-  tripCrew    TripCrew       @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  tripCrew    TripCrew?      @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
   lodging     Lodging?
   dining      Dining[]
   attractions Attraction[]
