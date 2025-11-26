@@ -7,7 +7,7 @@ import LogisticsCard from '@/app/components/trip/LogisticsCard'
 import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
 import ItineraryCard from '@/app/components/trip/ItineraryCard'
-import { prisma } from '@/lib/prisma'
+import { getTrip } from '@/lib/actions/trip'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,31 +18,10 @@ interface PageProps {
 export default async function AdminPage({ params }: PageProps) {
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
 
-  // Use standard, safe, parent-aware hydration
-  const trip = await prisma.trip.findUnique({
-    where: { id: params.tripId },
-    include: {
-      lodging: true,
-      dining: {
-        where: { tripId: params.tripId },
-        orderBy: { createdAt: 'desc' },
-      },
-      attractions: {
-        where: { tripId: params.tripId },
-        orderBy: { createdAt: 'desc' },
-      },
-      logistics: {
-        where: { tripId: params.tripId },
-        orderBy: { createdAt: 'desc' },
-      },
-      packItems: {
-        where: { tripId: params.tripId },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  })
+  // Use server action for safe hydration
+  const { success, trip, error } = await getTrip(params.tripId)
 
-  if (!trip) {
+  if (!success || !trip) {
     redirect('/')
   }
 

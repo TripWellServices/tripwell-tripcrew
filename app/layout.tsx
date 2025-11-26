@@ -4,6 +4,9 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'TripWell - Trip Crew',
   description: 'Plan and organize your trips with your crew',
+  icons: {
+    icon: '/icon.svg',
+  },
 }
 
 export default function RootLayout({

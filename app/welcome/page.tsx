@@ -144,8 +144,8 @@ export default function WelcomePage() {
       // Profile incomplete - go to profile setup
       router.push('/profile/setup')
     } else {
-      // Profile complete - go to home (shows all TripCrews)
-      router.push('/home')
+      // Profile complete - go to TripCrews page
+      router.push('/tripcrews')
     }
   }
 

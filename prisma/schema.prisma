@@ -49,6 +49,7 @@ model TripCrew {
   id                String   @id @default(uuid())
   name              String
   description       String?
+  inviteCode        String   @default(uuid()) @unique // Unique invite code for joining
   createdByTravelerId String? // Creator (for reference, admin determined by TripCrewRole)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

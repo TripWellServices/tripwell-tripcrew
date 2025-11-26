@@ -63,12 +63,28 @@ export async function createTrip(data: {
 /**
  * Get Trip by ID (standard, safe, parent-aware hydration)
  * Standard Prisma query with explicit tripId filtering
+ * No travelerId required - access control handled at page level
  */
 export async function getTrip(tripId: string) {
   try {
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
       include: {
+        tripCrew: {
+          include: {
+            memberships: {
+              include: {
+                traveler: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         lodging: true,
         dining: {
           where: { tripId },

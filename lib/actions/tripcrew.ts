@@ -183,6 +183,91 @@ export async function getTravelerTripCrews(travelerId: string) {
 }
 
 /**
+ * Join TripCrew by invite code
+ * Creates membership for the traveler
+ */
+export async function joinTripCrew(inviteCode: string, travelerId: string) {
+  try {
+    // Find TripCrew by invite code
+    const tripCrew = await prisma.tripCrew.findUnique({
+      where: { inviteCode },
+    })
+
+    if (!tripCrew) {
+      throw new Error('Invalid invite code')
+    }
+
+    // Check if already a member
+    const existing = await prisma.tripCrewMember.findFirst({
+      where: {
+        tripCrewId: tripCrew.id,
+        travelerId,
+      },
+    })
+
+    if (existing) {
+      throw new Error('You are already a member of this TripCrew')
+    }
+
+    // Create membership
+    await prisma.tripCrewMember.create({
+      data: {
+        tripCrewId: tripCrew.id,
+        travelerId,
+      },
+    })
+
+    revalidatePath('/tripcrews')
+    revalidatePath(`/tripcrews/${tripCrew.id}`)
+
+    return { success: true, tripCrewId: tripCrew.id }
+  } catch (error: any) {
+    console.error('Join TripCrew error:', error)
+    return { success: false, error: error.message || 'Failed to join TripCrew' }
+  }
+}
+
+/**
+ * Generate invite link for TripCrew
+ * Returns the full invite URL
+ */
+export async function generateInviteLink(tripCrewId: string, travelerId: string) {
+  try {
+    // Verify requester is admin
+    const isAdmin = await prisma.tripCrewRole.findFirst({
+      where: {
+        tripCrewId,
+        travelerId,
+        role: 'admin',
+      },
+    })
+
+    if (!isAdmin) {
+      throw new Error('Only admins can generate invite links')
+    }
+
+    // Get TripCrew with invite code
+    const tripCrew = await prisma.tripCrew.findUnique({
+      where: { id: tripCrewId },
+      select: { inviteCode: true },
+    })
+
+    if (!tripCrew) {
+      throw new Error('TripCrew not found')
+    }
+
+    // Generate invite URL (using current origin)
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const inviteUrl = `${baseUrl}/join?code=${tripCrew.inviteCode}`
+
+    return { success: true, inviteUrl, inviteCode: tripCrew.inviteCode }
+  } catch (error: any) {
+    console.error('Generate Invite Link error:', error)
+    return { success: false, error: error.message || 'Failed to generate invite link' }
+  }
+}
+
+/**
  * Add member to TripCrew (by email)
  * Only admins can add members
  */
