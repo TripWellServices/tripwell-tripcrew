@@ -40,20 +40,7 @@ export default function SignUpPage() {
     try {
       const provider = new GoogleAuthProvider()
       const auth = getFirebaseAuth()
-      const result = await signInWithPopup(auth, provider)
-      
-      // Create Traveler in TripWell
-      await fetch('/api/auth/hydrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firebaseId: result.user.uid,
-          email: result.user.email,
-          name: result.user.displayName,
-          picture: result.user.photoURL,
-        }),
-      })
-      
+      await signInWithPopup(auth, provider)
       router.push('/welcome')
     } catch (err: any) {
       setError(err.message || 'Failed to sign up with Google')

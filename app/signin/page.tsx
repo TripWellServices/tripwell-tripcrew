@@ -20,20 +20,7 @@ export default function SignInPage() {
 
     try {
       const auth = getFirebaseAuth()
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      
-      // Create/hydrate Traveler in TripWell
-      await fetch('/api/auth/hydrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firebaseId: userCredential.user.uid,
-          email: userCredential.user.email,
-          name: userCredential.user.displayName,
-          picture: userCredential.user.photoURL,
-        }),
-      })
-      
+      await signInWithEmailAndPassword(auth, email, password)
       router.push('/welcome')
     } catch (err: any) {
       setError(err.message || 'Failed to sign in')
