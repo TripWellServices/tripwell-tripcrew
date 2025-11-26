@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
 import Link from 'next/link'
 
 export default function SplashPage() {
@@ -11,32 +11,29 @@ export default function SplashPage() {
 
   useEffect(() => {
     const auth = getFirebaseAuth()
+    
+    // Check if user is from correct Firebase project
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Check if user exists in TripWell (not just Firebase)
+        // Verify user is from TripWell project (tripwell-794c9)
+        // If token is from wrong project, sign out
         try {
-          const response = await fetch('/api/auth/hydrate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              firebaseId: user.uid,
-              email: user.email,
-              name: user.displayName,
-              picture: user.photoURL,
-            }),
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            // Only redirect if Traveler exists in TripWell
-            if (data.traveler) {
-              router.push('/welcome')
-            }
-            // If no Traveler, stay on splash (let them sign up fresh)
+          const idToken = await user.getIdToken()
+          const decoded = JSON.parse(atob(idToken.split('.')[1]))
+          
+          // Check if token is from correct project
+          if (decoded.aud !== 'tripwell-794c9' && decoded.firebase?.project_id !== 'tripwell-794c9') {
+            console.log('🔄 Wrong Firebase project detected, signing out...')
+            await signOut(auth)
+            return
           }
+          
+          // Valid TripWell user, redirect to welcome
+          router.push('/welcome')
         } catch (err) {
-          console.error('Check traveler error:', err)
-          // On error, stay on splash
+          console.error('Token check error:', err)
+          // On error, sign out to be safe
+          await signOut(auth)
         }
       }
     })
