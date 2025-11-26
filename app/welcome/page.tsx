@@ -84,21 +84,6 @@ export default function WelcomePage() {
 
           setTraveler(hydratedTraveler)
 
-          // Check if profile is complete (has firstName, lastName, hometownCity, homeState, persona, planningStyle)
-          const isProfileComplete = 
-            hydratedTraveler?.firstName && 
-            hydratedTraveler?.lastName && 
-            hydratedTraveler?.hometownCity && 
-            hydratedTraveler?.homeState && 
-            hydratedTraveler?.persona && 
-            hydratedTraveler?.planningStyle
-
-          if (!isProfileComplete) {
-            console.log('📝 WELCOME: Profile incomplete, redirecting to profile setup')
-            router.push('/profile/setup')
-            return
-          }
-
           console.log('✅ WELCOME: ===== HYDRATION SUCCESS =====')
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
@@ -145,91 +130,82 @@ export default function WelcomePage() {
 
   const displayName = traveler?.firstName || traveler?.email || 'Traveler'
 
+  // Check if profile is complete
+  const isProfileComplete = 
+    traveler?.firstName && 
+    traveler?.lastName && 
+    traveler?.hometownCity && 
+    traveler?.homeState && 
+    traveler?.persona && 
+    traveler?.planningStyle
+
+  const handleLetsGo = () => {
+    if (!isProfileComplete) {
+      // Profile incomplete - go to profile setup
+      router.push('/profile/setup')
+    } else if (traveler && traveler.tripCrewMemberships.length > 0) {
+      // Has TripCrews - go to first TripCrew
+      router.push(`/tripcrew/${traveler.tripCrewMemberships[0].tripCrew.id}`)
+    } else {
+      // No TripCrews - go to TripCrew setup
+      router.push('/tripcrew/setup')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full bg-white rounded-lg shadow-xl p-8">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Welcome{displayName ? `, ${displayName}` : ''}!
-            </h1>
-            <p className="text-gray-600">Your TripWell Home</p>
-          </div>
-          <Link
-            href="/profile/settings"
-            className="text-gray-500 hover:text-gray-700 text-sm"
-          >
-            Settings
-          </Link>
-        </div>
-
-        {/* Profile Info Card */}
-        <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Profile Information</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Name:</span>
-              <span className="text-gray-900 font-medium">
-                {traveler?.firstName && traveler?.lastName
-                  ? `${traveler.firstName} ${traveler.lastName}`
-                  : traveler?.firstName || traveler?.email || 'Not set'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Email:</span>
-              <span className="text-gray-900">{traveler?.email || 'Not set'}</span>
-            </div>
-            {traveler?.photoUrl && (
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Photo:</span>
-                <img
-                  src={traveler.photoUrl}
-                  alt="Profile"
-                  className="w-10 h-10 rounded-full"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* TripCrews Section - Only show if they have any */}
-        {traveler && traveler.tripCrewMemberships.length > 0 && (
-          <div className="space-y-4 mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Your TripCrews</h2>
-            {traveler.tripCrewMemberships.map((membership) => (
-              <Link
-                key={membership.tripCrew.id}
-                href={`/tripcrew/${membership.tripCrew.id}`}
-                className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+      <div className="text-center max-w-md mx-auto">
+        <div className="space-y-8">
+          {/* TripWell Logo */}
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm">
+              <svg 
+                width="60" 
+                height="60" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+                className="text-white"
               >
-                <h3 className="font-semibold text-gray-800">{membership.tripCrew.name}</h3>
-                <p className="text-sm text-gray-600">
-                  {membership.tripCrew.trips.length} trip{membership.tripCrew.trips.length !== 1 ? 's' : ''}
-                </p>
-              </Link>
-            ))}
+                <path 
+                  d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2S10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L12 21L16 22V20.5L14 19V13.5L22 16Z" 
+                  fill="currentColor"
+                />
+              </svg>
+            </div>
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          {(!traveler || traveler.tripCrewMemberships.length === 0) && (
-            <Link
-              href="/tripcrew/setup"
-              className="flex-1 px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-center"
-            >
-              Create TripCrew
-            </Link>
+          {/* Welcome Text */}
+          <div className="space-y-4">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">
+              Welcome{displayName ? `, ${displayName.split(' ')[0]}` : ''}!
+            </h1>
+            <p className="text-xl md:text-2xl text-white/90 font-medium drop-shadow-md">
+              Ready to start TripWelling?
+            </p>
+          </div>
+
+          {/* Let's Go Button */}
+          {traveler && (
+            <div className="mt-8">
+              <button
+                onClick={handleLetsGo}
+                className="bg-white text-sky-600 px-12 py-4 rounded-xl font-bold text-xl hover:bg-sky-50 transition shadow-2xl transform hover:scale-105"
+              >
+                Let's Go! →
+              </button>
+            </div>
           )}
-          <button
-            onClick={() => {
-              const auth = getFirebaseAuth()
-              auth.signOut()
-            }}
-            className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition"
-          >
-            Sign Out
-          </button>
+
+          {/* Settings Link */}
+          <div className="mt-6">
+            <Link
+              href="/profile/settings"
+              className="text-white/80 hover:text-white text-sm underline"
+            >
+              Settings
+            </Link>
+          </div>
         </div>
       </div>
     </div>
