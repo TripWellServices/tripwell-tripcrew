@@ -143,12 +143,9 @@ export default function WelcomePage() {
     if (!isProfileComplete) {
       // Profile incomplete - go to profile setup
       router.push('/profile/setup')
-    } else if (traveler && traveler.tripCrewMemberships.length > 0) {
-      // Has TripCrews - go to first TripCrew
-      router.push(`/tripcrew/${traveler.tripCrewMemberships[0].tripCrew.id}`)
     } else {
-      // No TripCrews - go to TripCrew setup
-      router.push('/tripcrew/setup')
+      // Profile complete - go to home (shows all TripCrews)
+      router.push('/home')
     }
   }
 

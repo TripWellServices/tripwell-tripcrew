@@ -115,8 +115,8 @@ export default function ProfileSetupPage() {
         throw new Error(errorData.error || 'Failed to save profile')
       }
 
-      // Redirect to welcome page
-      router.push('/welcome')
+      // Redirect to TripCrew setup (default flow after profile)
+      router.push('/tripcrews/new')
     } catch (err: any) {
       console.error('Error saving profile:', err)
       setError(err.message || 'Failed to save profile')

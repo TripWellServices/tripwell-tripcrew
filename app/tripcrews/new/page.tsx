@@ -101,9 +101,13 @@ export default function CreateTripCrewPage() {
   }
 
   const handleSkipToCrew = () => {
-    // Get tripCrewId from the created crew
-    // For now, redirect to tripcrews list (will be updated after Step 1)
-    router.push('/tripcrews')
+    // After creating crew, go to home (will show new crew)
+    router.push('/home')
+  }
+  
+  const handleGoHome = () => {
+    // Soft fallback - go home if not ready
+    router.push('/home')
   }
 
   return (
@@ -185,10 +189,10 @@ export default function CreateTripCrewPage() {
                 {loading ? 'Creating...' : 'Create Crew'}
               </button>
               <Link
-                href="/welcome"
+                href="/home"
                 className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition"
               >
-                Cancel
+                Go Home
               </Link>
             </div>
           </form>
@@ -215,6 +219,12 @@ export default function CreateTripCrewPage() {
               >
                 Skip for Now
               </button>
+              <button
+                onClick={handleGoHome}
+                className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition"
+              >
+                Go Home
+              </button>
             </div>
           </div>
         )}
@@ -238,7 +248,7 @@ export default function CreateTripCrewPage() {
                 onClick={handleSkipToCrew}
                 className="flex-1 px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition"
               >
-                Go to TripCrew
+                Go Home
               </button>
             </div>
           </div>
