@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getTravelerTripCrews, joinTripCrew } from '@/lib/actions/tripcrew'
+import { LocalStorageAPI } from '@/lib/localStorage'
 import Link from 'next/link'
 import { format } from 'date-fns'
 
@@ -33,12 +34,24 @@ export default function TripCrewsPage() {
       }
 
       // Get Traveler ID from localStorage
-      if (typeof window !== 'undefined') {
-        const storedTravelerId = localStorage.getItem('travelerId')
-        if (storedTravelerId) {
-          setTravelerId(storedTravelerId)
-          loadTripCrews(storedTravelerId)
-        } else {
+      const storedTravelerId = LocalStorageAPI.getTravelerId()
+      const storedTripCrews = LocalStorageAPI.getTripCrewMemberships()
+
+      // If we have cached TripCrews, use them instantly
+      if (storedTripCrews && storedTripCrews.length > 0 && storedTravelerId) {
+        console.log('✅ TRIPCREWS: Using cached TripCrews from localStorage')
+        setTravelerId(storedTravelerId)
+        setTripCrews(storedTripCrews.map((m: any) => m.tripCrew))
+        setLoading(false)
+        // Still fetch fresh data in background
+        loadTripCrews(storedTravelerId)
+        return
+      }
+
+      if (storedTravelerId) {
+        setTravelerId(storedTravelerId)
+        loadTripCrews(storedTravelerId)
+      } else {
           // Hydrate if not in localStorage
           try {
             const response = await fetch('/api/auth/hydrate', {
@@ -56,7 +69,7 @@ export default function TripCrewsPage() {
               const data = await response.json()
               const travelerId = data.traveler.id
               setTravelerId(travelerId)
-              localStorage.setItem('travelerId', travelerId)
+              LocalStorageAPI.setFullHydrationModel(data.traveler)
               loadTripCrews(travelerId)
             } else {
               setError('Failed to load your account')
@@ -78,7 +91,15 @@ export default function TripCrewsPage() {
     try {
       const result = await getTravelerTripCrews(id)
       if (result.success) {
-        setTripCrews(result.tripCrews || [])
+        const crews = result.tripCrews || []
+        setTripCrews(crews)
+        // Store in localStorage for instant navigation
+        const traveler = LocalStorageAPI.getTraveler()
+        if (traveler) {
+          LocalStorageAPI.setTripCrewMemberships(
+            crews.map((crew: any) => ({ tripCrew: crew }))
+          )
+        }
       } else {
         setError(result.error || 'Failed to load TripCrews')
       }

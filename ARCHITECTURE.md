@@ -416,28 +416,316 @@ const trips = await prisma.trip.findMany({
 
 ---
 
+## LocalStorage API (Client-Side Caching)
+
+### ✅ **Implemented: GoFast Pattern**
+
+Following GoFast's proven localStorage pattern for instant navigation and offline support.
+
+#### LocalStorage Keys (`lib/localStorage.ts`)
+```typescript
+STORAGE_KEYS = {
+  travelerId: 'travelerId',
+  firebaseId: 'firebaseId',
+  email: 'email',
+  traveler: 'traveler', // Full traveler object
+  tripCrewId: 'tripCrewId', // Primary TripCrew ID
+  tripCrewData: 'tripCrewData', // Full TripCrew object
+  tripCrewMemberships: 'tripCrewMemberships', // All memberships
+}
+```
+
+#### Key Methods
+- `setFullHydrationModel(traveler)` - Stores traveler + primary TripCrew
+- `getTripCrewId()` - Returns cached TripCrew ID
+- `getTripCrewData()` - Returns cached TripCrew object
+- `setTripCrewData(crew)` - Stores TripCrew for instant navigation
+
+#### Usage Pattern
+1. **Welcome Page** (`/welcome`): Hydrates traveler → Stores in localStorage
+2. **TripCrew Admin** (`/tripcrews/[id]`): Reads from localStorage first → Instant render → Fetches fresh data in background
+3. **TripCrews List** (`/tripcrews`): Uses cached memberships for instant display
+
+#### Benefits
+- ✅ Instant navigation (no loading spinner)
+- ✅ Works offline (cached data)
+- ✅ Background refresh (updates after initial render)
+- ✅ Matches GoFast UX pattern
+
+---
+
+## App Configuration
+
+### ✅ **Implemented: Centralized Config**
+
+#### Config File (`config/appConfig.ts`)
+```typescript
+export const appConfig = {
+  baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'https://tripcrew.tripwell.app',
+  getInviteUrl: (code: string) => `${appConfig.baseUrl}/join?code=${code}`,
+}
+```
+
+**Base URL**: `https://tripcrew.tripwell.app`
+
+Used by:
+- `generateInviteLink()` server action
+- Invite code scripts
+- All invite URL generation
+
+---
+
+## Complete Model List
+
+### ✅ **All Models (Prisma Schema)**
+
+#### 1. **TripWellEnterprise** (Master Container)
+- `id` (UUID)
+- `name` (default: "TripWell Enterprises")
+- `address`, `description`
+- `createdAt`, `updatedAt`
+- **Relations**: `travelers: Traveler[]`
+
+#### 2. **Traveler** (Universal Personhood)
+- `id` (UUID)
+- `firebaseId` (unique, from Firebase Auth)
+- `email` (unique)
+- `firstName`, `lastName`, `photoURL`
+- **Profile**: `hometownCity`, `homeState`, `persona`, `planningStyle`, `dreamDestination`
+- `tripWellEnterpriseId` → TripWellEnterprise
+- `createdAt`, `updatedAt`
+- **Relations**: 
+  - `tripWellEnterprise: TripWellEnterprise?`
+  - `tripCrewMemberships: TripCrewMember[]`
+  - `tripCrewRoles: TripCrewRole[]`
+
+#### 3. **TripCrew** (Group Container)
+- `id` (UUID)
+- `name`, `description`
+- `inviteCode` (legacy, backward compatibility)
+- `createdByTravelerId`
+- `createdAt`, `updatedAt`
+- **Relations**:
+  - `memberships: TripCrewMember[]`
+  - `roles: TripCrewRole[]`
+  - `trips: Trip[]`
+  - `joinCodes: JoinCode[]`
+
+#### 4. **JoinCode** (Invite Registry)
+- `id` (UUID)
+- `code` (unique, normalized uppercase)
+- `tripCrewId` → TripCrew
+- `createdAt`, `expiresAt?`, `isActive`
+- **Indexes**: `code`, `tripCrewId`
+
+#### 5. **TripCrewMember** (Junction Table)
+- `id` (UUID)
+- `tripCrewId` → TripCrew
+- `travelerId` → Traveler
+- `joinedAt`, `createdAt`, `updatedAt`
+- **Unique**: `[tripCrewId, travelerId]`
+- **Indexes**: `tripCrewId`, `travelerId`
+
+#### 6. **TripCrewRole** (Junction Table)
+- `id` (UUID)
+- `tripCrewId` → TripCrew
+- `travelerId` → Traveler
+- `role` ("admin" | "manager")
+- `createdAt`, `updatedAt`
+- **Unique**: `[tripCrewId, travelerId]`
+- **Indexes**: `tripCrewId`, `travelerId`
+
+#### 7. **Trip** (Individual Trip Container)
+- `id` (UUID)
+- `tripCrewId` → TripCrew
+- `name`, `destination`
+- `startDate`, `endDate`, `coverImage`
+- `createdAt`, `updatedAt`
+- **Relations**:
+  - `tripCrew: TripCrew?`
+  - `lodging: Lodging?`
+  - `dining: Dining[]`
+  - `attractions: Attraction[]`
+  - `logistics: LogisticItem[]`
+  - `packItems: PackItem[]`
+
+#### 8. **Lodging** (1 per Trip)
+- `id` (UUID)
+- `tripId` → Trip (unique, 1:1)
+- `title`, `address`, `website`, `phone`
+- `googlePlaceId` (unique)
+- `imageUrl`, `rating`
+- `lat`, `lng`
+- `createdAt`, `updatedAt`
+- **Index**: `tripId`
+
+#### 9. **Dining** (Many per Trip)
+- `id` (UUID)
+- `tripId` → Trip
+- `title`, `category`, `address`, `phone`, `website`
+- `googlePlaceId` (unique)
+- `imageUrl`, `rating`
+- `lat`, `lng`
+- `distanceFromLodging`, `driveTimeMinutes` (calculated)
+- `itineraryDay` (DateTime?, optional day assignment)
+- `createdAt`, `updatedAt`
+- **Index**: `tripId`
+
+#### 10. **Attraction** (Many per Trip)
+- `id` (UUID)
+- `tripId` → Trip
+- `title`, `category`, `address`, `phone`, `website`
+- `googlePlaceId` (unique)
+- `imageUrl`, `rating`
+- `lat`, `lng`
+- `distanceFromLodging`, `driveTimeMinutes` (calculated)
+- `itineraryDay` (DateTime?, optional day assignment)
+- `createdAt`, `updatedAt`
+- **Index**: `tripId`
+
+#### 11. **LogisticItem** (Many per Trip)
+- `id` (UUID)
+- `tripId` → Trip
+- `title`, `detail`
+- `isComplete` (boolean)
+- `createdAt`, `updatedAt`
+- **Index**: `tripId`
+
+#### 12. **PackItem** (Many per Trip)
+- `id` (UUID)
+- `tripId` → Trip
+- `title`
+- `isPacked` (boolean)
+- `createdAt`, `updatedAt`
+- **Index**: `tripId`
+
+---
+
 ## Current Implementation Status
 
 ### ✅ Completed
-- [x] JoinCode registry model
-- [x] Unique code generation
-- [x] `lookupTripCrewByCode` server action
-- [x] `joinTripCrew` updated to use registry
-- [x] `generateInviteLink` updated to use registry
-- [x] `/join` page (works for authenticated/unauthenticated)
-- [x] `createTripCrew` auto-generates JoinCode
-- [x] Backward compatibility (falls back to `TripCrew.inviteCode`)
+- [x] **Database Models**: All 12 models with proper relations
+- [x] **JoinCode Registry**: Authoritative invite system
+- [x] **Server Actions**: TripCrew CRUD, join, invite
+- [x] **LocalStorage API**: Client-side caching (GoFast pattern)
+- [x] **App Config**: Centralized base URL
+- [x] **Auth Flow**: Splash → Sign In/Up → Welcome → Profile
+- [x] **TripCrew Flow**: List → Create/Join → Admin Dashboard
+- [x] **Join Page**: `/join?code=ABC123` (works authenticated/unauthenticated)
+- [x] **Trip Pages**: `/trip/[tripId]` (public) and `/trip/[tripId]/admin` (edit)
 
-### 🚧 In Progress
-- [ ] Migration script to populate JoinCode for existing TripCrews
-- [ ] Admin UI to regenerate/expire codes
-- [ ] Analytics on code usage
+### 🚧 In Progress / Needs Work
+- [ ] **Trip Modules**: Full CRUD for Dining, Attraction, Lodging
+- [ ] **Google Places Integration**: Hydration endpoints for Dining/Attraction
+- [ ] **Weather API**: 7-day forecast endpoint
+- [ ] **Itinerary Builder**: Day-by-day planning UI
+- [ ] **Trip Admin UI**: Full trip editing interface
+- [ ] **Distance Calculation**: Haversine formula for `distanceFromLodging`
+- [ ] **Drive Time**: Google Maps API or approximation
 
 ### 📋 Future Enhancements
-- [ ] Multiple codes per crew
+- [ ] Multiple JoinCodes per crew
 - [ ] Code expiration UI
 - [ ] Code usage tracking
 - [ ] Custom code selection (admin chooses code)
+- [ ] Trip sharing (public links)
+- [ ] Trip templates
+- [ ] Collaborative editing (real-time)
+- [ ] Mobile app (React Native)
+
+---
+
+## What Needs to Be Created (To Complete Flow)
+
+### 1. **Trip Module Server Actions** (`lib/actions/trip.ts`)
+- ✅ `getTrip(tripId)` - Already exists
+- ✅ `createTrip(data)` - Already exists
+- ❌ `updateTrip(tripId, data)` - **NEEDED**
+- ❌ `deleteTrip(tripId)` - **NEEDED**
+
+### 2. **Dining Module** (`lib/actions/dining.ts`)
+- ❌ `createDining(tripId, data)` - **NEEDED**
+- ❌ `updateDining(diningId, data)` - **NEEDED**
+- ❌ `deleteDining(diningId)` - **NEEDED**
+- ❌ `assignDiningToDay(diningId, itineraryDay)` - **NEEDED**
+
+### 3. **Attraction Module** (`lib/actions/attraction.ts`)
+- ❌ `createAttraction(tripId, data)` - **NEEDED**
+- ❌ `updateAttraction(attractionId, data)` - **NEEDED**
+- ❌ `deleteAttraction(attractionId)` - **NEEDED**
+- ❌ `assignAttractionToDay(attractionId, itineraryDay)` - **NEEDED**
+
+### 4. **Lodging Module** (`lib/actions/lodging.ts`)
+- ❌ `createLodging(tripId, data)` - **NEEDED**
+- ❌ `updateLodging(tripId, data)` - **NEEDED**
+- ❌ `deleteLodging(tripId)` - **NEEDED**
+
+### 5. **Google Places Hydration** (`app/api/hydrate/`)
+- ❌ `/api/hydrate/dining/route.ts` - **NEEDED** (POST { placeId, tripId })
+- ❌ `/api/hydrate/attractions/route.ts` - **NEEDED** (POST { placeId, tripId })
+- ❌ `/api/hydrate/lodging/route.ts` - **NEEDED** (POST { placeId, tripId })
+
+### 6. **Weather API** (`app/api/weather/`)
+- ❌ `/api/weather/[tripId]/route.ts` - **NEEDED** (7-day forecast using lodging lat/lng)
+
+### 7. **Distance Calculation** (`lib/distance.ts`)
+- ❌ `calculateDistance(lat1, lng1, lat2, lng2)` - Haversine formula - **NEEDED**
+- ❌ `calculateDriveTime(lat1, lng1, lat2, lng2)` - Approximation - **NEEDED**
+
+### 8. **Trip Admin UI Components**
+- ✅ `TripHeader` - Already exists
+- ✅ `LodgingCard` - Already exists
+- ✅ `DiningCard` - Already exists
+- ✅ `AttractionCard` - Already exists
+- ✅ `LogisticsCard` - Already exists
+- ✅ `PackListCard` - Already exists
+- ✅ `WeatherCard` - Already exists
+- ✅ `ItineraryCard` - Already exists
+- ✅ `GoogleSearchBar` - Already exists
+- ❌ **Edit Forms**: Dining, Attraction, Lodging edit modals - **NEEDED**
+- ❌ **Delete Actions**: Delete buttons with confirmation - **NEEDED**
+
+### 9. **Trip Admin Page** (`app/trip/[tripId]/admin/page.tsx`)
+- ✅ Page structure exists
+- ❌ **Full CRUD**: Create, update, delete for all modules - **NEEDED**
+- ❌ **Itinerary Builder**: Drag-and-drop day assignment - **NEEDED**
+- ❌ **Google Search Integration**: Search → Hydrate → Add to trip - **NEEDED**
+
+### 10. **Public Trip Page** (`app/trip/[tripId]/page.tsx`)
+- ✅ Page structure exists
+- ❌ **Read-only View**: Display all modules (no edit buttons) - **NEEDED**
+- ❌ **Share Link**: Generate public share link - **NEEDED**
+
+---
+
+## Next Steps (Priority Order)
+
+### Phase 1: Core Trip Functionality
+1. ✅ TripCrew system (DONE)
+2. ✅ LocalStorage caching (DONE)
+3. ❌ **Trip CRUD** (create, update, delete)
+4. ❌ **Trip Admin UI** (full editing interface)
+
+### Phase 2: Trip Modules
+5. ❌ **Dining CRUD** (create, update, delete, assign to day)
+6. ❌ **Attraction CRUD** (create, update, delete, assign to day)
+7. ❌ **Lodging CRUD** (create, update, delete)
+8. ❌ **Logistics CRUD** (create, update, delete, toggle complete)
+9. ❌ **Pack List CRUD** (create, update, delete, toggle packed)
+
+### Phase 3: Google Integration
+10. ❌ **Google Places Hydration** (Dining, Attraction, Lodging)
+11. ❌ **Distance Calculation** (Haversine formula)
+12. ❌ **Drive Time** (approximation or Google Maps API)
+
+### Phase 4: Weather & Itinerary
+13. ❌ **Weather API** (7-day forecast)
+14. ❌ **Itinerary Builder** (day-by-day planning UI)
+
+### Phase 5: Polish
+15. ❌ **Public Trip View** (read-only, shareable)
+16. ❌ **Trip Templates** (pre-built trip structures)
+17. ❌ **Analytics** (trip views, engagement)
 
 ---
 

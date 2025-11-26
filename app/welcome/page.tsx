@@ -74,12 +74,12 @@ export default function WelcomePage() {
 
           // Store in localStorage (like GoFast pattern)
           if (typeof window !== 'undefined') {
-            localStorage.setItem('travelerId', hydratedTraveler.id)
+            const { LocalStorageAPI } = await import('@/lib/localStorage')
+            LocalStorageAPI.setFullHydrationModel(hydratedTraveler)
             localStorage.setItem('firebaseId', firebaseUser.uid)
             localStorage.setItem('email', hydratedTraveler.email || firebaseUser.email || '')
-            localStorage.setItem('traveler', JSON.stringify(hydratedTraveler))
             
-            console.log('💾 WELCOME: Traveler data cached to localStorage')
+            console.log('💾 WELCOME: Traveler and TripCrew data cached to localStorage')
           }
 
           setTraveler(hydratedTraveler)

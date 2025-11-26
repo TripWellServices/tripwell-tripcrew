@@ -12,6 +12,7 @@ import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getTripCrew, generateInviteLink } from '@/lib/actions/tripcrew'
 import { createTrip } from '@/lib/actions/trip'
+import { LocalStorageAPI } from '@/lib/localStorage'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import InviteMemberModal from './InviteMemberModal'
@@ -40,40 +41,54 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
       }
 
       // Get Traveler ID from localStorage
-      if (typeof window !== 'undefined') {
-        const storedTravelerId = localStorage.getItem('travelerId')
-        if (storedTravelerId) {
-          setTravelerId(storedTravelerId)
-          loadTripCrew(storedTravelerId)
-        } else {
-          // Hydrate if not in localStorage
-          try {
-            const response = await fetch('/api/auth/hydrate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                firebaseId: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: firebaseUser.displayName,
-                picture: firebaseUser.photoURL,
-              }),
-            })
+      const storedTravelerId = LocalStorageAPI.getTravelerId()
+      const storedTripCrewData = LocalStorageAPI.getTripCrewData()
 
-            if (response.ok) {
-              const data = await response.json()
-              const travelerId = data.traveler.id
-              setTravelerId(travelerId)
-              localStorage.setItem('travelerId', travelerId)
-              loadTripCrew(travelerId)
-            } else {
-              setError('Failed to load your account')
-              setLoading(false)
-            }
-          } catch (err) {
-            console.error('Error hydrating:', err)
+      // If we have cached TripCrew data and it matches the current tripCrewId, use it instantly
+      if (storedTripCrewData && storedTripCrewData.id === tripCrewId && storedTravelerId) {
+        console.log('✅ TRIPCREW ADMIN: Using cached TripCrew data from localStorage')
+        setTravelerId(storedTravelerId)
+        setTripCrew(storedTripCrewData)
+        setLoading(false)
+        // Still fetch fresh data in background
+        if (storedTravelerId) {
+          loadTripCrew(storedTravelerId)
+        }
+        return
+      }
+
+      // Otherwise, hydrate and fetch
+      if (storedTravelerId) {
+        setTravelerId(storedTravelerId)
+        loadTripCrew(storedTravelerId)
+      } else {
+        // Hydrate if not in localStorage
+        try {
+          const response = await fetch('/api/auth/hydrate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firebaseId: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: firebaseUser.displayName,
+              picture: firebaseUser.photoURL,
+            }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            const travelerId = data.traveler.id
+            setTravelerId(travelerId)
+            LocalStorageAPI.setFullHydrationModel(data.traveler)
+            loadTripCrew(travelerId)
+          } else {
             setError('Failed to load your account')
             setLoading(false)
           }
+        } catch (err) {
+          console.error('Error hydrating:', err)
+          setError('Failed to load your account')
+          setLoading(false)
         }
       }
     })
@@ -86,6 +101,10 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
       const result = await getTripCrew(tripCrewId, id)
       if (result.success && result.tripCrew) {
         setTripCrew(result.tripCrew)
+        // Store in localStorage for instant navigation next time
+        LocalStorageAPI.setTripCrewId(result.tripCrew.id)
+        LocalStorageAPI.setTripCrewData(result.tripCrew)
+        console.log('✅ TRIPCREW ADMIN: Stored TripCrew data to localStorage')
       } else {
         setError(result.error || 'Failed to load TripCrew')
         // If not a member, redirect to /tripcrews
