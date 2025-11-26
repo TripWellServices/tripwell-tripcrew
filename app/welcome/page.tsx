@@ -102,27 +102,56 @@ export default function WelcomePage() {
   }
 
   const displayName = traveler?.firstName || traveler?.email || 'Traveler'
-  
-  // Check if profile is complete (has firstName and lastName)
-  const isProfileComplete = traveler?.firstName && traveler?.lastName
-
-  // Redirect to profile setup if profile incomplete
-  if (!isProfileComplete) {
-    router.push('/profile/setup')
-    return null
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 flex items-center justify-center p-6">
       <div className="max-w-2xl w-full bg-white rounded-lg shadow-xl p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Welcome{displayName ? `, ${displayName}` : ''}!
-          </h1>
-          <p className="text-gray-600">Your TripWell Trip Crew</p>
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              Welcome{displayName ? `, ${displayName}` : ''}!
+            </h1>
+            <p className="text-gray-600">Your TripWell Home</p>
+          </div>
+          <Link
+            href="/profile/settings"
+            className="text-gray-500 hover:text-gray-700 text-sm"
+          >
+            Settings
+          </Link>
         </div>
 
-        {traveler && traveler.tripCrewMemberships.length > 0 ? (
+        {/* Profile Info Card */}
+        <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Profile Information</h2>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Name:</span>
+              <span className="text-gray-900 font-medium">
+                {traveler?.firstName && traveler?.lastName
+                  ? `${traveler.firstName} ${traveler.lastName}`
+                  : traveler?.firstName || traveler?.email || 'Not set'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Email:</span>
+              <span className="text-gray-900">{traveler?.email || 'Not set'}</span>
+            </div>
+            {traveler?.photoUrl && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Photo:</span>
+                <img
+                  src={traveler.photoUrl}
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* TripCrews Section - Only show if they have any */}
+        {traveler && traveler.tripCrewMemberships.length > 0 && (
           <div className="space-y-4 mb-8">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Your TripCrews</h2>
             {traveler.tripCrewMemberships.map((membership) => (
@@ -138,20 +167,18 @@ export default function WelcomePage() {
               </Link>
             ))}
           </div>
-        ) : (
-          <div className="mb-8 p-6 bg-gray-50 rounded-lg text-center">
-            <p className="text-gray-600 mb-4">You don't have any TripCrews yet.</p>
-            <p className="text-sm text-gray-500">Create your first TripCrew to get started!</p>
-          </div>
         )}
 
+        {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <Link
-            href="/tripcrew/setup"
-            className="flex-1 px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-center"
-          >
-            Create TripCrew
-          </Link>
+          {(!traveler || traveler.tripCrewMemberships.length === 0) && (
+            <Link
+              href="/tripcrew/setup"
+              className="flex-1 px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-center"
+            >
+              Create TripCrew
+            </Link>
+          )}
           <button
             onClick={() => {
               const auth = getFirebaseAuth()
