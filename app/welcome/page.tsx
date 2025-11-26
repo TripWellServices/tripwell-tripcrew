@@ -18,9 +18,16 @@ interface TripCrewMembership {
 
 interface Traveler {
   id: string
+  firebaseId: string | null
+  email: string | null
   firstName: string | null
   lastName: string | null
-  email: string | null
+  photoUrl: string | null
+  hometownCity: string | null
+  homeState: string | null
+  persona: string | null
+  planningStyle: string | null
+  dreamDestination: string | null
   tripCrewMemberships: TripCrewMembership[]
 }
 
@@ -38,9 +45,11 @@ export default function WelcomePage() {
         return
       }
 
-      // Hydrate Traveler from Firebase
+      // Hydrate Traveler from Firebase (Universal Hydrator - like GoFast)
       try {
+        console.log('🚀 WELCOME: ===== STARTING HYDRATION =====')
         console.log('🔄 WELCOME: Hydrating traveler for firebaseId:', firebaseUser.uid)
+        
         const response = await fetch('/api/auth/hydrate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -56,8 +65,41 @@ export default function WelcomePage() {
 
         if (response.ok) {
           const data = await response.json()
-          console.log('✅ WELCOME: Traveler hydrated:', data.traveler?.id)
-          setTraveler(data.traveler)
+          const hydratedTraveler = data.traveler
+          
+          console.log('✅ WELCOME: Traveler hydrated:', hydratedTraveler?.id)
+          console.log('✅ WELCOME: Email:', hydratedTraveler?.email)
+          console.log('✅ WELCOME: Name:', hydratedTraveler?.firstName, hydratedTraveler?.lastName)
+          console.log('✅ WELCOME: TripCrews count:', hydratedTraveler?.tripCrewMemberships?.length || 0)
+
+          // Store in localStorage (like GoFast pattern)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('travelerId', hydratedTraveler.id)
+            localStorage.setItem('firebaseId', firebaseUser.uid)
+            localStorage.setItem('email', hydratedTraveler.email || firebaseUser.email || '')
+            localStorage.setItem('traveler', JSON.stringify(hydratedTraveler))
+            
+            console.log('💾 WELCOME: Traveler data cached to localStorage')
+          }
+
+          setTraveler(hydratedTraveler)
+
+          // Check if profile is complete (has firstName, lastName, hometownCity, homeState, persona, planningStyle)
+          const isProfileComplete = 
+            hydratedTraveler?.firstName && 
+            hydratedTraveler?.lastName && 
+            hydratedTraveler?.hometownCity && 
+            hydratedTraveler?.homeState && 
+            hydratedTraveler?.persona && 
+            hydratedTraveler?.planningStyle
+
+          if (!isProfileComplete) {
+            console.log('📝 WELCOME: Profile incomplete, redirecting to profile setup')
+            router.push('/profile/setup')
+            return
+          }
+
+          console.log('✅ WELCOME: ===== HYDRATION SUCCESS =====')
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
           console.error('❌ WELCOME: Hydrate failed:', errorData)

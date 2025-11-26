@@ -69,11 +69,11 @@ export default function ProfileSetupPage() {
             firstName: hydratedTraveler.firstName || '',
             lastName: hydratedTraveler.lastName || '',
             email: hydratedTraveler.email || firebaseUser.email || '',
-            hometownCity: '',
-            state: '',
-            persona: '',
-            planningStyle: '',
-            dreamDestination: '',
+            hometownCity: hydratedTraveler.hometownCity || '',
+            state: hydratedTraveler.homeState || '',
+            persona: hydratedTraveler.persona || '',
+            planningStyle: hydratedTraveler.planningStyle || '',
+            dreamDestination: hydratedTraveler.dreamDestination || '',
           })
         }
       } catch (err) {

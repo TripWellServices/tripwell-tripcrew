@@ -44,16 +44,19 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Update traveler profile
-    const updatedTraveler = await prisma.traveler.update({
-      where: { id: traveler.id },
-      data: {
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        // Note: We'll add profile fields to schema later if needed
-        // For now, just update basic fields
-      },
-    })
+        // Update traveler profile with all fields
+        const updatedTraveler = await prisma.traveler.update({
+          where: { id: traveler.id },
+          data: {
+            firstName: firstName || undefined,
+            lastName: lastName || undefined,
+            hometownCity: hometownCity || undefined,
+            homeState: state || undefined,
+            persona: persona || undefined,
+            planningStyle: planningStyle || undefined,
+            dreamDestination: dreamDestination || undefined,
+          },
+        })
 
     return NextResponse.json({
       success: true,

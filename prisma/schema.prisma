@@ -26,6 +26,14 @@ model Traveler {
   firstName          String?
   lastName           String?
   photoUrl           String?
+  
+  // Profile fields (from OG TripWell ProfileSetup)
+  hometownCity       String?
+  homeState          String?
+  persona            String?          // "Art", "Food", "History", "Adventure"
+  planningStyle      String?          // "Spontaneous", "Mix of spontaneous and planned", "Set a plan and stick to it!"
+  dreamDestination   String?
+  
   tripWellEnterpriseId String?        // Optional initially for migration, then required
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
