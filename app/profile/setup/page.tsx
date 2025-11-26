@@ -149,7 +149,7 @@ export default function ProfileSetupPage() {
             Welcome to TripWell! 🌍
           </h1>
           <p className="text-gray-600 text-lg leading-relaxed">
-            Just tell us a bit about yourself and we'll get you started on your next adventure!
+            Just tell us a bit about yourself and we&apos;ll get you started on your next adventure!
           </p>
         </div>
 
@@ -247,7 +247,7 @@ export default function ProfileSetupPage() {
             <h3 className="text-lg font-semibold text-gray-800">
               How do you plan/live out your trips?
             </h3>
-            <p className="text-gray-600 text-sm">What's your planning and travel style?</p>
+            <p className="text-gray-600 text-sm">What&apos;s your planning and travel style?</p>
             <div className="space-y-3">
               {planningStyleOptions.map((style) => (
                 <label

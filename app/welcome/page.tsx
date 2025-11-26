@@ -189,7 +189,7 @@ export default function WelcomePage() {
                 onClick={handleLetsGo}
                 className="bg-white text-sky-600 px-12 py-4 rounded-xl font-bold text-xl hover:bg-sky-50 transition shadow-2xl transform hover:scale-105"
               >
-                Let's Go! →
+                Let&apos;s Go! →
               </button>
             </div>
           )}

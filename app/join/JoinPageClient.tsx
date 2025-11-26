@@ -126,7 +126,7 @@ export default function JoinPageClient({ code, tripCrew }: JoinPageClientProps) 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2S10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L12 21L16 22V20.5L14 19V13.5L22 16Z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">You're Invited!</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">You&apos;re Invited!</h1>
           <p className="text-gray-600">Join this TripCrew to start planning adventures together</p>
         </div>
 

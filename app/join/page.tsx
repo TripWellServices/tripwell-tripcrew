@@ -48,5 +48,6 @@ export default async function JoinPage({ searchParams }: PageProps) {
   // Show preview page (client component for auth handling)
   // If user is authenticated, they can join directly
   // If not authenticated, show sign up/sign in options
+  // Data is already normalized in lookupTripCrewByCode
   return <JoinPageClient code={code} tripCrew={lookupResult.tripCrew} />
 }

@@ -361,14 +361,14 @@ export async function lookupTripCrewByCode(joinCode: string) {
       tripCrew: {
         id: tripCrew.id,
         name: tripCrew.name,
-        description: tripCrew.description,
+        description: tripCrew.description ?? undefined,
         memberCount: tripCrew._count.memberships,
         tripCount: tripCrew._count.trips,
         admin: admin
           ? {
-              firstName: admin.firstName,
-              lastName: admin.lastName,
-              photoURL: admin.photoURL,
+              firstName: admin.firstName ?? '',
+              lastName: admin.lastName ?? '',
+              photoURL: admin.photoURL ?? undefined,
             }
           : null,
       },
@@ -396,7 +396,10 @@ export async function joinTripCrew(
   if (typeof joinCodeOrOptions === 'string') {
     // Old signature: joinTripCrew(joinCode, travelerId)
     joinCode = joinCodeOrOptions
-    finalTravelerId = travelerId!
+    if (!travelerId) {
+      throw new Error('Traveler ID is required')
+    }
+    finalTravelerId = travelerId
   } else {
     // New signature: joinTripCrew({ inviteCode, travelerId })
     joinCode = joinCodeOrOptions.inviteCode
@@ -464,7 +467,7 @@ export async function joinTripCrew(
     const existing = await prisma.tripCrewMember.findFirst({
       where: {
         tripCrewId: tripCrew.id,
-        travelerId,
+        travelerId: finalTravelerId,
       },
     })
 
@@ -476,7 +479,7 @@ export async function joinTripCrew(
     await prisma.tripCrewMember.create({
       data: {
         tripCrewId: tripCrew.id,
-        travelerId,
+        travelerId: finalTravelerId,
       },
     })
 
