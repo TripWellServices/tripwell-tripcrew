@@ -40,6 +40,7 @@ export default function WelcomePage() {
 
       // Hydrate Traveler from Firebase
       try {
+        console.log('🔄 WELCOME: Hydrating traveler for firebaseId:', firebaseUser.uid)
         const response = await fetch('/api/auth/hydrate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -51,15 +52,20 @@ export default function WelcomePage() {
           }),
         })
 
+        console.log('🔄 WELCOME: Response status:', response.status)
+
         if (response.ok) {
           const data = await response.json()
+          console.log('✅ WELCOME: Traveler hydrated:', data.traveler?.id)
           setTraveler(data.traveler)
         } else {
-          setError('Failed to load your account')
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('❌ WELCOME: Hydrate failed:', errorData)
+          setError(errorData.error || 'Failed to load your account')
         }
-      } catch (err) {
-        console.error('Hydrate error:', err)
-        setError('Failed to load your account')
+      } catch (err: any) {
+        console.error('❌ WELCOME: Hydrate error:', err)
+        setError(err.message || 'Failed to load your account')
       } finally {
         setLoading(false)
       }

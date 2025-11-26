@@ -11,9 +11,33 @@ export default function SplashPage() {
 
   useEffect(() => {
     const auth = getFirebaseAuth()
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        router.push('/welcome')
+        // Check if user exists in TripWell (not just Firebase)
+        try {
+          const response = await fetch('/api/auth/hydrate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firebaseId: user.uid,
+              email: user.email,
+              name: user.displayName,
+              picture: user.photoURL,
+            }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            // Only redirect if Traveler exists in TripWell
+            if (data.traveler) {
+              router.push('/welcome')
+            }
+            // If no Traveler, stay on splash (let them sign up fresh)
+          }
+        } catch (err) {
+          console.error('Check traveler error:', err)
+          // On error, stay on splash
+        }
       }
     })
 
