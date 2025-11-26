@@ -8,7 +8,6 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { getTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
 
 export class TravelerFindOrCreateService {
   /**
@@ -33,19 +32,26 @@ export class TravelerFindOrCreateService {
 
     console.log('🔍 TRAVELER SERVICE: Finding or creating traveler for firebaseId:', firebaseId)
 
-    // Ensure TripWell Enterprises exists (upsert pattern - like GoFastCompany)
-    const enterpriseId = getTripWellEnterpriseId()
-    const enterprise = await prisma.tripWellEnterprise.upsert({
-      where: { id: enterpriseId },
-      update: {}, // No updates needed if exists (migration handles data)
-      create: {
-        id: enterpriseId,
-        name: 'TripWell Enterprises',
-        address: '2604 N. George Mason Dr., Arlington, VA 22207',
-        description: 'Helping people enjoy traveling through intentional planning and connectedness',
-      },
+    // Ensure TripWell Enterprises exists (find or create by name)
+    let enterprise = await prisma.tripWellEnterprise.findFirst({
+      where: { name: 'TripWell Enterprises' },
     })
-    console.log('✅ TRAVELER SERVICE: TripWell Enterprises ready')
+    
+    if (!enterprise) {
+      // Create if doesn't exist (Prisma will generate UUID)
+      enterprise = await prisma.tripWellEnterprise.create({
+        data: {
+          name: 'TripWell Enterprises',
+          address: '2604 N. George Mason Dr., Arlington, VA 22207',
+          description: 'Helping people enjoy traveling through intentional planning and connectedness',
+        },
+      })
+      console.log('✅ TRAVELER SERVICE: Created TripWell Enterprises:', enterprise.id)
+    } else {
+      console.log('✅ TRAVELER SERVICE: Found TripWell Enterprises:', enterprise.id)
+    }
+    
+    const enterpriseId = enterprise.id
 
     // Parse displayName into firstName/lastName if available
     const firstName = displayName?.split(' ')[0] || null
