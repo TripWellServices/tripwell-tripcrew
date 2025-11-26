@@ -37,11 +37,12 @@ export class TravelerFindOrCreateService {
     const enterpriseId = getTripWellEnterpriseId()
     const enterprise = await prisma.tripWellEnterprise.upsert({
       where: { id: enterpriseId },
-      update: {}, // No updates needed if exists
+      update: {}, // No updates needed if exists (migration handles data)
       create: {
         id: enterpriseId,
         name: 'TripWell Enterprises',
-        description: 'Master container for all TripWell travelers',
+        address: '2604 N. George Mason Dr., Arlington, VA 22207',
+        description: 'Helping people enjoy traveling through intentional planning and connectedness',
       },
     })
     console.log('✅ TRAVELER SERVICE: TripWell Enterprises ready')
@@ -53,6 +54,7 @@ export class TravelerFindOrCreateService {
     // Use Prisma upsert for atomic find-or-create
     // If firebaseId exists, update with Firebase data (sync Firebase profile changes)
     // If not, create new traveler with Firebase data
+    // ALWAYS ensure tripWellEnterpriseId is set (fixes any orphaned travelers)
     const traveler = await prisma.traveler.upsert({
       where: { firebaseId },
       update: {
@@ -61,6 +63,7 @@ export class TravelerFindOrCreateService {
         firstName, // Update firstName from displayName
         lastName, // Update lastName from displayName
         photoUrl: picture || null, // Update photoUrl from Firebase
+        tripWellEnterpriseId: enterpriseId, // ALWAYS ensure linked to master container
       },
       create: {
         firebaseId,

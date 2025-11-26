@@ -11,6 +11,7 @@ generator client {
 model TripWellEnterprise {
   id          String     @id @default(uuid())
   name        String     @default("TripWell Enterprises")
+  address     String?
   description String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
