@@ -7,33 +7,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Trip Enums
-enum TripPurpose {
-  FAMILY
-  ANNIVERSARY
-  WORK
-  RACE
-  FRIENDS
-  COUPLES
-  GENERAL
-}
-
-enum TripType {
-  BEACH
-  CITY
-  MOUNTAIN
-  ADVENTURE
-  SKI
-  CRUISE
-  THEMEPARK
-  GENERAL
-}
-
-enum TripBudget {
-  BUDGET
-  MODERATE
-  LUXURY
-}
+// Note: Original TripBase used free-form strings for purpose, not enums
+// Keeping enums removed to match original flexibility
 
 // TripWell Enterprises - Master Container (like GoFastCompany)
 model TripWellEnterprise {
@@ -109,16 +84,33 @@ model JoinCode {
 model Trip {
   id          String         @id @default(uuid())
   tripCrewId  String?        // Will be required after migration
-  name        String
-  destination String?
-  purpose     TripPurpose?
-  tripType    TripType?
-  budgetLevel TripBudget?
-  notes       String?
-  attendees   String[]       @default([]) // travelerId[]
-  coverImage  String?
+  
+  // Core trip fields (matching original TripBase)
+  name        String         // tripName in original
+  purpose     String?       // Free-form string (not enum) - users type custom purposes
+  city        String?       // Separate from country (original had both)
+  country     String?       // Separate from city (original had both)
+  destination String?       // Convenience field (can be computed from city + country)
+  
+  // Dates
   startDate   DateTime?
   endDate     DateTime?
+  
+  // Party info (matching original)
+  partyCount  Int?          @default(1) // Number of people
+  whoWith     String?       // "spouse", "friends", "solo", "family", "other" (stored as string)
+  
+  // Computed fields (from original)
+  season      String?       // "Summer", "Winter", etc. (computed from dates)
+  daysTotal   Int?          // Computed from startDate/endDate
+  
+  // Optional metadata (new fields for TripCrew version)
+  tripType    String?       // Optional: "BEACH", "CITY", etc. (not in original, but useful)
+  budgetLevel String?       // Optional: "BUDGET", "MODERATE", "LUXURY" (not in original TripBase)
+  notes       String?
+  attendees   String[]       @default([]) // travelerId[] (TripCrew-specific)
+  coverImage  String?
+  
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   

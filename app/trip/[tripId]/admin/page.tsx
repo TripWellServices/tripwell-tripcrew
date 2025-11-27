@@ -47,13 +47,30 @@ export default async function AdminPage({ params }: PageProps) {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-4xl font-bold text-gray-800 mb-2">{trip.name}</h1>
-              <p className="text-xl text-gray-600 mb-4">📍 {trip.destination}</p>
+              <p className="text-xl text-gray-600 mb-4">
+                📍 {trip.city && trip.country ? `${trip.city}, ${trip.country}` : trip.destination || 'No destination set'}
+              </p>
               
               {/* Metadata Badges */}
               <div className="flex flex-wrap gap-2 mb-4">
                 {trip.purpose && (
                   <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    {trip.purpose}
+                    Purpose: {trip.purpose}
+                  </span>
+                )}
+                {trip.whoWith && (
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
+                    {trip.whoWith}
+                  </span>
+                )}
+                {trip.partyCount && (
+                  <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium">
+                    {trip.partyCount} {trip.partyCount === 1 ? 'person' : 'people'}
+                  </span>
+                )}
+                {trip.season && (
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                    {trip.season}
                   </span>
                 )}
                 {trip.tripType && (

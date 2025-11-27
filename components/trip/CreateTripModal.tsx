@@ -27,16 +27,16 @@ interface CreateTripModalProps {
   onClose: () => void
 }
 
-const TRIP_PURPOSES = [
-  { value: 'FAMILY', label: 'Family' },
-  { value: 'ANNIVERSARY', label: 'Anniversary' },
-  { value: 'WORK', label: 'Work' },
-  { value: 'RACE', label: 'Race' },
-  { value: 'FRIENDS', label: 'Friends' },
-  { value: 'COUPLES', label: 'Couples' },
-  { value: 'GENERAL', label: 'General' },
+// Who With options (matching original TripBase enum)
+const WHO_WITH_OPTIONS = [
+  { value: 'spouse', label: 'Spouse / Partner' },
+  { value: 'friends', label: 'Friends' },
+  { value: 'solo', label: 'Solo Traveler' },
+  { value: 'family', label: 'Family' },
+  { value: 'other', label: 'Other' },
 ]
 
+// Optional fields (not in original TripBase, but useful)
 const TRIP_TYPES = [
   { value: 'BEACH', label: 'Beach' },
   { value: 'CITY', label: 'City' },
@@ -60,15 +60,19 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
     name: '',
-    destination: '',
-    purpose: 'GENERAL' as const,
-    tripType: 'GENERAL' as const,
-    budgetLevel: 'MODERATE' as const,
+    purpose: '', // Free-form text input (matching original)
+    city: '',
+    country: '',
+    partyCount: '1',
+    whoWith: 'friends', // Matching original enum
+    startDate: '',
+    endDate: '',
+    // Optional fields (not in original)
+    tripType: '',
+    budgetLevel: '',
     notes: '',
     attendees: [travelerId], // Default to creator
     coverImage: '',
-    startDate: '',
-    endDate: '',
   })
 
   const availableTravelers = tripCrew.memberships || []
@@ -78,14 +82,24 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
     setLoading(true)
     setError('')
 
-    // Validation
+    // Validation (matching original TripSetup)
     if (!formData.name.trim()) {
       setError('Trip name is required')
       setLoading(false)
       return
     }
-    if (!formData.destination.trim()) {
-      setError('Destination is required')
+    if (!formData.purpose.trim()) {
+      setError('Purpose is required')
+      setLoading(false)
+      return
+    }
+    if (!formData.city.trim()) {
+      setError('City is required')
+      setLoading(false)
+      return
+    }
+    if (!formData.country.trim()) {
+      setError('Country is required')
       setLoading(false)
       return
     }
@@ -99,8 +113,8 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
       setLoading(false)
       return
     }
-    if (formData.attendees.length === 0) {
-      setError('At least one attendee is required')
+    if (!formData.partyCount || isNaN(Number(formData.partyCount)) || Number(formData.partyCount) < 1) {
+      setError('Please enter a valid party count (minimum 1)')
       setLoading(false)
       return
     }
@@ -114,15 +128,19 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
       const result = await createTripWithMetadata({
         tripCrewId: tripCrew.id,
         name: formData.name.trim(),
-        destination: formData.destination.trim(),
-        purpose: formData.purpose,
-        tripType: formData.tripType,
-        budgetLevel: formData.budgetLevel,
+        purpose: formData.purpose.trim(), // Free-form string
+        city: formData.city.trim(),
+        country: formData.country.trim(),
+        partyCount: Number(formData.partyCount),
+        whoWith: formData.whoWith,
+        startDate: new Date(formData.startDate),
+        endDate: new Date(formData.endDate),
+        // Optional fields
+        tripType: formData.tripType.trim() || undefined,
+        budgetLevel: formData.budgetLevel.trim() || undefined,
         notes: formData.notes.trim() || undefined,
         attendees: formData.attendees,
         coverImage: formData.coverImage.trim() || undefined,
-        startDate: new Date(formData.startDate),
-        endDate: new Date(formData.endDate),
         travelerId,
       })
 
@@ -171,7 +189,7 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Trip Name & Destination */}
+          {/* Trip Name & Purpose (matching original TripSetup) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -183,53 +201,101 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                placeholder="e.g., Summer Vacation 2024"
+                placeholder="Paris Adventure, Beach Getaway, Family Reunion"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Destination *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.destination}
-                onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                placeholder="e.g., Richlands, VA"
-              />
-            </div>
-          </div>
-
-          {/* Purpose, Type, Budget */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Purpose *
               </label>
-              <select
+              <input
+                type="text"
                 required
                 value={formData.purpose}
-                onChange={(e) => setFormData({ ...formData, purpose: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                placeholder="Anniversary, Birthday, Relaxation"
+              />
+            </div>
+          </div>
+
+          {/* City & Country (matching original TripSetup) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                City *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                placeholder="Paris"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                State/Country *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.country}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                placeholder="France"
+              />
+            </div>
+          </div>
+
+          {/* Party Count & Who With (matching original TripSetup) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Party Count *
+              </label>
+              <input
+                type="number"
+                min={1}
+                required
+                value={formData.partyCount}
+                onChange={(e) => setFormData({ ...formData, partyCount: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                placeholder="How many people total?"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Who are you traveling with? *
+              </label>
+              <select
+                required
+                value={formData.whoWith}
+                onChange={(e) => setFormData({ ...formData, whoWith: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               >
-                {TRIP_PURPOSES.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
+                {WHO_WITH_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Optional: Trip Type & Budget Level (not in original, but useful) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Trip Type *
+                Trip Type (optional)
               </label>
               <select
-                required
                 value={formData.tripType}
-                onChange={(e) => setFormData({ ...formData, tripType: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, tripType: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               >
+                <option value="">Select trip type (optional)</option>
                 {TRIP_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -239,14 +305,14 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Budget Level *
+                Budget Level (optional)
               </label>
               <select
-                required
                 value={formData.budgetLevel}
-                onChange={(e) => setFormData({ ...formData, budgetLevel: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, budgetLevel: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               >
+                <option value="">Select budget level (optional)</option>
                 {BUDGET_LEVELS.map((b) => (
                   <option key={b.value} value={b.value}>
                     {b.label}

@@ -61,36 +61,45 @@ export async function createTrip(data: {
 }
 
 /**
- * Create Trip with Full Metadata
+ * Create Trip with Full Metadata (matching original TripBase structure)
  * Creates a new trip with all TripWell metadata fields
  */
 export async function createTripWithMetadata(data: {
   tripCrewId: string
   name: string
-  destination: string
-  purpose: 'FAMILY' | 'ANNIVERSARY' | 'WORK' | 'RACE' | 'FRIENDS' | 'COUPLES' | 'GENERAL'
-  tripType: 'BEACH' | 'CITY' | 'MOUNTAIN' | 'ADVENTURE' | 'SKI' | 'CRUISE' | 'THEMEPARK' | 'GENERAL'
-  budgetLevel: 'BUDGET' | 'MODERATE' | 'LUXURY'
-  notes?: string
-  attendees: string[]
-  coverImage?: string
+  purpose: string // Free-form string (not enum) - users type custom purposes
+  city: string
+  country: string
+  destination?: string // Optional convenience field (can be computed from city + country)
   startDate: Date
   endDate: Date
+  partyCount?: number
+  whoWith?: string // "spouse", "friends", "solo", "family", "other"
+  // Optional new fields (not in original TripBase)
+  tripType?: string
+  budgetLevel?: string
+  notes?: string
+  attendees?: string[] // travelerId[] (TripCrew-specific)
+  coverImage?: string
   travelerId: string // For security check
 }) {
   try {
     const {
       tripCrewId,
       name,
-      destination,
       purpose,
+      city,
+      country,
+      destination,
+      startDate,
+      endDate,
+      partyCount,
+      whoWith,
       tripType,
       budgetLevel,
       notes,
       attendees,
       coverImage,
-      startDate,
-      endDate,
       travelerId,
     } = data
 
@@ -106,20 +115,38 @@ export async function createTripWithMetadata(data: {
       throw new Error('Not a member of this TripCrew')
     }
 
-    // Create trip with full metadata
+    // Calculate daysTotal from dates
+    const daysTotal = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+    // Determine season from startDate (simple logic)
+    const month = startDate.getMonth() + 1 // 1-12
+    let season: string | null = null
+    if (month >= 3 && month <= 5) season = 'Spring'
+    else if (month >= 6 && month <= 8) season = 'Summer'
+    else if (month >= 9 && month <= 11) season = 'Fall'
+    else season = 'Winter'
+
+    // Create trip with full metadata (matching original TripBase structure)
     const trip = await prisma.trip.create({
       data: {
         tripCrewId,
         name: name.trim(),
-        destination: destination.trim(),
-        purpose: purpose as any,
-        tripType: tripType as any,
-        budgetLevel: budgetLevel as any,
-        notes: notes?.trim() || null,
-        attendees,
-        coverImage: coverImage || null,
+        purpose: purpose.trim(),
+        city: city.trim(),
+        country: country.trim(),
+        destination: destination?.trim() || `${city.trim()}, ${country.trim()}`,
         startDate,
         endDate,
+        partyCount: partyCount || 1,
+        whoWith: whoWith || 'friends',
+        season,
+        daysTotal,
+        // Optional new fields
+        tripType: tripType?.trim() || null,
+        budgetLevel: budgetLevel?.trim() || null,
+        notes: notes?.trim() || null,
+        attendees: attendees || [],
+        coverImage: coverImage?.trim() || null,
       },
     })
 
