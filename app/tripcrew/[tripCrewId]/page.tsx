@@ -134,9 +134,6 @@ export default function TripCrewPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">{tripCrew.name}</h1>
-          {tripCrew.description && (
-            <p className="text-gray-600">{tripCrew.description}</p>
-          )}
         </div>
 
         {/* Add Trip Button */}

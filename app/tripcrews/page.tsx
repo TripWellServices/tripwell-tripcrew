@@ -170,9 +170,6 @@ export default function TripCrewsPage() {
                   className="block bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition"
                 >
                   <h3 className="text-xl font-semibold text-gray-800 mb-2">{crew.name}</h3>
-                  {crew.description && (
-                    <p className="text-gray-600 text-sm mb-4">{crew.description}</p>
-                  )}
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <span>{crew._count?.trips || 0} trips</span>
                     <span>{crew._count?.memberships || 0} members</span>
