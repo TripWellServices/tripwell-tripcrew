@@ -215,24 +215,16 @@ export default function TripCrewPage() {
                 href={`/trip/${trip.id}?admin=1`}
                 className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition"
               >
-                {trip.coverImage ? (
-                  <img
-                    src={trip.coverImage}
-                    alt={trip.name}
-                    className="w-full h-48 object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-gradient-to-br from-sky-400 to-blue-500"></div>
-                )}
+                <div className="w-full h-48 bg-gradient-to-br from-sky-400 to-blue-500"></div>
                 <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{trip.name}</h3>
-                  {trip.destination && (
-                    <p className="text-gray-600 mb-2">📍 {trip.destination}</p>
-                  )}
-                  {trip.startDate && trip.endDate && (
-                    <p className="text-sm text-gray-500">
-                      {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{trip.tripName}</h3>
+                  {trip.city && trip.country && (
+                    <p className="text-gray-600 mb-2">
+                      📍 {trip.city}{trip.state ? `, ${trip.state}` : ''}, {trip.country}
                     </p>
+                  )}
+                  {trip.dateRange && (
+                    <p className="text-sm text-gray-500">{trip.dateRange}</p>
                   )}
                 </div>
               </Link>

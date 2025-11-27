@@ -51,11 +51,10 @@ async function generateUniqueJoinCode(): Promise<string> {
  */
 export async function createTripCrew(data: {
   name: string
-  description?: string
   travelerId: string
 }) {
   try {
-    const { name, description, travelerId } = data
+    const { name, travelerId } = data
 
     // Verify traveler exists
     const traveler = await prisma.traveler.findUnique({
@@ -74,10 +73,8 @@ export async function createTripCrew(data: {
       // Create TripCrew
       const tripCrew = await tx.tripCrew.create({
         data: {
-          name: name.trim(),
-          description: description?.trim() || null,
-          createdByTravelerId: travelerId,
-          inviteCode: joinCode, // Legacy field for backward compatibility
+          name: name.trim() || null,
+          joinCode: joinCode,
         },
       })
 
@@ -275,10 +272,10 @@ export async function lookupTripCrewByCode(joinCode: string) {
       },
     })
 
-    // If not in registry, check TripCrew.inviteCode (backward compatibility) and upsert
+    // If not in registry, check TripCrew.joinCode (backward compatibility) and upsert
     if (!joinCodeRecord) {
       const tripCrew = await prisma.tripCrew.findUnique({
-        where: { inviteCode: normalizedCode },
+        where: { joinCode: normalizedCode },
         include: {
           _count: {
             select: { memberships: true, trips: true },
@@ -362,7 +359,6 @@ export async function lookupTripCrewByCode(joinCode: string) {
       tripCrew: {
         id: tripCrew.id,
         name: tripCrew.name,
-        description: tripCrew.description ?? undefined,
         memberCount: tripCrew._count.memberships,
         tripCount: tripCrew._count.trips,
         admin: admin
@@ -422,10 +418,10 @@ export async function joinTripCrew(
       },
     })
 
-    // If not in registry, check TripCrew.inviteCode (backward compatibility)
+    // If not in registry, check TripCrew.joinCode (backward compatibility)
     if (!joinCodeRecord) {
       const tripCrew = await prisma.tripCrew.findUnique({
-        where: { inviteCode: normalizedCode },
+        where: { joinCode: normalizedCode },
       })
 
       if (tripCrew) {
@@ -523,27 +519,27 @@ export async function generateInviteLink(tripCrewId: string, travelerId: string)
       select: { code: true },
     })
 
-    // Fallback to TripCrew.inviteCode if no active JoinCode
+    // Fallback to TripCrew.joinCode if no active JoinCode
     if (!joinCode) {
       const tripCrew = await prisma.tripCrew.findUnique({
         where: { id: tripCrewId },
-        select: { inviteCode: true },
+        select: { joinCode: true },
       })
 
-      if (!tripCrew || !tripCrew.inviteCode) {
-        throw new Error('TripCrew not found or has no invite code')
+      if (!tripCrew || !tripCrew.joinCode) {
+        throw new Error('TripCrew not found or has no join code')
       }
 
-      // Create JoinCode registry entry from legacy inviteCode
+      // Create JoinCode registry entry from TripCrew.joinCode
       await prisma.joinCode.create({
         data: {
-          code: tripCrew.inviteCode.toUpperCase(),
+          code: tripCrew.joinCode.toUpperCase(),
           tripCrewId,
           isActive: true,
         },
       })
 
-      joinCode = { code: tripCrew.inviteCode.toUpperCase() }
+      joinCode = { code: tripCrew.joinCode.toUpperCase() }
     }
 
     // Generate invite URL (direct link to crew)

@@ -31,11 +31,10 @@ export default async function TripPage({ params, searchParams }: PageProps) {
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <TripHeader
-          name={trip.name}
-          destination={trip.destination}
+          name={trip.tripName}
+          destination={trip.state ? `${trip.city}, ${trip.state}, ${trip.country}` : `${trip.city}, ${trip.country}`}
           startDate={trip.startDate}
           endDate={trip.endDate}
-          coverImage={trip.coverImage}
         />
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">

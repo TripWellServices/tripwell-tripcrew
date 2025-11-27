@@ -7,74 +7,84 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Note: Original TripBase used free-form strings for purpose, not enums
-// Keeping enums removed to match original flexibility
+// Trip Category Enum (multi-select optional)
+enum TripCategory {
+  FAMILY
+  RELAXATION
+  BEACH
+  HOLIDAY
+  ROMANTIC
+  ADVENTURE
+  EVENT
+  CITY
+  KIDS
+  FOOD
+}
 
 // TripWell Enterprises - Master Container (like GoFastCompany)
 model TripWellEnterprise {
-  id          String     @id @default(uuid())
-  name        String     @default("TripWell Enterprises")
+  id          String   @id @default(uuid())
+  name        String   @default("TripWell Enterprises")
   address     String?
   description String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relations
-  travelers   Traveler[] // All travelers belong to TripWell Enterprises
+  travelers Traveler[] // All travelers belong to TripWell Enterprises
 }
 
 model Traveler {
-  id                String           @id @default(uuid())
-  firebaseId         String?          @unique
-  email              String?          @unique
-  firstName          String?
-  lastName           String?
-  photoURL           String?  // Google profile picture URL (from Firebase)
-  
+  id         String  @id @default(uuid())
+  firebaseId String? @unique
+  email      String? @unique
+  firstName  String?
+  lastName   String?
+  photoURL   String? // Google profile picture URL (from Firebase)
+
   // Profile fields (from OG TripWell ProfileSetup)
-  hometownCity       String?
-  homeState          String?
-  persona            String?          // "Art", "Food", "History", "Adventure"
-  planningStyle      String?          // "Spontaneous", "Mix of spontaneous and planned", "Set a plan and stick to it!"
-  dreamDestination   String?
-  
-  tripWellEnterpriseId String?        // Optional initially for migration, then required
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  
+  hometownCity     String?
+  homeState        String?
+  persona          String? // "Art", "Food", "History", "Adventure"
+  planningStyle    String? // "Spontaneous", "Mix of spontaneous and planned", "Set a plan and stick to it!"
+  dreamDestination String?
+
+  tripWellEnterpriseId String? // Optional initially for migration, then required
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
   // Relations
-  tripWellEnterprise TripWellEnterprise? @relation(fields: [tripWellEnterpriseId], references: [id])
-  tripCrewMemberships TripCrewMember[] @relation("TravelerTripCrewMemberships")
-  tripCrewRoles       TripCrewRole[]   @relation("TravelerTripCrewRoles")
+  tripWellEnterprise  TripWellEnterprise? @relation(fields: [tripWellEnterpriseId], references: [id])
+  tripCrewMemberships TripCrewMember[]    @relation("TravelerTripCrewMemberships")
+  tripCrewRoles       TripCrewRole[]      @relation("TravelerTripCrewRoles")
 }
 
 model TripCrew {
-  id                String   @id @default(uuid())
-  name              String
-  description       String?
-  inviteCode        String?  @default(uuid()) @unique // Legacy field (backward compatibility)
-  createdByTravelerId String? // Creator (for reference, admin determined by TripCrewRole)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  // Relations (matching GoFast RunCrew pattern)
-  memberships       TripCrewMember[] // Junction table for members
-  roles             TripCrewRole[]   // Junction table for admin/manager roles
-  trips             Trip[]           // Trips belong to TripCrew
-  joinCodes         JoinCode[]       // JoinCode registry (authoritative source for invites)
-  
-  @@index([inviteCode])
+  id       String  @id @default(uuid())
+  name     String?
+  joinCode String  @unique
+
+  // Relations
+  memberships TripCrewMember[] // Junction table for members
+  roles       TripCrewRole[] // Junction table for admin/manager roles
+  trips       Trip[] // Trips belong to TripCrew
+  joinCodes   JoinCode[] // JoinCode registry (authoritative source for invites)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([joinCode])
 }
 
 // JoinCode Registry - Authoritative source for TripCrew invites
 model JoinCode {
-  id        String    @id @default(uuid())
-  code      String    @unique // Normalized, uppercase code
+  id         String    @id @default(uuid())
+  code       String    @unique // Normalized, uppercase code
   tripCrewId String
-  tripCrew  TripCrew  @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now())
-  expiresAt DateTime?
-  isActive  Boolean   @default(true)
+  tripCrew   TripCrew  @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  isActive   Boolean   @default(true)
 
   @@index([code])
   @@index([tripCrewId])
@@ -82,45 +92,37 @@ model JoinCode {
 }
 
 model Trip {
-  id          String         @id @default(uuid())
-  tripCrewId  String?        // Will be required after migration
-  
-  // Core trip fields (matching original TripBase)
-  name        String         // tripName in original
-  purpose     String?       // Free-form string (not enum) - users type custom purposes
-  city        String?       // Separate from country (original had both)
-  country     String?       // Separate from city (original had both)
-  destination String?       // Convenience field (can be computed from city + country)
-  
-  // Dates
-  startDate   DateTime?
-  endDate     DateTime?
-  
-  // Party info (matching original)
-  partyCount  Int?          @default(1) // Number of people
-  whoWith     String?       // "spouse", "friends", "solo", "family", "other" (stored as string)
-  
-  // Computed fields (from original)
-  season      String?       // "Summer", "Winter", etc. (computed from dates)
-  daysTotal   Int?          // Computed from startDate/endDate
-  
-  // Optional metadata (new fields for TripCrew version)
-  tripType    String?       // Optional: "BEACH", "CITY", etc. (not in original, but useful)
-  budgetLevel String?       // Optional: "BUDGET", "MODERATE", "LUXURY" (not in original TripBase)
-  notes       String?
-  attendees   String[]       @default([]) // travelerId[] (TripCrew-specific)
-  coverImage  String?
-  
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  
+  id     String   @id @default(uuid())
+  crewId String
+  crew   TripCrew @relation(fields: [crewId], references: [id], onDelete: Cascade)
+
+  tripName   String
+  purpose    String // free text (required)
+  categories TripCategory[] // multi-select enum array (optional)
+
+  city    String
+  state   String?
+  country String
+
+  startDate DateTime
+  endDate   DateTime
+
+  // Computed fields — set via service on create/update
+  daysTotal Int
+  dateRange String
+  season    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  tripCrew    TripCrew?      @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
   lodging     Lodging?
   dining      Dining[]
   attractions Attraction[]
   logistics   LogisticItem[]
   packItems   PackItem[]
+
+  @@index([crewId])
 }
 
 model Lodging {
@@ -138,7 +140,7 @@ model Lodging {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  
+
   @@index([tripId])
 }
 
@@ -161,7 +163,7 @@ model Dining {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   trip                Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  
+
   @@index([tripId])
 }
 
@@ -184,7 +186,7 @@ model Attraction {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   trip                Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  
+
   @@index([tripId])
 }
 
@@ -197,32 +199,32 @@ model LogisticItem {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  
+
   @@index([tripId])
 }
 
 model PackItem {
-  id       String   @id @default(uuid())
-  tripId   String
-  title    String
-  isPacked Boolean  @default(false)
+  id        String   @id @default(uuid())
+  tripId    String
+  title     String
+  isPacked  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  
+
   @@index([tripId])
 }
 
 // TripCrew Membership - Junction table (matching GoFast RunCrewMembership pattern)
 model TripCrewMember {
-  id         String   @id @default(uuid())
+  id         String @id @default(uuid())
   tripCrewId String
-  travelerId String   // ATHLETE-FIRST: Foreign key to Traveler
+  travelerId String // ATHLETE-FIRST: Foreign key to Traveler
 
   // Timestamps
-  joinedAt   DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   tripCrew TripCrew @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)
@@ -236,13 +238,13 @@ model TripCrewMember {
 
 // TripCrew Roles - Junction table for admin/manager roles (matching GoFast RunCrewManager pattern)
 model TripCrewRole {
-  id         String   @id @default(uuid())
+  id         String @id @default(uuid())
   tripCrewId String
   travelerId String
-  role       String   // "admin" | "manager"
+  role       String // "admin" | "manager"
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   // Relations
   tripCrew TripCrew @relation(fields: [tripCrewId], references: [id], onDelete: Cascade)

@@ -133,9 +133,6 @@ export default function JoinPageClient({ code, tripCrew }: JoinPageClientProps) 
         {/* TripCrew Preview Card */}
         <div className="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{tripCrew.name}</h2>
-          {tripCrew.description && (
-            <p className="text-gray-600 text-sm mb-4">{tripCrew.description}</p>
-          )}
           <div className="flex items-center justify-between text-sm text-gray-500">
             <span>{tripCrew.memberCount} members</span>
             <span>{tripCrew.tripCount} trips</span>

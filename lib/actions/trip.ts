@@ -8,105 +8,51 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { computeTripMetadata } from '@/lib/trip/computeTripMetadata'
+import { TripCategory } from '@prisma/client'
 
 /**
- * Create Trip
- * Creates a new trip in a TripCrew
- * Only members can create trips
+ * Upsert Trip (Create or Update)
+ * Creates or updates a trip with computed metadata
+ * Only members can create/update trips
  */
-export async function createTrip(data: {
-  tripCrewId: string
-  name: string
-  destination?: string
-  startDate?: Date
-  endDate?: Date
-  coverImage?: string
-  travelerId: string // For security check
-}) {
-  try {
-    const { tripCrewId, name, destination, startDate, endDate, coverImage, travelerId } = data
-
-    // Verify traveler is a member
-    const membership = await prisma.tripCrewMember.findFirst({
-      where: {
-        tripCrewId,
-        travelerId,
-      },
-    })
-
-    if (!membership) {
-      throw new Error('Not a member of this TripCrew')
-    }
-
-    // Create trip
-    const trip = await prisma.trip.create({
-      data: {
-        tripCrewId,
-        name: name.trim(),
-        destination: destination?.trim() || null,
-        startDate: startDate || null,
-        endDate: endDate || null,
-        coverImage: coverImage || null,
-      },
-    })
-
-    revalidatePath(`/tripcrews/${tripCrewId}`)
-    revalidatePath(`/trips/${trip.id}`)
-
-    return { success: true, trip }
-  } catch (error: any) {
-    console.error('Create Trip error:', error)
-    return { success: false, error: error.message || 'Failed to create trip' }
-  }
-}
-
-/**
- * Create Trip with Full Metadata (matching original TripBase structure)
- * Creates a new trip with all TripWell metadata fields
- */
-export async function createTripWithMetadata(data: {
-  tripCrewId: string
-  name: string
-  purpose: string // Free-form string (not enum) - users type custom purposes
+export async function upsertTrip(data: {
+  id?: string
+  crewId: string
+  tripName: string
+  purpose: string
+  categories?: TripCategory[]
   city: string
+  state?: string
   country: string
-  destination?: string // Optional convenience field (can be computed from city + country)
   startDate: Date
   endDate: Date
-  partyCount?: number
-  whoWith?: string // "spouse", "friends", "solo", "family", "other"
-  // Optional new fields (not in original TripBase)
-  tripType?: string
-  budgetLevel?: string
-  notes?: string
-  attendees?: string[] // travelerId[] (TripCrew-specific)
-  coverImage?: string
   travelerId: string // For security check
 }) {
   try {
-    const {
-      tripCrewId,
-      name,
-      purpose,
-      city,
-      country,
-      destination,
-      startDate,
-      endDate,
-      partyCount,
-      whoWith,
-      tripType,
-      budgetLevel,
-      notes,
-      attendees,
-      coverImage,
-      travelerId,
-    } = data
+    const { id, crewId, tripName, purpose, categories, city, state, country, startDate, endDate, travelerId } = data
+
+    // Validation
+    if (!purpose.trim()) {
+      throw new Error('Purpose is required')
+    }
+    if (!tripName.trim()) {
+      throw new Error('Trip name is required')
+    }
+    if (!city.trim()) {
+      throw new Error('City is required')
+    }
+    if (!country.trim()) {
+      throw new Error('Country is required')
+    }
+    if (startDate >= endDate) {
+      throw new Error('End date must be after start date')
+    }
 
     // Verify traveler is a member
     const membership = await prisma.tripCrewMember.findFirst({
       where: {
-        tripCrewId,
+        tripCrewId: crewId,
         travelerId,
       },
     })
@@ -115,49 +61,49 @@ export async function createTripWithMetadata(data: {
       throw new Error('Not a member of this TripCrew')
     }
 
-    // Calculate daysTotal from dates
-    const daysTotal = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    // Compute metadata
+    const { daysTotal, dateRange, season } = computeTripMetadata(startDate, endDate)
 
-    // Determine season from startDate (simple logic)
-    const month = startDate.getMonth() + 1 // 1-12
-    let season: string | null = null
-    if (month >= 3 && month <= 5) season = 'Spring'
-    else if (month >= 6 && month <= 8) season = 'Summer'
-    else if (month >= 9 && month <= 11) season = 'Fall'
-    else season = 'Winter'
-
-    // Create trip with full metadata (matching original TripBase structure)
-    const trip = await prisma.trip.create({
-      data: {
-        tripCrewId,
-        name: name.trim(),
+    // Upsert trip
+    const trip = await prisma.trip.upsert({
+      where: { id: id ?? 'none' },
+      create: {
+        crewId,
+        tripName: tripName.trim(),
         purpose: purpose.trim(),
+        categories: categories || [],
         city: city.trim(),
+        state: state?.trim() || null,
         country: country.trim(),
-        destination: destination?.trim() || `${city.trim()}, ${country.trim()}`,
         startDate,
         endDate,
-        partyCount: partyCount || 1,
-        whoWith: whoWith || 'friends',
-        season,
         daysTotal,
-        // Optional new fields
-        tripType: tripType?.trim() || null,
-        budgetLevel: budgetLevel?.trim() || null,
-        notes: notes?.trim() || null,
-        attendees: attendees || [],
-        coverImage: coverImage?.trim() || null,
+        dateRange,
+        season,
+      },
+      update: {
+        tripName: tripName.trim(),
+        purpose: purpose.trim(),
+        categories: categories || [],
+        city: city.trim(),
+        state: state?.trim() || null,
+        country: country.trim(),
+        startDate,
+        endDate,
+        daysTotal,
+        dateRange,
+        season,
       },
     })
 
-    revalidatePath(`/tripcrews/${tripCrewId}`)
+    revalidatePath(`/tripcrews/${crewId}`)
     revalidatePath(`/trip/${trip.id}`)
     revalidatePath(`/trip/${trip.id}/admin`)
 
     return { success: true, trip }
   } catch (error: any) {
-    console.error('Create Trip with Metadata error:', error)
-    return { success: false, error: error.message || 'Failed to create trip' }
+    console.error('Upsert Trip error:', error)
+    return { success: false, error: error.message || 'Failed to upsert trip' }
   }
 }
 
@@ -171,7 +117,7 @@ export async function getTrip(tripId: string) {
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
       include: {
-        tripCrew: {
+        crew: {
           include: {
             memberships: {
               include: {

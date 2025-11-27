@@ -176,9 +176,6 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-4xl font-bold text-gray-800 mb-2">{tripCrew.name}</h1>
-            {tripCrew.description && (
-              <p className="text-gray-600 mb-4">{tripCrew.description}</p>
-            )}
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <span>{tripCrew.memberships?.length || 0} members</span>
               <span>•</span>
@@ -284,15 +281,14 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
                       href={`/trip/${trip.id}/admin`}
                       className="block p-4 border border-gray-200 rounded-lg hover:border-sky-300 hover:shadow-md transition"
                     >
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">{trip.name}</h3>
-                      {trip.destination && (
-                        <p className="text-sm text-gray-600 mb-2">📍 {trip.destination}</p>
-                      )}
-                      {trip.startDate && trip.endDate && (
-                        <p className="text-xs text-gray-500">
-                          {format(new Date(trip.startDate), 'MMM d')} -{' '}
-                          {format(new Date(trip.endDate), 'MMM d, yyyy')}
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">{trip.tripName}</h3>
+                      {trip.city && trip.country && (
+                        <p className="text-sm text-gray-600 mb-2">
+                          📍 {trip.city}{trip.state ? `, ${trip.state}` : ''}, {trip.country}
                         </p>
+                      )}
+                      {trip.dateRange && (
+                        <p className="text-xs text-gray-500">{trip.dateRange}</p>
                       )}
                     </Link>
                   ))}

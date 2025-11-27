@@ -6,7 +6,6 @@ interface TripHeaderProps {
   destination?: string | null
   startDate?: Date | null
   endDate?: Date | null
-  coverImage?: string | null
 }
 
 export default function TripHeader({
@@ -14,7 +13,6 @@ export default function TripHeader({
   destination,
   startDate,
   endDate,
-  coverImage,
 }: TripHeaderProps) {
   const dateRange =
     startDate && endDate
@@ -25,17 +23,7 @@ export default function TripHeader({
 
   return (
     <div className="relative w-full h-64 md:h-96 rounded-lg overflow-hidden shadow-lg">
-      {coverImage ? (
-        <Image
-          src={coverImage}
-          alt={name}
-          fill
-          className="object-cover"
-          priority
-        />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600" />
-      )}
+      <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600" />
       <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end">
         <div className="p-6 md:p-8 text-white w-full">
           <h1 className="text-3xl md:text-5xl font-bold mb-2">{name}</h1>

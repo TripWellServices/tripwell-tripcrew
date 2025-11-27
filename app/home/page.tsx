@@ -203,9 +203,9 @@ export default function TravelerHomePage() {
                         <p className="text-xs font-semibold text-gray-500 mb-2">Recent Trips</p>
                         {crew.trips.slice(0, 2).map((trip) => (
                           <div key={trip.id} className="text-sm text-gray-700 mb-1">
-                            {trip.name}
-                            {trip.destination && (
-                              <span className="text-gray-500"> • {trip.destination}</span>
+                            {trip.tripName}
+                            {trip.city && trip.country && (
+                              <span className="text-gray-500"> • {trip.city}, {trip.country}</span>
                             )}
                           </div>
                         ))}

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { createTripCrew } from '@/lib/actions/tripcrew'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Create TripCrew API Route
+ * @deprecated Use createTripCrew server action directly instead
+ */
 export async function POST(request: NextRequest) {
   try {
-    const { name, description, travelerId } = await request.json()
+    const { name, travelerId } = await request.json()
 
     if (!name || !travelerId) {
       return NextResponse.json(
@@ -14,35 +18,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create TripCrew
-    const tripCrew = await prisma.tripCrew.create({
-      data: {
-        name,
-        description: description || null,
-        // Create membership for creator
-        memberships: {
-          create: {
-            travelerId,
-          },
-        },
-        // Create admin role for creator
-        roles: {
-          create: {
-            travelerId,
-            role: 'admin',
-          },
-        },
-      },
-      include: {
-        trips: true,
-        memberships: true,
-        roles: true,
-      },
-    })
+    // Use server action
+    const result = await createTripCrew({ name, travelerId })
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'Failed to create TripCrew' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      tripCrew,
+      tripCrew: result.tripCrew,
     })
   } catch (error) {
     console.error('Create TripCrew error:', error)
@@ -52,5 +40,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
-
