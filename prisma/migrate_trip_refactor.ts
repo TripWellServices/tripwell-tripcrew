@@ -41,52 +41,60 @@ async function main() {
   for (const trip of trips) {
     const updates: any = {}
 
-    // Map old fields to new fields
-    if (trip.name) {
+    // Map old fields to new fields (handle both old and new schema)
+    if ('name' in trip && trip.name) {
       updates.tripName = trip.name
+    } else if ('tripName' in trip && trip.tripName) {
+      // Already migrated
+      updates.tripName = trip.tripName
     } else {
       updates.tripName = 'Untitled Trip'
     }
 
-    // Map crewId from tripCrewId
-    if (trip.tripCrewId) {
+    // Map crewId from tripCrewId (handle both old and new schema)
+    if ('tripCrewId' in trip && trip.tripCrewId) {
       updates.crewId = trip.tripCrewId
+    } else if ('crewId' in trip && trip.crewId) {
+      // Already migrated
+      updates.crewId = trip.crewId
     } else {
-      // If no tripCrewId, delete the orphaned trip
-      console.log(`  ⚠️ Trip ${trip.id} has no tripCrewId, deleting orphaned trip...`)
+      // If no crewId, delete the orphaned trip
+      console.log(`  ⚠️ Trip ${trip.id} has no crewId, deleting orphaned trip...`)
       await prisma.trip.delete({
         where: { id: trip.id },
       })
       continue
     }
 
-    // Ensure required fields have defaults
-    if (!trip.purpose) {
-      updates.purpose = 'Travel'
-    } else {
+    // Ensure required fields have defaults (handle both old and new schema)
+    if ('purpose' in trip && trip.purpose) {
       updates.purpose = trip.purpose
+    } else if (!('purpose' in trip)) {
+      updates.purpose = 'Travel'
     }
 
-    if (!trip.city) {
-      updates.city = 'Unknown'
-    } else {
+    if ('city' in trip && trip.city) {
       updates.city = trip.city
+    } else if (!('city' in trip)) {
+      updates.city = 'Unknown'
     }
 
-    if (!trip.country) {
-      updates.country = 'Unknown'
-    } else {
+    if ('country' in trip && trip.country) {
       updates.country = trip.country
+    } else if (!('country' in trip)) {
+      updates.country = 'Unknown'
     }
 
-    // Compute metadata if dates exist
+    // Compute metadata if dates exist (handle both old and new schema)
     if (trip.startDate && trip.endDate) {
-      const metadata = computeTripMetadata(trip.startDate, trip.endDate)
+      const startDate = trip.startDate instanceof Date ? trip.startDate : new Date(trip.startDate)
+      const endDate = trip.endDate instanceof Date ? trip.endDate : new Date(trip.endDate)
+      const metadata = computeTripMetadata(startDate, endDate)
       updates.daysTotal = metadata.daysTotal
       updates.dateRange = metadata.dateRange
       updates.season = metadata.season
-    } else {
-      // Default values if dates missing
+    } else if (!('daysTotal' in trip)) {
+      // Default values if dates missing and not already computed
       updates.daysTotal = 1
       updates.dateRange = 'TBD'
       updates.season = 'Unknown'

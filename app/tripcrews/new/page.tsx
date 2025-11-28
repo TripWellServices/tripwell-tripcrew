@@ -23,7 +23,6 @@ export default function CreateTripCrewPage() {
 
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
   })
 
   useEffect(() => {
@@ -85,7 +84,6 @@ export default function CreateTripCrewPage() {
     try {
       const result = await createTripCrew({
         name: formData.name,
-        description: formData.description,
         travelerId,
       })
 
@@ -142,18 +140,6 @@ export default function CreateTripCrewPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-              rows={4}
-              placeholder="Tell people about your trip crew..."
-            />
-          </div>
 
           <div className="flex gap-4">
             <button

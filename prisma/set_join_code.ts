@@ -25,7 +25,7 @@ async function main() {
       select: {
         id: true,
         name: true,
-        inviteCode: true,
+        joinCode: true,
       },
     })
 
@@ -56,13 +56,13 @@ async function main() {
     console.log(`   TripCrew ID: ${joinCodeRecord.tripCrewId}`)
     console.log(`   Active: ${joinCodeRecord.isActive}\n`)
 
-    // Update TripCrew.inviteCode for backward compatibility
+    // Update TripCrew.joinCode
     await prisma.tripCrew.update({
       where: { id: tripCrew.id },
-      data: { inviteCode: joinCode },
+      data: { joinCode: joinCode },
     })
 
-    console.log(`✅ TripCrew.inviteCode updated to: ${joinCode}\n`)
+    console.log(`✅ TripCrew.joinCode updated to: ${joinCode}\n`)
 
     // Generate invite URL
     const { appConfig } = await import('../config/appConfig')

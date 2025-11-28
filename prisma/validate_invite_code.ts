@@ -1,5 +1,5 @@
 /**
- * Validation script to test inviteCode functionality
+ * Validation script to test joinCode functionality
  */
 
 import { PrismaClient } from '@prisma/client'
@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🔍 Validating TripCrew inviteCode...\n')
+  console.log('🔍 Validating TripCrew joinCode...\n')
 
   try {
     // Test query to confirm inviteCode exists
@@ -16,7 +16,7 @@ async function main() {
       select: {
         id: true,
         name: true,
-        inviteCode: true,
+        joinCode: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -26,7 +26,7 @@ async function main() {
     crews.forEach((crew) => {
       console.log(`  - ${crew.name}`)
       console.log(`    ID: ${crew.id}`)
-      console.log(`    Invite Code: ${crew.inviteCode || '⚠️  NULL (will be generated on next update)'}`)
+      console.log(`    Join Code: ${crew.joinCode || '⚠️  NULL (will be generated on next update)'}`)
       console.log(`    Created: ${crew.createdAt}`)
       console.log(`    Updated: ${crew.updatedAt}`)
       console.log('')
@@ -51,13 +51,13 @@ async function main() {
       console.log('')
     })
 
-    // Test that we can query by inviteCode
-    if (crews.length > 0 && crews[0].inviteCode) {
+    // Test that we can query by joinCode
+    if (crews.length > 0 && crews[0].joinCode) {
       const foundByCode = await prisma.tripCrew.findUnique({
-        where: { inviteCode: crews[0].inviteCode },
+        where: { joinCode: crews[0].joinCode },
         select: { id: true, name: true },
       })
-      console.log(`✅ Query by inviteCode works: Found ${foundByCode?.name || 'nothing'}`)
+      console.log(`✅ Query by joinCode works: Found ${foundByCode?.name || 'nothing'}`)
     }
 
     console.log('\n✅ Validation complete! All checks passed.')

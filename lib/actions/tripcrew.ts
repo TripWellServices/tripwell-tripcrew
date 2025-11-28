@@ -204,6 +204,16 @@ export async function getTravelerTripCrews(travelerId: string) {
             trips: {
               orderBy: { createdAt: 'desc' },
               take: 3, // Latest 3 trips
+              select: {
+                id: true,
+                tripName: true,
+                city: true,
+                state: true,
+                country: true,
+                dateRange: true,
+                startDate: true,
+                endDate: true,
+              },
             },
             _count: {
               select: {

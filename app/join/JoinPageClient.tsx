@@ -17,8 +17,7 @@ interface JoinPageClientProps {
   code: string
   tripCrew: {
     id: string
-    name: string
-    description?: string
+    name: string | null
     memberCount: number
     tripCount: number
     admin: {

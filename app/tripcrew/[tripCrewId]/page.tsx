@@ -8,17 +8,18 @@ import Link from 'next/link'
 
 interface Trip {
   id: string
-  name: string
-  destination: string | null
-  startDate: string | null
-  endDate: string | null
-  coverImage: string | null
+  tripName: string
+  city: string
+  state: string | null
+  country: string
+  dateRange: string | null
+  startDate: Date | string | null
+  endDate: Date | string | null
 }
 
 interface TripCrew {
   id: string
-  name: string
-  description: string | null
+  name: string | null
   trips: Trip[]
 }
 

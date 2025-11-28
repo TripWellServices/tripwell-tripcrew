@@ -13,6 +13,15 @@ async function main() {
     },
   })
 
+  // Generate joinCode
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const codeLength = 6
+  let code = ''
+  for (let i = 0; i < codeLength; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  const joinCode = code.toUpperCase()
+
   // Create TripCrew first
   const tripCrew = await prisma.tripCrew.upsert({
     where: { id: 'seed-tripcrew-id' },
@@ -20,7 +29,7 @@ async function main() {
     create: {
       id: 'seed-tripcrew-id',
       name: 'Cole Family TripCrew',
-      description: 'Family travel planning',
+      joinCode,
       memberships: {
         create: {
           travelerId: owner.id,
@@ -38,24 +47,37 @@ async function main() {
   // Check if trip already exists
   const existingTrip = await prisma.trip.findFirst({
     where: {
-      name: 'Cole Family Thanksgiving',
-      tripCrewId: tripCrew.id,
+      tripName: 'Cole Family Thanksgiving',
+      crewId: tripCrew.id,
     },
   })
 
+  const startDate = new Date('2024-11-28')
+  const endDate = new Date('2024-12-01')
+  
+  // Compute metadata
+  const { computeTripMetadata } = await import('../lib/trip/computeTripMetadata')
+  const metadata = computeTripMetadata(startDate, endDate)
+
   const trip = existingTrip || await prisma.trip.create({
     data: {
-      name: 'Cole Family Thanksgiving',
-      destination: 'Richlands, VA',
-      tripCrewId: tripCrew.id,
-      startDate: new Date('2024-11-28'),
-      endDate: new Date('2024-12-01'),
+      tripName: 'Cole Family Thanksgiving',
+      purpose: 'Thanksgiving',
+      city: 'Richlands',
+      state: 'VA',
+      country: 'USA',
+      crewId: tripCrew.id,
+      startDate,
+      endDate,
+      daysTotal: metadata.daysTotal,
+      dateRange: metadata.dateRange,
+      season: metadata.season,
     },
   })
 
   console.log('✅ Seeded TripCrew:', tripCrew.id)
   console.log('✅ Seeded trip:', trip.id)
-  console.log('📍 Trip name:', trip.name)
+  console.log('📍 Trip name:', trip.tripName)
   console.log('👤 Owner:', owner.firstName, owner.lastName)
   console.log('\n🌐 View TripCrew at:')
   console.log(`   http://localhost:3000/tripcrew/${tripCrew.id}`)
