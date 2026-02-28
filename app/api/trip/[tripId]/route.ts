@@ -5,28 +5,51 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tripId: string } }
+  { params }: { params: Promise<{ tripId: string }> }
 ) {
   try {
-    // Use standard, safe, parent-aware hydration
+    const { tripId } = await params
+
     const trip = await prisma.trip.findUnique({
-      where: { id: params.tripId },
+      where: { id: tripId },
       include: {
+        destinations: {
+          orderBy: { order: 'asc' },
+          include: { city: true },
+        },
+        itineraryItems: {
+          orderBy: [{ date: 'asc' }, { day: 'asc' }, { createdAt: 'asc' }],
+          include: {
+            destination: { include: { city: true } },
+            lodging: true,
+            dining: true,
+            attraction: true,
+            stuffToDo: true,
+            suggestedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                photoURL: true,
+              },
+            },
+          },
+        },
         lodging: true,
         dining: {
-          where: { tripId: params.tripId },
+          where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
         attractions: {
-          where: { tripId: params.tripId },
+          where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
         logistics: {
-          where: { tripId: params.tripId },
+          where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
         packItems: {
-          where: { tripId: params.tripId },
+          where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
       },

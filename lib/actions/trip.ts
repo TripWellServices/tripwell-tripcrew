@@ -9,7 +9,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { computeTripMetadata } from '@/lib/trip/computeTripMetadata'
-import { TripCategory } from '@prisma/client'
+import { TripCategory, TripStatus } from '@prisma/client'
 
 /**
  * Upsert Trip (Create or Update)
@@ -28,9 +28,11 @@ export async function upsertTrip(data: {
   startDate: Date
   endDate: Date
   travelerId: string // For security check
+  status?: TripStatus
+  suggestedStops?: string
 }) {
   try {
-    const { id, crewId, tripName, purpose, categories, city, state, country, startDate, endDate, travelerId } = data
+    const { id, crewId, tripName, purpose, categories, city, state, country, startDate, endDate, travelerId, status, suggestedStops } = data
 
     // Validation
     if (!purpose.trim()) {
@@ -39,10 +41,10 @@ export async function upsertTrip(data: {
     if (!tripName.trim()) {
       throw new Error('Trip name is required')
     }
-    if (!city.trim()) {
+    if (!city?.trim()) {
       throw new Error('City is required')
     }
-    if (!country.trim()) {
+    if (!country?.trim()) {
       throw new Error('Country is required')
     }
     if (startDate >= endDate) {
@@ -64,7 +66,7 @@ export async function upsertTrip(data: {
     // Compute metadata
     const { daysTotal, dateRange, season } = computeTripMetadata(startDate, endDate)
 
-    // Upsert trip
+    // Upsert trip (city/state/country optional for lean + Destination flow)
     const trip = await prisma.trip.upsert({
       where: { id: id ?? 'none' },
       create: {
@@ -80,6 +82,8 @@ export async function upsertTrip(data: {
         daysTotal,
         dateRange,
         season,
+        status: status ?? TripStatus.CONFIRMED,
+        suggestedStops: suggestedStops?.trim() || null,
       },
       update: {
         tripName: tripName.trim(),
@@ -93,6 +97,8 @@ export async function upsertTrip(data: {
         daysTotal,
         dateRange,
         season,
+        ...(status !== undefined && { status }),
+        ...(suggestedStops !== undefined && { suggestedStops: suggestedStops?.trim() || null }),
       },
     })
 
@@ -129,6 +135,28 @@ export async function getTrip(tripId: string) {
                     photoURL: true,
                   },
                 },
+              },
+            },
+          },
+        },
+        destinations: {
+          orderBy: { order: 'asc' },
+          include: { city: true },
+        },
+        itineraryItems: {
+          orderBy: [{ date: 'asc' }, { day: 'asc' }, { createdAt: 'asc' }],
+          include: {
+            destination: { include: { city: true } },
+            lodging: true,
+            dining: true,
+            attraction: true,
+            stuffToDo: true,
+            suggestedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                photoURL: true,
               },
             },
           },

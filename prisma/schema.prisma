@@ -21,6 +21,36 @@ enum TripCategory {
   FOOD
 }
 
+// Trip status: PLANNED = brainstorm/board, CONFIRMED = building itinerary
+enum TripStatus {
+  PLANNED
+  CONFIRMED
+}
+
+// Itinerary item status (board columns when trip is PLANNED)
+enum ItineraryItemStatus {
+  CONSIDERING
+  CONFIRMED
+  DROPPED
+}
+
+// Itinerary item type
+enum ItineraryItemType {
+  event
+  dining
+  attraction
+  lodging
+  city
+  other
+}
+
+// Stuff-to-do catalogue entry type (OG CityStuffToDo buckets)
+enum StuffToDoType {
+  ATTRACTION
+  RESTAURANT
+  NEAT_THING
+}
+
 // TripWell Enterprises - Master Container (like GoFastCompany)
 model TripWellEnterprise {
   id          String   @id @default(uuid())
@@ -31,7 +61,28 @@ model TripWellEnterprise {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  travelers Traveler[] // All travelers belong to TripWell Enterprises
+  travelers  Traveler[]  @relation("EnterpriseTravelers")
+  lodging    Lodging[]   @relation("EnterpriseLodging")
+  dining     Dining[]    @relation("EnterpriseDining")
+  attractions Attraction[] @relation("EnterpriseAttractions")
+}
+
+// City — first-class (like GoFast race/location; not a string)
+model City {
+  id      String  @id @default(uuid())
+  name    String  // e.g. "Boston", "Venice Beach"
+  state   String?
+  country String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  destinations   Destination[]
+  stuffToDoItems StuffToDoItem[]
+
+  @@unique([name, state, country])
+  @@index([name])
+  @@index([country])
 }
 
 model Traveler {
@@ -54,9 +105,10 @@ model Traveler {
   updatedAt            DateTime @updatedAt
 
   // Relations
-  tripWellEnterprise  TripWellEnterprise? @relation(fields: [tripWellEnterpriseId], references: [id])
+  tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseTravelers", fields: [tripWellEnterpriseId], references: [id])
   tripCrewMemberships TripCrewMember[]    @relation("TravelerTripCrewMemberships")
   tripCrewRoles       TripCrewRole[]      @relation("TravelerTripCrewRoles")
+  suggestedItineraryItems ItineraryItem[] @relation("ItineraryItemSuggestedBy")
 }
 
 model TripCrew {
@@ -66,9 +118,9 @@ model TripCrew {
 
   // Relations
   memberships TripCrewMember[] // Junction table for members
-  roles       TripCrewRole[] // Junction table for admin/manager roles
-  trips       Trip[] // Trips belong to TripCrew
-  joinCodes   JoinCode[] // JoinCode registry (authoritative source for invites)
+  roles       TripCrewRole[]   // Junction table for admin/manager roles
+  trips       Trip[]           // Trips belong to TripCrew
+  joinCodes   JoinCode[]      // JoinCode registry (authoritative source for invites)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,9 +152,14 @@ model Trip {
   purpose    String // free text (required)
   categories TripCategory[] // multi-select enum array (optional)
 
-  city    String
+  // Lean: status + suggestedStops; "where" = Destination(s)
+  status          TripStatus @default(CONFIRMED)
+  suggestedStops  String?   // scratchpad e.g. "DC, NYC, summer concerts"
+
+  // Legacy: optional for backward compat; prefer Destination(s)
+  city    String?
   state   String?
-  country String
+  country String?
 
   startDate DateTime
   endDate   DateTime
@@ -116,37 +173,67 @@ model Trip {
   updatedAt DateTime @updatedAt
 
   // Relations
-  lodging     Lodging?
-  dining      Dining[]
-  attractions Attraction[]
-  logistics   LogisticItem[]
-  packItems   PackItem[]
+  destinations    Destination[]
+  itineraryItems  ItineraryItem[]
+  logistics       LogisticItem[]
+  packItems       PackItem[]
+  // Legacy artifact links (optional tripId on Lodging/Dining/Attraction)
+  lodging         Lodging?    @relation("TripLodging")
+  dining          Dining[]    @relation("TripDining")
+  attractions     Attraction[] @relation("TripAttractions")
 
   @@index([crewId])
 }
 
-model Lodging {
-  id            String   @id @default(uuid())
-  tripId        String   @unique
-  title         String
-  address       String?
-  website       String?
-  phone         String?
-  googlePlaceId String?
-  imageUrl      String?
-  rating        Float?
-  lat           Float?
-  lng           Float?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+// Destination — bolts to City (first-class), not string; trip can have many
+model Destination {
+  id      String  @id @default(uuid())
+  tripId  String
+  cityId  String
+  name    String? // e.g. "Virginia Beach leg", "NYC stop"
+  state   String? // optional override
+  country String? // optional override
+  order   Int     @default(0) // for multi-city order
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip           Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  city           City            @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  itineraryItems ItineraryItem[]
 
   @@index([tripId])
+  @@index([cityId])
+}
+
+model Lodging {
+  id                   String   @id @default(uuid())
+  tripId               String?  @unique // legacy; prefer ItineraryItem.lodgingId
+  tripWellEnterpriseId String?  // optional scope for reusable artifact
+  title                String
+  address              String?
+  website              String?
+  phone                String?
+  googlePlaceId        String?
+  imageUrl             String?
+  rating               Float?
+  lat                  Float?
+  lng                  Float?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  trip            Trip?             @relation("TripLodging", fields: [tripId], references: [id], onDelete: Cascade)
+  tripWellEnterprise TripWellEnterprise? @relation("EnterpriseLodging", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
+  itineraryItems  ItineraryItem[]
+
+  @@index([tripId])
+  @@index([tripWellEnterpriseId])
 }
 
 model Dining {
   id                  String    @id @default(uuid())
-  tripId              String
+  tripId              String?   // legacy; prefer ItineraryItem.diningId
+  tripWellEnterpriseId String?
   title               String
   category            String?
   address             String?
@@ -162,32 +249,96 @@ model Dining {
   itineraryDay        DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
-  trip                Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  trip                Trip?     @relation("TripDining", fields: [tripId], references: [id], onDelete: Cascade)
+  tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseDining", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
+  itineraryItems     ItineraryItem[]
 
   @@index([tripId])
+  @@index([tripWellEnterpriseId])
 }
 
 model Attraction {
-  id                  String    @id @default(uuid())
-  tripId              String
-  title               String
-  category            String?
-  address             String?
-  phone               String?
-  website             String?
-  googlePlaceId       String?   @unique
-  imageUrl            String?
-  rating              Float?
-  lat                 Float?
-  lng                 Float?
-  distanceFromLodging Float?
-  driveTimeMinutes    Int?
-  itineraryDay        DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  trip                Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(uuid())
+  tripId               String?   // legacy; prefer ItineraryItem.attractionId or stuffToDoId
+  tripWellEnterpriseId String?
+  title                String
+  category             String?
+  address              String?
+  phone                String?
+  website              String?
+  googlePlaceId        String?   @unique
+  imageUrl             String?
+  rating               Float?
+  lat                  Float?
+  lng                  Float?
+  distanceFromLodging  Float?
+  driveTimeMinutes     Int?
+  itineraryDay         DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  trip                Trip?     @relation("TripAttractions", fields: [tripId], references: [id], onDelete: Cascade)
+  tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseAttractions", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
+  itineraryItems      ItineraryItem[]
 
   @@index([tripId])
+  @@index([tripWellEnterpriseId])
+}
+
+// Stuff-to-do catalogue — independent, keyed by city + season (bolt-on from itinerary)
+model StuffToDoItem {
+  id          String        @id @default(uuid())
+  cityId      String
+  season      String        // spring | summer | fall | winter | any
+  type        StuffToDoType
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city           City            @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  itineraryItems ItineraryItem[]
+
+  @@index([cityId])
+  @@index([cityId, season])
+}
+
+// ItineraryItem — the one universal thing; optional refs to artifacts + catalogue
+model ItineraryItem {
+  id             String              @id @default(uuid())
+  tripId         String
+  status         ItineraryItemStatus  @default(CONSIDERING)
+  title          String              // e.g. "Visit Venice Beach" or "go to beach"
+  dateText       String?             // "July 22nd"
+  date           DateTime?           // when assigned
+  day            String?             // e.g. "Day 1" or enum
+  destinationId  String?
+  lodgingId      String?
+  diningId       String?
+  attractionId   String?
+  stuffToDoId    String?             // bolt-on to catalogue (first-class, not string)
+  type           ItineraryItemType?  @default(other)
+  location       String?
+  venue          String?
+  notes          String?
+  suggestedById  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  destination  Destination?  @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+  lodging      Lodging?      @relation(fields: [lodgingId], references: [id], onDelete: SetNull)
+  dining       Dining?       @relation(fields: [diningId], references: [id], onDelete: SetNull)
+  attraction   Attraction?   @relation(fields: [attractionId], references: [id], onDelete: SetNull)
+  stuffToDo    StuffToDoItem? @relation(fields: [stuffToDoId], references: [id], onDelete: SetNull)
+  suggestedBy  Traveler?     @relation("ItineraryItemSuggestedBy", fields: [suggestedById], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+  @@index([destinationId])
+  @@index([stuffToDoId])
 }
 
 model LogisticItem {
