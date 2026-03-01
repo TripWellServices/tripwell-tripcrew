@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -14,7 +14,6 @@ import { getTripCrew, generateInviteLink } from '@/lib/actions/tripcrew'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import InviteMemberModal from './InviteMemberModal'
 import CreateTripModal from '@/components/trip/CreateTripModal'
 
 interface TripCrewAdminClientProps {
@@ -27,9 +26,9 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
   const [travelerId, setTravelerId] = useState<string | null>(null)
   const [tripCrew, setTripCrew] = useState<any>(null)
   const [error, setError] = useState('')
-  const [showInviteModal, setShowInviteModal] = useState(false)
   const [showCreateTripModal, setShowCreateTripModal] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
+  const [inviteCopied, setInviteCopied] = useState(false)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -104,6 +103,12 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
         LocalStorageAPI.setTripCrewId(result.tripCrew.id)
         LocalStorageAPI.setTripCrewData(result.tripCrew)
         console.log('✅ TRIPCREW ADMIN: Stored TripCrew data to localStorage')
+        
+        // Generate invite link if admin
+        const isAdmin = result.tripCrew.roles?.some((r: any) => r.travelerId === id && r.role === 'admin')
+        if (isAdmin) {
+          loadInviteLink(id)
+        }
       } else {
         setError(result.error || 'Failed to load TripCrew')
         // If not a member, redirect to /tripcrews
@@ -118,21 +123,70 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
     }
   }
 
-  const handleGenerateInvite = async () => {
-    if (!travelerId) return
-
+  const loadInviteLink = async (id: string) => {
     try {
-      const result = await generateInviteLink(tripCrewId, travelerId)
+      const result = await generateInviteLink(tripCrewId, id)
       if (result.success && result.inviteUrl) {
         setInviteUrl(result.inviteUrl)
-        setShowInviteModal(true)
-      } else {
-        setError(result.error || 'Failed to generate invite link')
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to generate invite link')
+      console.error('Failed to generate invite link:', err)
     }
   }
+
+  const handleCopyInvite = async () => {
+    if (!inviteUrl) return
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      setInviteCopied(true)
+      setTimeout(() => setInviteCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  // Categorize trips by date
+  const categorizedTrips = useMemo(() => {
+    if (!tripCrew?.trips) return { upcoming: [], past: [] }
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const upcoming: any[] = []
+    const past: any[] = []
+    
+    tripCrew.trips.forEach((trip: any) => {
+      if (!trip.endDate) {
+        // Trips without dates go to upcoming
+        upcoming.push(trip)
+        return
+      }
+      
+      const endDate = new Date(trip.endDate)
+      endDate.setHours(0, 0, 0, 0)
+      
+      if (endDate >= today) {
+        upcoming.push(trip)
+      } else {
+        past.push(trip)
+      }
+    })
+    
+    // Sort upcoming by startDate (earliest first), past by endDate (most recent first)
+    upcoming.sort((a, b) => {
+      if (!a.startDate) return 1
+      if (!b.startDate) return -1
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    })
+    
+    past.sort((a, b) => {
+      if (!a.endDate) return 1
+      if (!b.endDate) return -1
+      return new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+    })
+    
+    return { upcoming, past }
+  }, [tripCrew?.trips])
 
   // New modal handles trip creation internally
 
@@ -199,63 +253,92 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Members */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Members</h2>
-                <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  {tripCrew.memberships?.length || 0}
-                </span>
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-6 space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">Members</h2>
+                  <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    {tripCrew.memberships?.length || 0}
+                  </span>
+                </div>
+
+                {tripCrew.memberships && tripCrew.memberships.length > 0 ? (
+                  <div className="space-y-3">
+                    {tripCrew.memberships.map((membership: any) => {
+                      const memberRole = tripCrew.roles?.find(
+                        (r: any) => r.travelerId === membership.traveler.id
+                      )
+                      return (
+                        <div key={membership.id} className="flex items-center space-x-3">
+                          {membership.traveler.photoURL ? (
+                            <img
+                              src={membership.traveler.photoURL}
+                              alt={membership.traveler.firstName || 'Member'}
+                              className="w-10 h-10 rounded-full"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <span className="text-gray-600 text-sm">
+                                {membership.traveler.firstName?.[0] || '?'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-800">
+                              {membership.traveler.firstName} {membership.traveler.lastName}
+                            </p>
+                            {memberRole && (
+                              <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+                                {memberRole.role}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500">
+                    <p>No members yet.</p>
+                    <p>Share your invite code to build the crew.</p>
+                  </div>
+                )}
               </div>
 
-              {tripCrew.memberships && tripCrew.memberships.length > 0 ? (
-                <div className="space-y-3 mb-4">
-                  {tripCrew.memberships.map((membership: any) => {
-                    const memberRole = tripCrew.roles?.find(
-                      (r: any) => r.travelerId === membership.traveler.id
-                    )
-                    return (
-                      <div key={membership.id} className="flex items-center space-x-3">
-                        {membership.traveler.photoURL ? (
-                          <img
-                            src={membership.traveler.photoURL}
-                            alt={membership.traveler.firstName || 'Member'}
-                            className="w-10 h-10 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-gray-600 text-sm">
-                              {membership.traveler.firstName?.[0] || '?'}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800">
-                            {membership.traveler.firstName} {membership.traveler.lastName}
-                          </p>
-                          {memberRole && (
-                            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
-                              {memberRole.role}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="mb-4 p-4 border border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-500">
-                  <p>No members yet.</p>
-                  <p>Share your invite code to build the crew.</p>
-                </div>
-              )}
-
+              {/* Invite Section - Always visible for admins */}
               {isAdmin && (
-                <button
-                  onClick={handleGenerateInvite}
-                  className="w-full px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition"
-                >
-                  Invite Member
-                </button>
+                <div className="border-t pt-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Invite Members</h3>
+                  {inviteUrl ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={inviteUrl}
+                          readOnly
+                          className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50"
+                        />
+                        <button
+                          onClick={handleCopyInvite}
+                          className={`px-3 py-2 text-xs rounded-lg font-semibold transition whitespace-nowrap ${
+                            inviteCopied
+                              ? 'bg-green-600 text-white'
+                              : 'bg-sky-600 text-white hover:bg-sky-700'
+                          }`}
+                        >
+                          {inviteCopied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Share this link to invite members to your TripCrew
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      <p>Loading invite link...</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -265,33 +348,75 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Trips</h2>
-                <button
-                  onClick={() => setShowCreateTripModal(true)}
-                  className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition"
-                >
-                  Create Trip
-                </button>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/tripcrews/${tripCrewId}/plan`}
+                    className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200 transition"
+                  >
+                    Plan a Trip
+                  </Link>
+                  <button
+                    onClick={() => setShowCreateTripModal(true)}
+                    className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition"
+                  >
+                    Create Trip
+                  </button>
+                </div>
               </div>
 
               {tripCrew.trips && tripCrew.trips.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tripCrew.trips.map((trip: any) => (
-                    <Link
-                      key={trip.id}
-                      href={`/trip/${trip.id}/admin`}
-                      className="block p-4 border border-gray-200 rounded-lg hover:border-sky-300 hover:shadow-md transition"
-                    >
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">{trip.tripName}</h3>
-                      {trip.city && trip.country && (
-                        <p className="text-sm text-gray-600 mb-2">
-                          📍 {trip.city}{trip.state ? `, ${trip.state}` : ''}, {trip.country}
-                        </p>
-                      )}
-                      {trip.dateRange && (
-                        <p className="text-xs text-gray-500">{trip.dateRange}</p>
-                      )}
-                    </Link>
-                  ))}
+                <div className="space-y-8">
+                  {/* Upcoming Trips */}
+                  {categorizedTrips.upcoming.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Upcoming Trips</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {categorizedTrips.upcoming.map((trip: any) => (
+                          <Link
+                            key={trip.id}
+                            href={`/trip/${trip.id}/admin`}
+                            className="block p-4 border border-gray-200 rounded-lg hover:border-sky-300 hover:shadow-md transition"
+                          >
+                            <h4 className="text-lg font-semibold text-gray-800 mb-2">{trip.tripName}</h4>
+                            {trip.city && trip.country && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                📍 {trip.city}{trip.state ? `, ${trip.state}` : ''}, {trip.country}
+                              </p>
+                            )}
+                            {trip.dateRange && (
+                              <p className="text-xs text-gray-500">{trip.dateRange}</p>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Past Trips */}
+                  {categorizedTrips.past.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Past Trips</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {categorizedTrips.past.map((trip: any) => (
+                          <Link
+                            key={trip.id}
+                            href={`/trip/${trip.id}/admin`}
+                            className="block p-4 border border-gray-200 rounded-lg hover:border-sky-300 hover:shadow-md transition opacity-75"
+                          >
+                            <h4 className="text-lg font-semibold text-gray-800 mb-2">{trip.tripName}</h4>
+                            {trip.city && trip.country && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                📍 {trip.city}{trip.state ? `, ${trip.state}` : ''}, {trip.country}
+                              </p>
+                            )}
+                            {trip.dateRange && (
+                              <p className="text-xs text-gray-500">{trip.dateRange}</p>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-12 text-center text-gray-500">
@@ -310,13 +435,6 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
       </div>
 
       {/* Modals */}
-      {showInviteModal && (
-        <InviteMemberModal
-          inviteUrl={inviteUrl}
-          onClose={() => setShowInviteModal(false)}
-        />
-      )}
-
       {showCreateTripModal && travelerId && (
         <CreateTripModal
           tripCrew={tripCrew}

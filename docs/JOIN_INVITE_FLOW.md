@@ -26,7 +26,7 @@ The “Enter invite code” box on the TripCrews page is **deprecated**. Primary
 
 ## Config
 
-- **Invite URL format:** `appConfig.getInviteUrl(code)` → `{baseUrl}/join/{CODE}` (e.g. `/join/ABC123`).
+- **Invite URL:** `appConfig.getInviteUrl(slugOrCode)` → `{baseUrl}/join/{slug}`. Primary = **handle** (slug, e.g. `/join/boston-crew`); legacy = join code (e.g. `/join/ABC123`). Lookup tries handle first, then code.
 - **Redirect safety:** Sign-in and sign-up only redirect to relative paths (e.g. `/join?code=...`), not arbitrary URLs.
 
 ---

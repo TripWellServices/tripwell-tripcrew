@@ -1,17 +1,36 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import Link from 'next/link'
 
+/** Safe redirect: only allow relative paths (invite flow: back to /join?code=...) */
+function getRedirectTarget(redirect: string | null): string | null {
+  if (!redirect || typeof redirect !== 'string') return null
+  const path = redirect.startsWith('/') ? redirect : `/${redirect}`
+  if (!path.startsWith('/')) return null
+  try {
+    new URL(path, 'https://example.com')
+    return path
+  } catch {
+    return null
+  }
+}
+
 export default function SignInPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
+  const redirectTo = getRedirectTarget(redirectParam)
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const postAuthPath = redirectTo ?? '/welcome'
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,7 +40,7 @@ export default function SignInPage() {
     try {
       const auth = getFirebaseAuth()
       await signInWithEmailAndPassword(auth, email, password)
-      router.push('/welcome')
+      router.push(postAuthPath)
     } catch (err: any) {
       setError(err.message || 'Failed to sign in')
     } finally {
@@ -37,7 +56,7 @@ export default function SignInPage() {
       const provider = new GoogleAuthProvider()
       const auth = getFirebaseAuth()
       await signInWithPopup(auth, provider)
-      router.push('/welcome')
+      router.push(postAuthPath)
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google')
     } finally {
@@ -122,7 +141,10 @@ export default function SignInPage() {
 
         <p className="mt-6 text-center text-sm text-gray-600">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-sky-600 hover:underline font-semibold">
+          <Link
+            href={redirectTo ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : '/signup'}
+            className="text-sky-600 hover:underline font-semibold"
+          >
             Sign up
           </Link>
         </p>

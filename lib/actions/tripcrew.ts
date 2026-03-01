@@ -12,6 +12,17 @@ import { revalidatePath } from 'next/cache'
 import { appConfig } from '@/config/appConfig'
 
 /**
+ * Slugify for handle (GoFast-style invite URL slug)
+ */
+function slugifyHandle(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'crew'
+}
+
+/**
  * Generate a unique join code
  * Ensures code is not already taken in JoinCode registry
  */
@@ -46,6 +57,24 @@ async function generateUniqueJoinCode(): Promise<string> {
 }
 
 /**
+ * Generate unique handle (for GoFast-style invite URL)
+ */
+async function generateUniqueHandle(baseName: string): Promise<string> {
+  const base = slugifyHandle(baseName || 'tripcrew')
+  let handle = base
+  let attempts = 0
+  while (attempts < 20) {
+    const existing = await prisma.tripCrew.findUnique({
+      where: { handle },
+    })
+    if (!existing) return handle
+    handle = `${base}-${Date.now().toString(36).slice(-4)}`
+    attempts++
+  }
+  return `crew-${Date.now().toString(36)}`
+}
+
+/**
  * Create TripCrew
  * Creates TripCrew, adds creator as member, assigns admin role, and creates JoinCode registry entry
  */
@@ -65,16 +94,17 @@ export async function createTripCrew(data: {
       throw new Error('Traveler not found')
     }
 
-    // Create TripCrew with membership, admin role, and JoinCode in transaction
+    // Create TripCrew with membership, admin role, handle (GoFast-style), and JoinCode in transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Generate unique join code
       const joinCode = await generateUniqueJoinCode()
+      const handle = await generateUniqueHandle(name.trim() || 'tripcrew')
 
-      // Create TripCrew
+      // Create TripCrew (handle = primary invite slug)
       const tripCrew = await tx.tripCrew.create({
         data: {
           name: name.trim() || null,
-          joinCode: joinCode,
+          handle,
+          joinCode,
         },
       })
 
@@ -238,6 +268,79 @@ export async function getTravelerTripCrews(travelerId: string) {
 }
 
 /**
+ * Normalize crew to preview shape
+ */
+function toCrewPreview(tripCrew: {
+  id: string
+  name: string | null
+  _count: { memberships: number; trips: number }
+  roles: Array<{
+    traveler: { firstName: string | null; lastName: string | null; photoURL: string | null }
+  }>
+}) {
+  const admin = tripCrew.roles?.[0]?.traveler
+  return {
+    id: tripCrew.id,
+    name: tripCrew.name,
+    memberCount: tripCrew._count.memberships,
+    tripCount: tripCrew._count.trips,
+    admin: admin
+      ? {
+          firstName: admin.firstName ?? '',
+          lastName: admin.lastName ?? '',
+          photoURL: admin.photoURL ?? undefined,
+        }
+      : null,
+  }
+}
+
+/**
+ * Lookup TripCrew by handle (GoFast-style) — primary invite path
+ */
+export async function lookupTripCrewByHandle(handle: string) {
+  try {
+    const slug = handle.trim().toLowerCase()
+    if (!slug) return { success: false, error: 'Handle is required' }
+
+    const tripCrew = await prisma.tripCrew.findUnique({
+      where: { handle: slug },
+      include: {
+        _count: { select: { memberships: true, trips: true } },
+        roles: {
+          where: { role: 'admin' },
+          take: 1,
+          include: {
+            traveler: {
+              select: { id: true, firstName: true, lastName: true, photoURL: true },
+            },
+          },
+        },
+      },
+    })
+
+    if (!tripCrew) return { success: false, error: 'Crew not found' }
+    return { success: true, tripCrew: toCrewPreview(tripCrew) }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Lookup failed' }
+  }
+}
+
+/**
+ * Lookup TripCrew by invite slug: try handle first (GoFast), then join code (legacy)
+ */
+export async function lookupTripCrewByInviteSlug(slug: string) {
+  const s = slug.trim()
+  if (!s) return { success: false, error: 'Invite link is invalid' }
+  // Prefer handle if it looks like a handle (lowercase, may contain hyphen)
+  const looksLikeHandle = s === s.toLowerCase() && /^[a-z0-9-]+$/.test(s) && s.length >= 2
+  if (looksLikeHandle) {
+    const byHandle = await lookupTripCrewByHandle(s)
+    if (byHandle.success) return byHandle
+  }
+  return lookupTripCrewByCode(s)
+}
+
+/**
  * Lookup TripCrew by join code (via JoinCode registry)
  * Returns crew preview for unauthenticated users
  */
@@ -362,24 +465,7 @@ export async function lookupTripCrewByCode(joinCode: string) {
     }
 
     const tripCrew = joinCodeRecord.tripCrew
-    const admin = tripCrew.roles?.[0]?.traveler
-
-    return {
-      success: true,
-      tripCrew: {
-        id: tripCrew.id,
-        name: tripCrew.name,
-        memberCount: tripCrew._count.memberships,
-        tripCount: tripCrew._count.trips,
-        admin: admin
-          ? {
-              firstName: admin.firstName ?? '',
-              lastName: admin.lastName ?? '',
-              photoURL: admin.photoURL ?? undefined,
-            }
-          : null,
-      },
-    }
+    return { success: true, tripCrew: toCrewPreview(tripCrew) }
   } catch (error: any) {
     console.error('Lookup TripCrew error:', error)
     return { success: false, error: error.message || 'Failed to lookup TripCrew' }
@@ -387,113 +473,70 @@ export async function lookupTripCrewByCode(joinCode: string) {
 }
 
 /**
- * Join TripCrew by invite code (via JoinCode registry)
+ * Resolve invite slug (handle or code) to tripCrewId
+ */
+async function resolveTripCrewIdBySlug(slug: string): Promise<string | null> {
+  const lookup = await lookupTripCrewByInviteSlug(slug)
+  if (!lookup.success || !lookup.tripCrew) return null
+  return lookup.tripCrew.id
+}
+
+/**
+ * Join TripCrew by invite slug (handle = GoFast-style) or invite code (legacy)
  * Creates membership for the traveler
- * 
- * Supports both old signature (joinCode, travelerId) and new object signature
  */
 export async function joinTripCrew(
-  joinCodeOrOptions: string | { inviteCode: string; travelerId: string },
+  joinCodeOrOptions:
+    | string
+    | { inviteCode: string; travelerId: string }
+    | { inviteSlug: string; travelerId: string },
   travelerId?: string
 ) {
-  // Handle both signatures for backward compatibility
-  let joinCode: string
   let finalTravelerId: string
+  let slugOrCode: string
 
   if (typeof joinCodeOrOptions === 'string') {
-    // Old signature: joinTripCrew(joinCode, travelerId)
-    joinCode = joinCodeOrOptions
-    if (!travelerId) {
-      throw new Error('Traveler ID is required')
-    }
+    slugOrCode = joinCodeOrOptions
+    if (!travelerId) throw new Error('Traveler ID is required')
     finalTravelerId = travelerId
   } else {
-    // New signature: joinTripCrew({ inviteCode, travelerId })
-    joinCode = joinCodeOrOptions.inviteCode
     finalTravelerId = joinCodeOrOptions.travelerId
+    slugOrCode =
+      'inviteSlug' in joinCodeOrOptions
+        ? joinCodeOrOptions.inviteSlug
+        : joinCodeOrOptions.inviteCode
   }
 
-  if (!finalTravelerId) {
-    throw new Error('Traveler ID is required')
-  }
+  if (!finalTravelerId) throw new Error('Traveler ID is required')
+  if (!slugOrCode?.trim()) throw new Error('Invite link or code is required')
+
   try {
-    // Normalize join code
-    const normalizedCode = joinCode.toUpperCase().trim()
+    // Resolve slug (handle or code) to tripCrewId
+    let tripCrewId: string | null = await resolveTripCrewIdBySlug(slugOrCode)
 
-    // Find JoinCode record in registry
-    let joinCodeRecord = await prisma.joinCode.findUnique({
-      where: { code: normalizedCode },
-      include: {
-        tripCrew: true,
-      },
-    })
-
-    // If not in registry, check TripCrew.joinCode (backward compatibility)
-    if (!joinCodeRecord) {
-      const tripCrew = await prisma.tripCrew.findUnique({
-        where: { joinCode: normalizedCode },
+    if (!tripCrewId) {
+      // Legacy: try by code only (uppercase)
+      const normalizedCode = slugOrCode.toUpperCase().trim()
+      const joinCodeRecord = await prisma.joinCode.findFirst({
+        where: { code: normalizedCode, isActive: true },
+        include: { tripCrew: true },
       })
-
-      if (tripCrew) {
-        // Upsert JoinCode record
-        joinCodeRecord = await prisma.joinCode.upsert({
-          where: { code: normalizedCode },
-          update: {
-            isActive: true,
-            expiresAt: null,
-          },
-          create: {
-            code: normalizedCode,
-            tripCrewId: tripCrew.id,
-            isActive: true,
-          },
-          include: {
-            tripCrew: true,
-          },
-        })
-      }
+      if (joinCodeRecord?.tripCrew) tripCrewId = joinCodeRecord.tripCrew.id
+      if (!tripCrewId) throw new Error('Invalid or expired invite link')
     }
 
-    if (!joinCodeRecord) {
-      throw new Error('Invalid invite code')
-    }
-
-    // Check if code is active
-    if (!joinCodeRecord.isActive) {
-      throw new Error('Invalid or expired join code')
-    }
-
-    // Check if code is expired
-    if (joinCodeRecord.expiresAt && joinCodeRecord.expiresAt < new Date()) {
-      throw new Error('Invalid or expired join code')
-    }
-
-    const tripCrew = joinCodeRecord.tripCrew
-
-    // Check if already a member
     const existing = await prisma.tripCrewMember.findFirst({
-      where: {
-        tripCrewId: tripCrew.id,
-        travelerId: finalTravelerId,
-      },
+      where: { tripCrewId, travelerId: finalTravelerId },
     })
+    if (existing) throw new Error('You are already a member of this TripCrew')
 
-    if (existing) {
-      throw new Error('You are already a member of this TripCrew')
-    }
-
-    // Create membership
     await prisma.tripCrewMember.create({
-      data: {
-        tripCrewId: tripCrew.id,
-        travelerId: finalTravelerId,
-      },
+      data: { tripCrewId, travelerId: finalTravelerId },
     })
 
     revalidatePath('/tripcrews')
-    revalidatePath(`/tripcrews/${tripCrew.id}`)
-
-    return { success: true, tripCrewId: tripCrew.id, id: tripCrew.id }
+    revalidatePath(`/tripcrews/${tripCrewId}`)
+    return { success: true, tripCrewId, id: tripCrewId }
   } catch (error: any) {
     console.error('Join TripCrew error:', error)
     return { success: false, error: error.message || 'Failed to join TripCrew' }
@@ -501,61 +544,42 @@ export async function joinTripCrew(
 }
 
 /**
- * Generate invite link for TripCrew
- * Returns the full invite URL using JoinCode registry
+ * Generate invite link for TripCrew (GoFast-style: prefer handle URL)
  */
 export async function generateInviteLink(tripCrewId: string, travelerId: string) {
   try {
-    // Verify requester is admin
     const isAdmin = await prisma.tripCrewRole.findFirst({
-      where: {
-        tripCrewId,
-        travelerId,
-        role: 'admin',
-      },
+      where: { tripCrewId, travelerId, role: 'admin' },
     })
+    if (!isAdmin) throw new Error('Only admins can generate invite links')
 
-    if (!isAdmin) {
-      throw new Error('Only admins can generate invite links')
-    }
-
-    // Get active JoinCode from registry (preferred) or fallback to TripCrew.inviteCode
-    let joinCode = await prisma.joinCode.findFirst({
-      where: {
-        tripCrewId,
-        isActive: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { code: true },
+    const tripCrew = await prisma.tripCrew.findUnique({
+      where: { id: tripCrewId },
+      select: { handle: true, joinCode: true },
     })
+    if (!tripCrew) throw new Error('TripCrew not found')
 
-    // Fallback to TripCrew.joinCode if no active JoinCode
-    if (!joinCode) {
-      const tripCrew = await prisma.tripCrew.findUnique({
-        where: { id: tripCrewId },
-        select: { joinCode: true },
+    // GoFast-style: invite URL by handle (slug); fallback to join code for legacy
+    const slug = tripCrew.handle || tripCrew.joinCode
+    const inviteUrl = appConfig.getInviteUrl(slug)
+
+    // Ensure JoinCode registry exists for code-based fallback when using code URL
+    if (!tripCrew.handle) {
+      const existing = await prisma.joinCode.findFirst({
+        where: { tripCrewId, isActive: true },
       })
-
-      if (!tripCrew || !tripCrew.joinCode) {
-        throw new Error('TripCrew not found or has no join code')
+      if (!existing) {
+        await prisma.joinCode.create({
+          data: {
+            code: tripCrew.joinCode.toUpperCase(),
+            tripCrewId,
+            isActive: true,
+          },
+        })
       }
-
-      // Create JoinCode registry entry from TripCrew.joinCode
-      await prisma.joinCode.create({
-        data: {
-          code: tripCrew.joinCode.toUpperCase(),
-          tripCrewId,
-          isActive: true,
-        },
-      })
-
-      joinCode = { code: tripCrew.joinCode.toUpperCase() }
     }
 
-    // Generate invite URL (direct link to crew)
-    const inviteUrl = appConfig.getInviteUrl(joinCode.code)
-
-    return { success: true, inviteUrl, inviteCode: joinCode.code }
+    return { success: true, inviteUrl, inviteCode: tripCrew.joinCode }
   } catch (error: any) {
     console.error('Generate Invite Link error:', error)
     return { success: false, error: error.message || 'Failed to generate invite link' }

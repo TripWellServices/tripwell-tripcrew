@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../GoFast/gofastapp-mvp"
+		},
+		{
+			"path": "../../GoFast/tripwell-gofastbackend"
+		}
+	],
+	"settings": {}
+}

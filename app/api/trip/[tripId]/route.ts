@@ -25,6 +25,7 @@ export async function GET(
             dining: true,
             attraction: true,
             stuffToDo: true,
+            concert: true,
             suggestedBy: {
               select: {
                 id: true,

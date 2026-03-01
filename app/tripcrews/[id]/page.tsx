@@ -14,16 +14,10 @@ import TripCrewAdminClient from './TripCrewAdminClient'
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }>
 }
 
 export default async function TripCrewAdminPage({ params }: PageProps) {
-  // Get travelerId from client-side (will be passed from client component)
-  // For now, we'll make this a hybrid approach where the client component
-  // fetches the data after getting travelerId from localStorage
-  
-  // This page will render a client component that handles auth and data fetching
-  return <TripCrewAdminClient tripCrewId={params.id} />
+  const { id } = await params
+  return <TripCrewAdminClient tripCrewId={id} />
 }

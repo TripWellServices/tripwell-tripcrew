@@ -24,6 +24,7 @@ export default function TripCrewsPage() {
   const [error, setError] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [joining, setJoining] = useState(false)
+  const [showLegacyCodeInput, setShowLegacyCodeInput] = useState(false)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -201,7 +202,7 @@ export default function TripCrewsPage() {
             </Link>
           </div>
 
-          {/* Join Crew Card */}
+          {/* Join Crew Card — invite link first (GoFast-style); paste code deprecated */}
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -210,25 +211,51 @@ export default function TripCrewsPage() {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Join a Crew</h2>
-              <p className="text-gray-600">Enter an invite code to join an existing TripCrew</p>
-            </div>
-            <form onSubmit={handleJoin} className="space-y-4">
-              <input
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                placeholder="Enter invite code"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              />
-              <button
-                type="submit"
-                disabled={joining || !travelerId}
-                className="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
+              <p className="text-gray-600 mb-4">
+                Invited? Open the <strong>invite link</strong> you received. You’ll sign in if needed, then join the crew — no copy/paste.
+              </p>
+              <Link
+                href="/join"
+                className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition"
               >
-                {joining ? 'Joining...' : 'Join TripCrew'}
+                I have an invite link
+              </Link>
+            </div>
+            {!showLegacyCodeInput ? (
+              <button
+                type="button"
+                onClick={() => setShowLegacyCodeInput(true)}
+                className="w-full text-sm text-gray-500 hover:text-gray-700 py-2"
+              >
+                Have a code to paste instead?
               </button>
-            </form>
+            ) : (
+              <form onSubmit={handleJoin} className="space-y-4 pt-4 border-t border-gray-200">
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  placeholder="Enter invite code"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={joining || !travelerId || !joinCode.trim()}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm"
+                  >
+                    {joining ? 'Joining...' : 'Join with code'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLegacyCodeInput(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>

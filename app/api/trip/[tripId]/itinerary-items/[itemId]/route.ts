@@ -22,6 +22,7 @@ export async function PATCH(
       diningId,
       attractionId,
       stuffToDoId,
+      concertId,
       type,
       location,
       venue,
@@ -51,6 +52,7 @@ export async function PATCH(
     if (diningId !== undefined) data.diningId = diningId || null
     if (attractionId !== undefined) data.attractionId = attractionId || null
     if (stuffToDoId !== undefined) data.stuffToDoId = stuffToDoId || null
+    if (concertId !== undefined) data.concertId = concertId || null
     if (type !== undefined && Object.values(ItineraryItemType).includes(type))
       data.type = type
     if (location !== undefined) data.location = location?.trim() || null
@@ -67,6 +69,7 @@ export async function PATCH(
         dining: true,
         attraction: true,
         stuffToDo: true,
+        concert: true,
         suggestedBy: {
           select: { id: true, firstName: true, lastName: true, photoURL: true },
         },

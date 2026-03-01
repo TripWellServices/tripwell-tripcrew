@@ -1,18 +1,37 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth'
 import Link from 'next/link'
 
+/** Safe redirect: only allow relative paths (invite flow: back to /join?code=... or /join/CODE) */
+function getRedirectTarget(redirect: string | null): string | null {
+  if (!redirect || typeof redirect !== 'string') return null
+  const path = redirect.startsWith('/') ? redirect : `/${redirect}`
+  if (!path.startsWith('/')) return null
+  try {
+    new URL(path, 'https://example.com')
+    return path
+  } catch {
+    return null
+  }
+}
+
 export default function SignUpPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
+  const redirectTo = getRedirectTarget(redirectParam)
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const postAuthPath = redirectTo ?? '/welcome'
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +44,7 @@ export default function SignUpPage() {
       if (firstName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName: firstName })
       }
-      router.push('/welcome')
+      router.push(postAuthPath)
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
     } finally {
@@ -41,7 +60,7 @@ export default function SignUpPage() {
       const provider = new GoogleAuthProvider()
       const auth = getFirebaseAuth()
       await signInWithPopup(auth, provider)
-      router.push('/welcome')
+      router.push(postAuthPath)
     } catch (err: any) {
       setError(err.message || 'Failed to sign up with Google')
     } finally {
@@ -140,7 +159,10 @@ export default function SignUpPage() {
 
         <p className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <Link href="/signin" className="text-sky-600 hover:underline font-semibold">
+          <Link
+            href={redirectTo ? `/signin?redirect=${encodeURIComponent(redirectTo)}` : '/signin'}
+            className="text-sky-600 hover:underline font-semibold"
+          >
             Sign in
           </Link>
         </p>

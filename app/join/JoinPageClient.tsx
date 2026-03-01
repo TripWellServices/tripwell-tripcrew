@@ -14,7 +14,7 @@ import { joinTripCrew } from '@/lib/actions/tripcrew'
 import Link from 'next/link'
 
 interface JoinPageClientProps {
-  code: string
+  slug: string
   tripCrew: {
     id: string
     name: string | null
@@ -28,7 +28,7 @@ interface JoinPageClientProps {
   }
 }
 
-export default function JoinPageClient({ code, tripCrew }: JoinPageClientProps) {
+export default function JoinPageClient({ slug, tripCrew }: JoinPageClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
@@ -169,13 +169,13 @@ export default function JoinPageClient({ code, tripCrew }: JoinPageClientProps) 
         ) : (
           <div className="space-y-3">
             <Link
-              href={`/signup?redirect=/join?code=${code}`}
+              href={`/signup?redirect=${encodeURIComponent(`/join?code=${slug}`)}`}
               className="block w-full px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-center"
             >
               Sign Up to Join
             </Link>
             <Link
-              href={`/signin?redirect=/join?code=${code}`}
+              href={`/signin?redirect=${encodeURIComponent(`/join?code=${slug}`)}`}
               className="block w-full px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition text-center"
             >
               Sign In to Join

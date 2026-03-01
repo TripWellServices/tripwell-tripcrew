@@ -37,6 +37,7 @@ enum ItineraryItemStatus {
 // Itinerary item type
 enum ItineraryItemType {
   event
+  concert
   dining
   attraction
   lodging
@@ -79,6 +80,7 @@ model City {
 
   destinations   Destination[]
   stuffToDoItems StuffToDoItem[]
+  concerts       Concert[]
 
   @@unique([name, state, country])
   @@index([name])
@@ -114,18 +116,20 @@ model Traveler {
 model TripCrew {
   id       String  @id @default(uuid())
   name     String?
-  joinCode String  @unique
+  handle   String? @unique  // GoFast-style: public slug for invite URL (e.g. "boston-crew")
+  joinCode String  @unique  // legacy; invite primary = handle
 
   // Relations
   memberships TripCrewMember[] // Junction table for members
   roles       TripCrewRole[]   // Junction table for admin/manager roles
   trips       Trip[]           // Trips belong to TripCrew
-  joinCodes   JoinCode[]      // JoinCode registry (authoritative source for invites)
+  joinCodes   JoinCode[]      // JoinCode registry (authoritative source for code-based invites)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([joinCode])
+  @@index([handle])
 }
 
 // JoinCode Registry - Authoritative source for TripCrew invites
@@ -305,6 +309,28 @@ model StuffToDoItem {
   @@index([cityId, season])
 }
 
+// Concert — first-class event (artist, venue, city, date); can bolt to itinerary
+model Concert {
+  id          String    @id @default(uuid())
+  name        String    // e.g. "Noah Kahan"
+  artist      String?
+  venue       String?
+  cityId      String?
+  eventDate   DateTime?
+  url         String?
+  imageUrl    String?
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city           City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  itineraryItems ItineraryItem[]
+
+  @@index([cityId])
+  @@index([eventDate])
+}
+
 // ItineraryItem — the one universal thing; optional refs to artifacts + catalogue
 model ItineraryItem {
   id             String              @id @default(uuid())
@@ -319,6 +345,7 @@ model ItineraryItem {
   diningId       String?
   attractionId   String?
   stuffToDoId    String?             // bolt-on to catalogue (first-class, not string)
+  concertId      String?             // bolt-on to Concert (event)
   type           ItineraryItemType?  @default(other)
   location       String?
   venue          String?
@@ -334,11 +361,13 @@ model ItineraryItem {
   dining       Dining?       @relation(fields: [diningId], references: [id], onDelete: SetNull)
   attraction   Attraction?   @relation(fields: [attractionId], references: [id], onDelete: SetNull)
   stuffToDo    StuffToDoItem? @relation(fields: [stuffToDoId], references: [id], onDelete: SetNull)
+  concert      Concert?      @relation(fields: [concertId], references: [id], onDelete: SetNull)
   suggestedBy  Traveler?     @relation("ItineraryItemSuggestedBy", fields: [suggestedById], references: [id], onDelete: SetNull)
 
   @@index([tripId])
   @@index([destinationId])
   @@index([stuffToDoId])
+  @@index([concertId])
 }
 
 model LogisticItem {
