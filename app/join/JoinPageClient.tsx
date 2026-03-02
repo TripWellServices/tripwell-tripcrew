@@ -84,7 +84,7 @@ export default function JoinPageClient({ slug, tripCrew }: JoinPageClientProps) 
 
   const handleJoin = async () => {
     if (!travelerId) {
-      router.push(`/signup?redirect=/join?code=${code}`)
+      router.push(`/signup?redirect=${encodeURIComponent(`/join?code=${slug}`)}`)
       return
     }
 
@@ -92,7 +92,8 @@ export default function JoinPageClient({ slug, tripCrew }: JoinPageClientProps) 
     setError('')
 
     try {
-      const result = await joinTripCrew({ inviteCode: code, travelerId })
+      // Use inviteSlug (GoFast-style) instead of inviteCode (deprecated)
+      const result = await joinTripCrew({ inviteSlug: slug, travelerId })
       if (result.success && result.tripCrewId) {
         router.push(`/tripcrews/${result.tripCrewId}`)
       } else {

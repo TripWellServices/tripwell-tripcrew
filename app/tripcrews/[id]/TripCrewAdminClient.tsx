@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -29,6 +29,46 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
   const [showCreateTripModal, setShowCreateTripModal] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
   const [inviteCopied, setInviteCopied] = useState(false)
+
+  const loadInviteLink = useCallback(async (id: string) => {
+    try {
+      const result = await generateInviteLink(tripCrewId, id)
+      if (result.success && result.inviteUrl) {
+        setInviteUrl(result.inviteUrl)
+      }
+    } catch (err: any) {
+      console.error('Failed to generate invite link:', err)
+    }
+  }, [tripCrewId])
+
+  const loadTripCrew = useCallback(async (id: string) => {
+    try {
+      const result = await getTripCrew(tripCrewId, id)
+      if (result.success && result.tripCrew) {
+        setTripCrew(result.tripCrew)
+        // Store in localStorage for instant navigation next time
+        LocalStorageAPI.setTripCrewId(result.tripCrew.id)
+        LocalStorageAPI.setTripCrewData(result.tripCrew)
+        console.log('✅ TRIPCREW ADMIN: Stored TripCrew data to localStorage')
+        
+        // Generate invite link if admin
+        const isAdmin = result.tripCrew.roles?.some((r: any) => r.travelerId === id && r.role === 'admin')
+        if (isAdmin) {
+          loadInviteLink(id)
+        }
+      } else {
+        setError(result.error || 'Failed to load TripCrew')
+        // If not a member, redirect to /tripcrews
+        if (result.error?.includes('Not a member')) {
+          router.push('/tripcrews')
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load TripCrew')
+    } finally {
+      setLoading(false)
+    }
+  }, [tripCrewId, router, loadInviteLink])
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -92,47 +132,8 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
     })
 
     return () => unsubscribe()
-  }, [router, tripCrewId])
+  }, [router, tripCrewId, loadTripCrew])
 
-  const loadTripCrew = async (id: string) => {
-    try {
-      const result = await getTripCrew(tripCrewId, id)
-      if (result.success && result.tripCrew) {
-        setTripCrew(result.tripCrew)
-        // Store in localStorage for instant navigation next time
-        LocalStorageAPI.setTripCrewId(result.tripCrew.id)
-        LocalStorageAPI.setTripCrewData(result.tripCrew)
-        console.log('✅ TRIPCREW ADMIN: Stored TripCrew data to localStorage')
-        
-        // Generate invite link if admin
-        const isAdmin = result.tripCrew.roles?.some((r: any) => r.travelerId === id && r.role === 'admin')
-        if (isAdmin) {
-          loadInviteLink(id)
-        }
-      } else {
-        setError(result.error || 'Failed to load TripCrew')
-        // If not a member, redirect to /tripcrews
-        if (result.error?.includes('Not a member')) {
-          router.push('/tripcrews')
-        }
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load TripCrew')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadInviteLink = async (id: string) => {
-    try {
-      const result = await generateInviteLink(tripCrewId, id)
-      if (result.success && result.inviteUrl) {
-        setInviteUrl(result.inviteUrl)
-      }
-    } catch (err: any) {
-      console.error('Failed to generate invite link:', err)
-    }
-  }
 
   const handleCopyInvite = async () => {
     if (!inviteUrl) return
