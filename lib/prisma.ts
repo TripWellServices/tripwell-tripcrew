@@ -4,26 +4,49 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+// Get DATABASE_URL, with fallback to Vercel Prisma integration env vars
+const getDatabaseUrl = (): string | undefined => {
+  // Prisma schema expects DATABASE_URL
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL
+  }
+  
+  // Fallback to Vercel Prisma integration env vars
+  // Prefer Prisma Accelerate URL if available (prisma+postgres://)
+  const accelerateUrl = process.env.DATABASE_PRISMA_DATABASE_URL
+  if (accelerateUrl && accelerateUrl.startsWith('prisma+postgres://')) {
+    return accelerateUrl
+  }
+  
+  // Fallback to direct postgres URL
+  return process.env.DATABASE_PRISMA_DATABASE_URL || process.env.DATABASE_POSTGRES_URL
+}
+
 // Validate DATABASE_URL format (non-blocking warnings only)
 const validateDatabaseUrl = () => {
-  const dbUrl = process.env.DATABASE_URL
+  const dbUrl = getDatabaseUrl()
+  
+  // Check if DATABASE_URL is set
   if (!dbUrl) {
     console.error('⚠️  ERROR: DATABASE_URL environment variable is not set')
+    console.error('Please set DATABASE_URL in your Vercel environment variables')
+    console.error('Or ensure DATABASE_PRISMA_DATABASE_URL or DATABASE_POSTGRES_URL is set')
     return
   }
   
-  // Check for common misconfigurations
-  if (dbUrl.includes('db.prisma.io')) {
-    console.error('⚠️  WARNING: DATABASE_URL appears to be misconfigured (db.prisma.io is not a valid database host)')
-    console.error('Please check your Vercel environment variables and ensure DATABASE_URL points to your actual database')
-    return
+  // db.prisma.io is valid for Prisma Accelerate - don't flag it as an error
+  // Check for obviously invalid patterns instead
+  if (dbUrl.includes('localhost') && process.env.NODE_ENV === 'production') {
+    console.warn('⚠️  WARNING: DATABASE_URL appears to use localhost in production')
   }
   
   // Basic URL format validation (warn only, don't throw)
   try {
-    const url = new URL(dbUrl)
-    if (!url.hostname || url.hostname === 'db.prisma.io') {
-      console.error('⚠️  WARNING: DATABASE_URL has an invalid hostname:', url.hostname)
+    // Handle prisma+postgres:// URLs (Prisma Accelerate)
+    const urlString = dbUrl.startsWith('prisma+') ? dbUrl.replace('prisma+', '') : dbUrl
+    const url = new URL(urlString)
+    if (!url.hostname) {
+      console.error('⚠️  WARNING: DATABASE_URL has an invalid hostname')
       console.error('Please verify your DATABASE_URL environment variable is correctly configured')
     }
   } catch (error) {
