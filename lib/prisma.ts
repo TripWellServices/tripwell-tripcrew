@@ -67,7 +67,27 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Prisma Client configuration for serverless environments
+// Note: Prisma Client reads DATABASE_URL from env at initialization
+// If DATABASE_URL is not set or points to direct postgres (not Accelerate),
+// prefer Prisma Accelerate URL from DATABASE_PRISMA_DATABASE_URL
 const createPrismaClient = () => {
+  // Check if we should use Prisma Accelerate URL instead
+  const currentDbUrl = process.env.DATABASE_URL
+  const accelerateUrl = process.env.DATABASE_PRISMA_DATABASE_URL
+  
+  // Prefer Accelerate URL if:
+  // 1. DATABASE_URL is not set, OR
+  // 2. DATABASE_URL is direct postgres but Accelerate URL is available
+  if (accelerateUrl && accelerateUrl.startsWith('prisma+postgres://')) {
+    if (!currentDbUrl || (!currentDbUrl.startsWith('prisma+') && currentDbUrl.includes('db.prisma.io'))) {
+      // Use Accelerate URL - set it for Prisma Client to use
+      process.env.DATABASE_URL = accelerateUrl
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Using Prisma Accelerate URL from DATABASE_PRISMA_DATABASE_URL')
+      }
+    }
+  }
+  
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   })
