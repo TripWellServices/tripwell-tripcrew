@@ -77,13 +77,16 @@ const createPrismaClient = () => {
   
   // Prefer Accelerate URL if:
   // 1. DATABASE_URL is not set, OR
-  // 2. DATABASE_URL is direct postgres but Accelerate URL is available
+  // 2. DATABASE_URL is direct postgres (contains db.prisma.io) but Accelerate URL is available
   if (accelerateUrl && accelerateUrl.startsWith('prisma+postgres://')) {
-    if (!currentDbUrl || (!currentDbUrl.startsWith('prisma+') && currentDbUrl.includes('db.prisma.io'))) {
+    const isDirectPostgres = currentDbUrl && !currentDbUrl.startsWith('prisma+') && currentDbUrl.includes('db.prisma.io')
+    
+    if (!currentDbUrl || isDirectPostgres) {
       // Use Accelerate URL - set it for Prisma Client to use
       process.env.DATABASE_URL = accelerateUrl
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ Using Prisma Accelerate URL from DATABASE_PRISMA_DATABASE_URL')
+      console.log('✅ Switched to Prisma Accelerate URL (from DATABASE_PRISMA_DATABASE_URL)')
+      if (isDirectPostgres) {
+        console.log('   Reason: DATABASE_URL was using direct postgres connection, using Accelerate instead')
       }
     }
   }
