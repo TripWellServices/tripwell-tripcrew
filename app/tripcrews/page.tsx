@@ -1,8 +1,8 @@
 /**
- * TripCrews List Page
- * 
- * Shows all TripCrews the traveler belongs to
- * Provides create-or-join fork UI
+ * Traveler Home (TripCrews)
+ *
+ * GoFast-style: primary = see my crew + explore trip options.
+ * Create / Join are secondary actions, not the main fork.
  */
 
 'use client'
@@ -14,7 +14,36 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { getTravelerTripCrews, joinTripCrew } from '@/lib/actions/tripcrew'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import Link from 'next/link'
-import { format } from 'date-fns'
+
+function IconUsers({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  )
+}
+function IconMapPin({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  )
+}
+function IconPlusCircle({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>
+  )
+}
+function IconLink2({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+    </svg>
+  )
+}
 
 export default function TripCrewsPage() {
   const router = useRouter()
@@ -34,17 +63,13 @@ export default function TripCrewsPage() {
         return
       }
 
-      // Get Traveler ID from localStorage
       const storedTravelerId = LocalStorageAPI.getTravelerId()
       const storedTripCrews = LocalStorageAPI.getTripCrewMemberships()
 
-      // If we have cached TripCrews, use them instantly
-      if (storedTripCrews && storedTripCrews.length > 0 && storedTravelerId) {
-        console.log('✅ TRIPCREWS: Using cached TripCrews from localStorage')
+      if (storedTripCrews?.length > 0 && storedTravelerId) {
         setTravelerId(storedTravelerId)
         setTripCrews(storedTripCrews.map((m: any) => m.tripCrew))
         setLoading(false)
-        // Still fetch fresh data in background
         loadTripCrews(storedTravelerId)
         return
       }
@@ -53,7 +78,6 @@ export default function TripCrewsPage() {
         setTravelerId(storedTravelerId)
         loadTripCrews(storedTravelerId)
       } else {
-        // Hydrate if not in localStorage
         try {
           const response = await fetch('/api/auth/hydrate', {
             method: 'POST',
@@ -65,13 +89,12 @@ export default function TripCrewsPage() {
               picture: firebaseUser.photoURL,
             }),
           })
-
           if (response.ok) {
             const data = await response.json()
-            const travelerId = data.traveler.id
-            setTravelerId(travelerId)
+            const tid = data.traveler.id
+            setTravelerId(tid)
             LocalStorageAPI.setFullHydrationModel(data.traveler)
-            loadTripCrews(travelerId)
+            loadTripCrews(tid)
           } else {
             setError('Failed to load your account')
             setLoading(false)
@@ -83,7 +106,6 @@ export default function TripCrewsPage() {
         }
       }
     })
-
     return () => unsubscribe()
   }, [router])
 
@@ -93,12 +115,9 @@ export default function TripCrewsPage() {
       if (result.success) {
         const crews = result.tripCrews || []
         setTripCrews(crews)
-        // Store in localStorage for instant navigation
         const traveler = LocalStorageAPI.getTraveler()
         if (traveler) {
-          LocalStorageAPI.setTripCrewMemberships(
-            crews.map((crew: any) => ({ tripCrew: crew }))
-          )
+          LocalStorageAPI.setTripCrewMemberships(crews.map((crew: any) => ({ tripCrew: crew })))
         }
       } else {
         setError(result.error || 'Failed to load TripCrews')
@@ -116,10 +135,8 @@ export default function TripCrewsPage() {
       setError('Please enter an invite code')
       return
     }
-
     setJoining(true)
     setError('')
-
     try {
       const result = await joinTripCrew(joinCode.trim(), travelerId)
       if (result.success && result.tripCrewId) {
@@ -133,6 +150,9 @@ export default function TripCrewsPage() {
       setJoining(false)
     }
   }
+
+  // First crew ID for "Explore trip options" (plan wizard)
+  const firstCrewId = tripCrews.length > 0 ? tripCrews[0].id : null
 
   if (loading) {
     return (
@@ -148,9 +168,10 @@ export default function TripCrewsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 p-6">
       <div className="max-w-6xl mx-auto">
+        {/* Header: Traveler Home */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">My TripCrews</h1>
-          <p className="text-white/80">Manage your trip planning crews</p>
+          <h1 className="text-4xl font-bold text-white mb-2">Traveler Home</h1>
+          <p className="text-white/90">See your crews and explore trip options</p>
         </div>
 
         {error && (
@@ -159,105 +180,139 @@ export default function TripCrewsPage() {
           </div>
         )}
 
-        {/* Existing TripCrews List */}
-        {tripCrews.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-4">Your Crews</h2>
+        {/* Primary: Your Crews */}
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <IconUsers className="h-7 w-7" />
+              My Crews
+            </h2>
+            <Link
+              href="/tripcrews/new"
+              className="text-sm font-medium text-white/90 hover:text-white underline"
+            >
+              Create a crew
+            </Link>
+          </div>
+
+          {tripCrews.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {tripCrews.map((crew) => (
                 <Link
                   key={crew.id}
                   href={`/tripcrews/${crew.id}`}
-                  className="block bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition"
+                  className="block bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition border border-white/20"
                 >
                   <h3 className="text-xl font-semibold text-gray-800 mb-2">{crew.name}</h3>
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>{crew._count?.trips || 0} trips</span>
-                    <span>{crew._count?.memberships || 0} members</span>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <span>{crew._count?.trips ?? 0} trips</span>
+                    <span>{crew._count?.memberships ?? 0} members</span>
                   </div>
+                  <p className="mt-3 text-sky-600 font-medium text-sm">View crew →</p>
                 </Link>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Create-or-Join Fork */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Create Crew Card */}
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-sky-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Create a Crew</h2>
-              <p className="text-gray-600">Start a new TripCrew and invite others to join</p>
-            </div>
-            <Link
-              href="/tripcrews/new"
-              className="block w-full px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-center"
-            >
-              Create TripCrew
-            </Link>
-          </div>
-
-          {/* Join Crew Card — invite link first (GoFast-style); paste code deprecated */}
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Join a Crew</h2>
-              <p className="text-gray-600 mb-4">
-                Invited? Open the <strong>invite link</strong> you received. You’ll sign in if needed, then join the crew — no copy/paste.
-              </p>
+          ) : (
+            <div className="bg-white/95 rounded-xl shadow-lg p-8 text-center">
+              <p className="text-gray-600 mb-4">You’re not in any crews yet.</p>
               <Link
-                href="/join"
-                className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition"
+                href="/tripcrews/new"
+                className="inline-block px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition"
               >
-                I have an invite link
+                Create your first crew
               </Link>
             </div>
-            {!showLegacyCodeInput ? (
+          )}
+        </section>
+
+        {/* Explore trip options */}
+        <section className="mb-10">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-4">
+            <IconMapPin className="h-7 w-7" />
+            Explore trip options
+          </h2>
+          {firstCrewId ? (
+            <Link
+              href={`/tripcrews/${firstCrewId}/plan`}
+              className="block bg-white/95 rounded-xl shadow-lg p-6 hover:shadow-xl transition border border-white/20"
+            >
+              <p className="text-gray-800 font-medium">Plan a trip with your crew</p>
+              <p className="text-gray-500 text-sm mt-1">Get destination ideas and build an itinerary</p>
+              <p className="mt-3 text-sky-600 font-medium text-sm">Open plan wizard →</p>
+            </Link>
+          ) : (
+            <div className="bg-white/95 rounded-xl shadow-lg p-6 border border-white/20">
+              <p className="text-gray-600">Create or join a crew first to plan trips together.</p>
+              <div className="mt-4 flex gap-3">
+                <Link
+                  href="/tripcrews/new"
+                  className="text-sky-600 font-medium hover:underline"
+                >
+                  Create a crew
+                </Link>
+                <span className="text-gray-400">·</span>
+                <Link href="/join" className="text-sky-600 font-medium hover:underline">
+                  I have an invite link
+                </Link>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Secondary: Create & Join (compact) */}
+        <section className="flex flex-wrap items-center gap-4 text-sm">
+          <Link
+            href="/tripcrews/new"
+            className="inline-flex items-center gap-2 text-white/90 hover:text-white"
+          >
+            <IconPlusCircle className="h-4 w-4" />
+            Create a crew
+          </Link>
+          <span className="text-white/50">·</span>
+          <Link
+            href="/join"
+            className="inline-flex items-center gap-2 text-white/90 hover:text-white"
+          >
+            <IconLink2 className="h-4 w-4" />
+            Join with invite link
+          </Link>
+          {!showLegacyCodeInput ? (
+            <>
+              <span className="text-white/50">·</span>
               <button
                 type="button"
                 onClick={() => setShowLegacyCodeInput(true)}
-                className="w-full text-sm text-gray-500 hover:text-gray-700 py-2"
+                className="text-white/70 hover:text-white"
               >
-                Have a code to paste instead?
+                Have a code to paste?
               </button>
-            ) : (
-              <form onSubmit={handleJoin} className="space-y-4 pt-4 border-t border-gray-200">
-                <input
-                  type="text"
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value)}
-                  placeholder="Enter invite code"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={joining || !travelerId || !joinCode.trim()}
-                    className="flex-1 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm"
-                  >
-                    {joining ? 'Joining...' : 'Join with code'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowLegacyCodeInput(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+            </>
+          ) : (
+            <form onSubmit={handleJoin} className="inline-flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                placeholder="Invite code"
+                className="w-32 px-2 py-1 rounded border border-white/30 bg-white/20 text-white placeholder-white/60 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={joining || !travelerId || !joinCode.trim()}
+                className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded text-sm font-medium disabled:opacity-50"
+              >
+                {joining ? 'Joining...' : 'Join'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLegacyCodeInput(false)}
+                className="text-white/70 hover:text-white text-sm"
+              >
+                Cancel
+              </button>
+            </form>
+          )}
+        </section>
       </div>
     </div>
   )

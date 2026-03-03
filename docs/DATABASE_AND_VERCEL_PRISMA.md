@@ -60,3 +60,20 @@ datasource db {
 
 1. **Vercel:** Confirm `DATABASE_PRISMA_DATABASE_URL` is set by the Prisma integration (Accelerate URL). You do **not** need to override `DATABASE_URL`.
 2. **Schema:** The datasource must use `env("DATABASE_PRISMA_DATABASE_URL")`. Do not change it back to `DATABASE_URL` without a clear reason (e.g. Vercel changing how the integration works).
+
+---
+
+## Schema / migrations out of sync (e.g. "TripCrew.handle does not exist")
+
+If you see **`The column 'TripCrew.handle' does not exist in the current database`** (or similar), the production DB is behind the Prisma schema. Apply pending migrations:
+
+1. **From your machine** (with production DB URL in env):
+   ```bash
+   export DATABASE_PRISMA_DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=..."
+   npx prisma migrate deploy
+   ```
+   Or use the **direct** Postgres URL for the same DB if your CLI can’t use Accelerate.
+
+2. **Or run the migration SQL by hand** in your provider’s SQL console (e.g. Prisma Data Platform), using the contents of `prisma/migrations/20260303000000_add_tripcrew_handle/migration.sql`.
+
+After the migration is applied, redeploy or retry; the error should stop.
