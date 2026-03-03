@@ -1,6 +1,8 @@
+// Intentional: use DATABASE_PRISMA_DATABASE_URL (Accelerate) for Vercel serverless.
+// Do not revert to DATABASE_URL. See docs/DATABASE_AND_VERCEL_PRISMA.md
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_PRISMA_DATABASE_URL")
 }
 
 generator client {

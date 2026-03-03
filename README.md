@@ -36,7 +36,7 @@ cp .env.example .env
 ```
 
 Add your API keys:
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_PRISMA_DATABASE_URL`: PostgreSQL connection string (see `docs/DATABASE_AND_VERCEL_PRISMA.md`)
 - `GOOGLE_PLACES_API_KEY`: Google Places API key
 - `OPENWEATHER_API_KEY`: OpenWeather API key
 

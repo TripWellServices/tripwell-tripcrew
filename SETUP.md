@@ -10,7 +10,7 @@
 2. **Set up environment variables**
    Create a `.env` file in the root directory:
    ```env
-   DATABASE_URL="postgresql://user:password@localhost:5432/tripwell?schema=public"
+   DATABASE_PRISMA_DATABASE_URL="postgresql://user:password@localhost:5432/tripwell?schema=public"
    GOOGLE_PLACES_API_KEY="your_google_places_api_key"
    OPENWEATHER_API_KEY="your_openweather_api_key"
    ```
@@ -61,8 +61,8 @@
 # Create database
 createdb tripwell
 
-# Update DATABASE_URL in .env
-DATABASE_URL="postgresql://your_username@localhost:5432/tripwell?schema=public"
+# Update DATABASE_PRISMA_DATABASE_URL in .env (see docs/DATABASE_AND_VERCEL_PRISMA.md)
+DATABASE_PRISMA_DATABASE_URL="postgresql://your_username@localhost:5432/tripwell?schema=public"
 ```
 
 ### Using a cloud database
@@ -76,7 +76,7 @@ Copy the connection string to your `.env` file.
 
 ### Prisma errors
 - Make sure PostgreSQL is running
-- Verify DATABASE_URL is correct
+- Verify DATABASE_PRISMA_DATABASE_URL is correct (see docs/DATABASE_AND_VERCEL_PRISMA.md)
 - Run `npx prisma generate` if schema changes
 
 ### Google Places not working
