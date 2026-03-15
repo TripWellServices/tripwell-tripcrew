@@ -166,13 +166,15 @@ export async function PUT(request: NextRequest) {
     }
 
     // Upsert City so catalogue saves always resolve to a real City row
+    // Note: Prisma's generated TypeScript types for compound unique constraints with nullable
+    // fields don't properly handle null, but the runtime accepts it. Using type assertion.
     const city = await prisma.city.upsert({
       where: {
         name_state_country: {
           name: cityName.trim(),
-          state: state?.trim() ?? undefined,
+          state: state?.trim() ?? null,
           country: country.trim(),
-        },
+        } as any,
       },
       update: {},
       create: {
