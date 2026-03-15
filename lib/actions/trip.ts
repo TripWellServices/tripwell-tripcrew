@@ -9,7 +9,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { computeTripMetadata } from '@/lib/trip/computeTripMetadata'
-import { TripCategory, TripStatus } from '@prisma/client'
+import { TripCategory, TripStatus, TripType } from '@prisma/client'
 
 /**
  * Upsert Trip (Create or Update)
@@ -20,35 +20,42 @@ export async function upsertTrip(data: {
   id?: string
   crewId: string
   tripName: string
-  purpose: string
+  purpose?: string
   categories?: TripCategory[]
-  city: string
+  city?: string
   state?: string
-  country: string
+  country?: string
   startDate: Date
-  endDate: Date
+  endDate?: Date
   travelerId: string // For security check
   status?: TripStatus
+  tripType?: TripType
   suggestedStops?: string
 }) {
   try {
-    const { id, crewId, tripName, purpose, categories, city, state, country, startDate, endDate, travelerId, status, suggestedStops } = data
+    const { id, crewId, tripName, purpose, categories, city, state, country, startDate, travelerId, status, tripType, suggestedStops } = data
+
+    const resolvedTripType = tripType ?? TripType.VACATION
+    // Day trips use the same date for start and end
+    const endDate = resolvedTripType === TripType.DAY_TRIP ? startDate : data.endDate
 
     // Validation
-    if (!purpose.trim()) {
-      throw new Error('Purpose is required')
-    }
     if (!tripName.trim()) {
       throw new Error('Trip name is required')
     }
-    if (!city?.trim()) {
-      throw new Error('City is required')
-    }
-    if (!country?.trim()) {
-      throw new Error('Country is required')
-    }
-    if (startDate >= endDate) {
-      throw new Error('End date must be after start date')
+    if (resolvedTripType === TripType.VACATION) {
+      if (!purpose?.trim()) {
+        throw new Error('Purpose is required')
+      }
+      if (!city?.trim()) {
+        throw new Error('City is required')
+      }
+      if (!country?.trim()) {
+        throw new Error('Country is required')
+      }
+      if (!endDate || startDate >= endDate) {
+        throw new Error('End date must be after start date')
+      }
     }
 
     // Verify traveler is a member
@@ -64,7 +71,7 @@ export async function upsertTrip(data: {
     }
 
     // Compute metadata
-    const { daysTotal, dateRange, season } = computeTripMetadata(startDate, endDate)
+    const { daysTotal, dateRange, season } = computeTripMetadata(startDate, endDate ?? startDate)
 
     // Upsert trip (city/state/country optional for lean + Destination flow)
     const trip = await prisma.trip.upsert({
@@ -72,31 +79,33 @@ export async function upsertTrip(data: {
       create: {
         crewId,
         tripName: tripName.trim(),
-        purpose: purpose.trim(),
+        purpose: purpose?.trim() || tripName.trim(),
         categories: categories || [],
-        city: city.trim(),
+        city: city?.trim() || '',
         state: state?.trim() || null,
-        country: country.trim(),
+        country: country?.trim() || '',
         startDate,
-        endDate,
+        endDate: endDate ?? startDate,
         daysTotal,
         dateRange,
         season,
+        tripType: resolvedTripType,
         status: status ?? TripStatus.CONFIRMED,
         suggestedStops: suggestedStops?.trim() || null,
       },
       update: {
         tripName: tripName.trim(),
-        purpose: purpose.trim(),
+        purpose: purpose?.trim() || tripName.trim(),
         categories: categories || [],
-        city: city.trim(),
+        city: city?.trim() || '',
         state: state?.trim() || null,
-        country: country.trim(),
+        country: country?.trim() || '',
         startDate,
-        endDate,
+        endDate: endDate ?? startDate,
         daysTotal,
         dateRange,
         season,
+        tripType: resolvedTripType,
         ...(status !== undefined && { status }),
         ...(suggestedStops !== undefined && { suggestedStops: suggestedStops?.trim() || null }),
       },
@@ -150,6 +159,8 @@ export async function getTrip(tripId: string) {
             lodging: true,
             dining: true,
             attraction: true,
+            concert: true,
+            hike: true,
             stuffToDo: true,
             suggestedBy: {
               select: {

@@ -28,8 +28,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
         <TripHeader
           name={trip.tripName}
           destination={trip.state ? `${trip.city}, ${trip.state}, ${trip.country}` : `${trip.city}, ${trip.country}`}
@@ -92,8 +91,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
             <p>View-only mode. Add ?admin=1 to the URL to edit.</p>
           </div>
         )}
-      </div>
-    </main>
+    </div>
   )
 }
 

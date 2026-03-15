@@ -23,6 +23,7 @@ export async function PATCH(
       attractionId,
       stuffToDoId,
       concertId,
+      hikeId,
       type,
       location,
       venue,
@@ -53,6 +54,7 @@ export async function PATCH(
     if (attractionId !== undefined) data.attractionId = attractionId || null
     if (stuffToDoId !== undefined) data.stuffToDoId = stuffToDoId || null
     if (concertId !== undefined) data.concertId = concertId || null
+    if (hikeId !== undefined) data.hikeId = hikeId || null
     if (type !== undefined && Object.values(ItineraryItemType).includes(type))
       data.type = type
     if (location !== undefined) data.location = location?.trim() || null
@@ -70,6 +72,7 @@ export async function PATCH(
         attraction: true,
         stuffToDo: true,
         concert: true,
+        hike: true,
         suggestedBy: {
           select: { id: true, firstName: true, lastName: true, photoURL: true },
         },

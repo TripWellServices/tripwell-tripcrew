@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
     if (!type || !Object.values(StuffToDoType).includes(type)) {
       return NextResponse.json(
-        { error: 'type must be ATTRACTION, RESTAURANT, or NEAT_THING' },
+        { error: 'type must be POI, RESTAURANT, or NEAT_THING' },
         { status: 400 }
       )
     }

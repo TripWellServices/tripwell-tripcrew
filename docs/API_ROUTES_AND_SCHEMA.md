@@ -6,7 +6,7 @@
 - **Destination** — Bolts to Trip + City. `tripId`, `cityId` (FK City), `name?`, `state?`, `country?`, `order`.
 - **Trip** — Lean: `status` (PLANNED | CONFIRMED), `suggestedStops?`; legacy `city?`, `state?`, `country?`. Has many **destinations**, many **itineraryItems**.
 - **ItineraryItem** — One universal item: `tripId`, `status` (CONSIDERING | CONFIRMED | DROPPED), `title`, `date?`, `day?`, `destinationId?`, `lodgingId?`, `diningId?`, `attractionId?`, **`stuffToDoId?`** (catalogue bolt-on), `type?`, `notes?`, `suggestedById?`.
-- **StuffToDoItem** — Catalogue (independent). `cityId`, `season`, `type` (ATTRACTION | RESTAURANT | NEAT_THING), `name`, `description?`.
+- **StuffToDoItem** — Catalogue (independent). `cityId`, `season`, `type` (POI | RESTAURANT | NEAT_THING), `name`, `description?`. (POI = point of interest; avoids collision with Attraction model.)
 - **Lodging, Dining, Attraction** — Artifacts (reusable). `tripId?` (legacy), `tripWellEnterpriseId?`; no required trip. ItineraryItem can reference via `lodgingId`, `diningId`, `attractionId`.
 
 ## API routes
@@ -38,7 +38,7 @@
 ### Stuff-to-do (catalogue)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/stuff-to-do?cityId=&season=&type=` | List by city (required), optional season and type (ATTRACTION \| RESTAURANT \| NEAT_THING). |
+| GET | `/api/stuff-to-do?cityId=&season=&type=` | List by city (required), optional season and type (POI \| RESTAURANT \| NEAT_THING). |
 | POST | `/api/stuff-to-do` | Create. Body: `cityId`, `name`, `season?`, `type`, `description?`. |
 | GET | `/api/stuff-to-do/[id]` | Get one. |
 | PATCH | `/api/stuff-to-do/[id]` | Update. |

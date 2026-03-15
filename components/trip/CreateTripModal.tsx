@@ -1,7 +1,9 @@
 /**
- * Create Trip Modal - Final Architecture
- * 
- * Simplified trip creation form (3-minute flow)
+ * Create Trip Modal
+ *
+ * Step 0: Type picker (Day Trip vs Vacation)
+ * Step 1a: Day Trip — 3 quick fields
+ * Step 1b: Vacation — full form
  */
 
 'use client'
@@ -9,7 +11,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { upsertTrip } from '@/lib/actions/trip'
-import { TripCategory } from '@prisma/client'
+import { TripCategory, TripType } from '@prisma/client'
 
 interface CreateTripModalProps {
   tripCrew: {
@@ -18,6 +20,8 @@ interface CreateTripModalProps {
   travelerId: string
   onClose: () => void
 }
+
+type Step = 'picker' | 'daytrip' | 'vacation'
 
 const TRIP_CATEGORIES: { value: TripCategory; label: string }[] = [
   { value: 'FAMILY', label: 'Family' },
@@ -32,119 +36,61 @@ const TRIP_CATEGORIES: { value: TripCategory; label: string }[] = [
   { value: 'FOOD', label: 'Food' },
 ]
 
-const US_STATES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA',
-  'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT',
-  'VA', 'WA', 'WV', 'WI', 'WY',
-]
-
 const COUNTRIES = [
-  'United States',
-  'Canada',
-  'Mexico',
-  'United Kingdom',
-  'France',
-  'Italy',
-  'Spain',
-  'Germany',
-  'Greece',
-  'Portugal',
-  'Netherlands',
-  'Belgium',
-  'Switzerland',
-  'Austria',
-  'Ireland',
-  'Iceland',
-  'Norway',
-  'Sweden',
-  'Denmark',
-  'Finland',
-  'Japan',
-  'South Korea',
-  'China',
-  'Thailand',
-  'Vietnam',
-  'Singapore',
-  'Malaysia',
-  'Indonesia',
-  'Philippines',
-  'India',
-  'Australia',
-  'New Zealand',
-  'Brazil',
-  'Argentina',
-  'Chile',
-  'Peru',
-  'Colombia',
-  'Costa Rica',
-  'Jamaica',
-  'Bahamas',
-  'Dominican Republic',
-  'Other',
+  'United States', 'Canada', 'Mexico', 'United Kingdom', 'France', 'Italy', 'Spain',
+  'Germany', 'Greece', 'Portugal', 'Netherlands', 'Belgium', 'Switzerland', 'Austria',
+  'Ireland', 'Iceland', 'Norway', 'Sweden', 'Denmark', 'Finland', 'Japan', 'South Korea',
+  'China', 'Thailand', 'Vietnam', 'Singapore', 'Malaysia', 'Indonesia', 'Philippines',
+  'India', 'Australia', 'New Zealand', 'Brazil', 'Argentina', 'Chile', 'Peru', 'Colombia',
+  'Costa Rica', 'Jamaica', 'Bahamas', 'Dominican Republic', 'Other',
 ]
 
 export default function CreateTripModal({ tripCrew, travelerId, onClose }: CreateTripModalProps) {
   const router = useRouter()
+  const [step, setStep] = useState<Step>('picker')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [formData, setFormData] = useState({
+  const [showVibes, setShowVibes] = useState(false)
+
+  // Day Trip form state
+  const [dayTripData, setDayTripData] = useState({
+    tripName: '',
+    date: '',
+    where: '',
+  })
+
+  // Vacation form state
+  const [vacationData, setVacationData] = useState({
     tripName: '',
     purpose: '',
     categories: [] as TripCategory[],
     city: '',
-    state: '',
     country: '',
     startDate: '',
     endDate: '',
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const toggleCategory = (category: TripCategory) => {
+    setVacationData((prev) => ({
+      ...prev,
+      categories: prev.categories.includes(category)
+        ? prev.categories.filter((c) => c !== category)
+        : [...prev.categories, category],
+    }))
+  }
+
+  const handleDayTripSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    // Validation
-    if (!formData.tripName.trim()) {
+    if (!dayTripData.tripName.trim()) {
       setError('Trip name is required')
       setLoading(false)
       return
     }
-    if (!formData.purpose.trim()) {
-      setError('Purpose is required')
-      setLoading(false)
-      return
-    }
-    if (!formData.city.trim()) {
-      setError('City is required')
-      setLoading(false)
-      return
-    }
-    if (!formData.country.trim()) {
-      setError('Country is required')
-      setLoading(false)
-      return
-    }
-
-    // If US is selected, state is required
-    const isUS = formData.country === 'United States' || formData.country === 'USA'
-    if (isUS && !formData.state.trim()) {
-      setError('State is required for US destinations')
-      setLoading(false)
-      return
-    }
-    if (!formData.startDate) {
-      setError('Start date is required')
-      setLoading(false)
-      return
-    }
-    if (!formData.endDate) {
-      setError('End date is required')
-      setLoading(false)
-      return
-    }
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      setError('End date must be after start date')
+    if (!dayTripData.date) {
+      setError('Date is required')
       setLoading(false)
       return
     }
@@ -152,16 +98,10 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
     try {
       const result = await upsertTrip({
         crewId: tripCrew.id,
-        tripName: formData.tripName.trim(),
-        purpose: formData.purpose.trim(),
-        categories: formData.categories.length > 0 ? formData.categories : undefined,
-        city: formData.city.trim(),
-        state: (formData.country === 'United States' || formData.country === 'USA') 
-          ? formData.state.trim() || undefined 
-          : undefined, // Only include state for US
-        country: formData.country.trim(),
-        startDate: new Date(formData.startDate),
-        endDate: new Date(formData.endDate),
+        tripName: dayTripData.tripName.trim(),
+        city: dayTripData.where.trim() || undefined,
+        startDate: new Date(dayTripData.date),
+        tripType: TripType.DAY_TRIP,
         travelerId,
       })
 
@@ -171,7 +111,6 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
         return
       }
 
-      // Redirect to trip admin page
       router.push(`/trip/${result.trip?.id}/admin`)
     } catch (err: any) {
       setError(err.message || 'Failed to create trip')
@@ -179,23 +118,101 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
     }
   }
 
-  const toggleCategory = (category: TripCategory) => {
-    setFormData((prev) => ({
-      ...prev,
-      categories: prev.categories.includes(category)
-        ? prev.categories.filter((c) => c !== category)
-        : [...prev.categories, category],
-    }))
+  const handleVacationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    if (!vacationData.tripName.trim()) {
+      setError('Trip name is required')
+      setLoading(false)
+      return
+    }
+    if (!vacationData.purpose.trim()) {
+      setError('Purpose is required')
+      setLoading(false)
+      return
+    }
+    if (!vacationData.city.trim()) {
+      setError('City is required')
+      setLoading(false)
+      return
+    }
+    if (!vacationData.country.trim()) {
+      setError('Country is required')
+      setLoading(false)
+      return
+    }
+    if (!vacationData.startDate) {
+      setError('Start date is required')
+      setLoading(false)
+      return
+    }
+    if (!vacationData.endDate) {
+      setError('End date is required')
+      setLoading(false)
+      return
+    }
+    if (new Date(vacationData.startDate) >= new Date(vacationData.endDate)) {
+      setError('End date must be after start date')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const result = await upsertTrip({
+        crewId: tripCrew.id,
+        tripName: vacationData.tripName.trim(),
+        purpose: vacationData.purpose.trim(),
+        categories: vacationData.categories.length > 0 ? vacationData.categories : undefined,
+        city: vacationData.city.trim(),
+        country: vacationData.country.trim(),
+        startDate: new Date(vacationData.startDate),
+        endDate: new Date(vacationData.endDate),
+        tripType: TripType.VACATION,
+        travelerId,
+      })
+
+      if (!result.success) {
+        setError(result.error || 'Failed to create trip')
+        setLoading(false)
+        return
+      }
+
+      router.push(`/trip/${result.trip?.id}/admin`)
+    } catch (err: any) {
+      setError(err.message || 'Failed to create trip')
+      setLoading(false)
+    }
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 my-8">
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full mx-4 my-8">
+        {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-gray-800">Create New Trip</h2>
+          <div className="flex items-center gap-3">
+            {step !== 'picker' && (
+              <button
+                onClick={() => { setStep('picker'); setError('') }}
+                className="text-gray-400 hover:text-gray-600 transition"
+                aria-label="Back to type picker"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            <h2 className="text-2xl font-bold text-gray-800">
+              {step === 'picker' && 'What kind of trip?'}
+              {step === 'daytrip' && 'Day Trip'}
+              {step === 'vacation' && 'Plan a Vacation'}
+            </h2>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition"
+            aria-label="Close"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -204,185 +221,247 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Trip Name & Purpose */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Step 0: Type Picker */}
+        {step === 'picker' && (
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setStep('daytrip')}
+              className="flex flex-col items-center gap-3 p-6 border-2 border-gray-200 rounded-xl hover:border-sky-400 hover:bg-sky-50 transition group text-left"
+            >
+              <span className="text-4xl">☀️</span>
+              <div>
+                <div className="font-semibold text-gray-800 group-hover:text-sky-700">Day Trip</div>
+                <div className="text-xs text-gray-500 mt-0.5">Quick, one-day adventure</div>
+              </div>
+            </button>
+            <button
+              onClick={() => setStep('vacation')}
+              className="flex flex-col items-center gap-3 p-6 border-2 border-gray-200 rounded-xl hover:border-sky-400 hover:bg-sky-50 transition group text-left"
+            >
+              <span className="text-4xl">✈️</span>
+              <div>
+                <div className="font-semibold text-gray-800 group-hover:text-sky-700">Vacation</div>
+                <div className="text-xs text-gray-500 mt-0.5">Multi-day getaway</div>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Step 1a: Day Trip Form */}
+        {step === 'daytrip' && (
+          <form onSubmit={handleDayTripSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Trip Name *
               </label>
               <input
                 type="text"
+                autoFocus
                 required
-                value={formData.tripName}
-                onChange={(e) => setFormData({ ...formData, tripName: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                placeholder="Paris Adventure, Beach Getaway"
+                value={dayTripData.tripName}
+                onChange={(e) => setDayTripData({ ...dayTripData, tripName: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                placeholder="Hike to the Falls, Farmer's Market Run"
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Purpose *
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date *
+              </label>
+              <input
+                type="date"
+                required
+                value={dayTripData.date}
+                onChange={(e) => setDayTripData({ ...dayTripData, date: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Where are you going? <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input
                 type="text"
-                required
-                value={formData.purpose}
-                onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                placeholder="Anniversary, Birthday, Relaxation"
+                value={dayTripData.where}
+                onChange={(e) => setDayTripData({ ...dayTripData, where: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                placeholder="Shenandoah, the beach, downtown..."
               />
             </div>
-          </div>
 
-          {/* Categories - Multi-select Pill Group */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Categories (optional) - Select all that apply
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {TRIP_CATEGORIES.map((cat) => {
-                const isSelected = formData.categories.includes(cat.value)
-                return (
-                  <button
-                    key={cat.value}
-                    type="button"
-                    onClick={() => toggleCategory(cat.value)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                      isSelected
-                        ? 'bg-sky-600 text-white hover:bg-sky-700'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                )
-              })}
+            <div className="flex justify-end gap-3 pt-2 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Creating...' : 'Create Day Trip'}
+              </button>
             </div>
-          </div>
+          </form>
+        )}
 
-          {/* Destination: City, State (US only), Country */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Destination *
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Step 1b: Vacation Form */}
+        {step === 'vacation' && (
+          <form onSubmit={handleVacationSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">City *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Trip Name *
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  required
+                  value={vacationData.tripName}
+                  onChange={(e) => setVacationData({ ...vacationData, tripName: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                  placeholder="Paris Adventure"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Purpose *
+                </label>
                 <input
                   type="text"
                   required
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                  value={vacationData.purpose}
+                  onChange={(e) => setVacationData({ ...vacationData, purpose: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                  placeholder="Anniversary, Birthday..."
+                />
+              </div>
+            </div>
+
+            {/* Destination */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                <input
+                  type="text"
+                  required
+                  value={vacationData.city}
+                  onChange={(e) => setVacationData({ ...vacationData, city: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                   placeholder="Paris"
                 />
               </div>
-              {(formData.country === 'United States' || formData.country === 'USA') ? (
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">State *</label>
-                  <select
-                    required
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent bg-white"
-                  >
-                    <option value="">Select State</option>
-                    {US_STATES.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="hidden md:block"></div>
-              )}
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Country *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
                 <select
                   required
-                  value={formData.country}
-                  onChange={(e) => {
-                    const newCountry = e.target.value
-                    // Clear state if switching away from US
-                    const wasUS = formData.country === 'United States' || formData.country === 'USA'
-                    const isNowUS = newCountry === 'United States' || newCountry === 'USA'
-                    setFormData({
-                      ...formData,
-                      country: newCountry,
-                      state: wasUS && !isNowUS ? '' : formData.state, // Clear state if leaving US
-                    })
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent bg-white"
+                  value={vacationData.country}
+                  onChange={(e) => setVacationData({ ...vacationData, country: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent bg-white"
                 >
                   <option value="">Select Country</option>
-                  {COUNTRIES.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>
             </div>
-            {formData.country && formData.country !== 'United States' && formData.country !== 'USA' && (
-              <p className="mt-2 text-xs text-gray-500">
-                Format: {formData.city || 'City'}, {formData.country}
-              </p>
-            )}
-          </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Start Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-              />
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={vacationData.startDate}
+                  onChange={(e) => setVacationData({ ...vacationData, startDate: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={vacationData.endDate}
+                  onChange={(e) => setVacationData({ ...vacationData, endDate: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                End Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-              />
-            </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creating...' : 'Create Trip'}
-            </button>
-          </div>
-        </form>
+            {/* Vibe Tags — collapsed by default */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowVibes((v) => !v)}
+                className="flex items-center gap-1.5 text-sm text-sky-600 hover:text-sky-800 font-medium transition"
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform ${showVibes ? 'rotate-90' : ''}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                {showVibes ? 'Hide vibe tags' : 'Add vibe tags'}
+                {vacationData.categories.length > 0 && (
+                  <span className="ml-1 bg-sky-100 text-sky-700 text-xs px-2 py-0.5 rounded-full">
+                    {vacationData.categories.length}
+                  </span>
+                )}
+              </button>
+              {showVibes && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {TRIP_CATEGORIES.map((cat) => {
+                    const isSelected = vacationData.categories.includes(cat.value)
+                    return (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => toggleCategory(cat.value)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                          isSelected
+                            ? 'bg-sky-600 text-white hover:bg-sky-700'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Creating...' : 'Create Vacation'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

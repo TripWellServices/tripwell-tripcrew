@@ -26,8 +26,7 @@ export default async function AdminPage({ params }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded-lg">
           <p className="text-yellow-800 font-semibold">🔧 Admin Mode Active</p>
         </div>
@@ -135,8 +134,7 @@ export default async function AdminPage({ params }: PageProps) {
             />
           </div>
         </div>
-      </div>
-    </main>
+    </div>
   )
 }
 

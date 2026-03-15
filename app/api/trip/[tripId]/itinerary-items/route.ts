@@ -21,6 +21,7 @@ export async function GET(
         attraction: true,
         stuffToDo: true,
         concert: true,
+        hike: true,
         suggestedBy: {
           select: { id: true, firstName: true, lastName: true, photoURL: true },
         },
@@ -56,6 +57,7 @@ export async function POST(
       attractionId,
       stuffToDoId,
       concertId,
+      hikeId,
       type,
       location,
       venue,
@@ -92,6 +94,7 @@ export async function POST(
         attractionId: attractionId || null,
         stuffToDoId: stuffToDoId || null,
         concertId: concertId || null,
+        hikeId: hikeId || null,
         type:
           type && Object.values(ItineraryItemType).includes(type)
             ? type
@@ -108,6 +111,7 @@ export async function POST(
         attraction: true,
         stuffToDo: true,
         concert: true,
+        hike: true,
         suggestedBy: {
           select: { id: true, firstName: true, lastName: true, photoURL: true },
         },
