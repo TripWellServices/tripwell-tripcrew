@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 const REGIONS = [
   'Southeast',
@@ -25,24 +24,59 @@ const VIBES = ['Relax', 'Adventure', 'Culture', 'Party', 'Family', 'Romantic', '
 
 type Recommendation = { name: string; state?: string; country: string }
 
+interface InitialItem {
+  id: string
+  title: string
+  concert?: { name: string; cityId: string | null } | null
+  hike?: { name: string; cityId: string | null } | null
+  dining?: { name: string; cityId: string | null } | null
+  attraction?: { name: string; cityId: string | null } | null
+}
+
 interface PlanWizardClientProps {
   tripCrewId: string
   initialTripId: string | null
+  initialItem?: InitialItem
 }
 
-export default function PlanWizardClient({ tripCrewId, initialTripId }: PlanWizardClientProps) {
+export default function PlanWizardClient({ tripCrewId, initialTripId, initialItem }: PlanWizardClientProps) {
   const router = useRouter()
-  const [step, setStep] = useState(1)
+  
+  // If initialItem provided, start at step 2 and pre-fill city info
+  const [step, setStep] = useState(initialItem ? 2 : 1)
   const [tripId, setTripId] = useState<string | null>(initialTripId)
   const [whereText, setWhereText] = useState('')
   const [region, setRegion] = useState('')
-  const [something, setSomething] = useState('')
+  const [something, setSomething] = useState(initialItem ? (initialItem.concert ? 'Concerts' : initialItem.hike ? 'Outdoors' : initialItem.dining ? 'Food & dining' : 'Other') : '')
   const [whoGoing, setWhoGoing] = useState('')
   const [vibes, setVibes] = useState('')
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [cityLoading, setCityLoading] = useState(!!initialItem)
+
+  // Fetch city info for initialItem
+  useEffect(() => {
+    if (initialItem && cityLoading) {
+      const cityId = initialItem.concert?.cityId || initialItem.hike?.cityId || initialItem.dining?.cityId || initialItem.attraction?.cityId
+      if (cityId) {
+        fetch(`/api/cities?id=${cityId}`)
+          .then((r) => r.json())
+          .then((city) => {
+            if (city?.name) {
+              setWhereText(city.name + (city.state ? `, ${city.state}` : '') + (city.country ? `, ${city.country}` : ''))
+            }
+            setCityLoading(false)
+          })
+          .catch(() => {
+            setCityLoading(false)
+          })
+      } else {
+        setCityLoading(false)
+      }
+    }
+  }, [initialItem, cityLoading])
 
   const ensureTrip = async () => {
     if (tripId) return tripId
@@ -147,24 +181,34 @@ export default function PlanWizardClient({ tripCrewId, initialTripId }: PlanWiza
   return (
     <div className="max-w-lg mx-auto px-4 py-10">
       <div className="mb-8">
-        <Link
-          href={`/tripcrews/${tripCrewId}`}
+        <button
+          onClick={() => router.push(`/tripcrews/${tripCrewId}/plan`)}
           className="text-sky-600 hover:underline text-sm"
         >
-          ← Back to TripCrew
-        </Link>
+          ← Back to Plan
+        </button>
       </div>
 
       <h1 className="text-2xl font-bold text-gray-800 mb-2">
         {step === 1 && 'Where would you like to go?'}
-        {step === 2 && "Let's think through it"}
+        {step === 2 && (initialItem ? "Let's plan around this" : "Let's think through it")}
         {step === 3 && 'Pick a place to add to your trip'}
       </h1>
       <p className="text-gray-600 mb-6">
         {step === 1 && 'Tell us a bit and we’ll suggest regions and cities.'}
-        {step === 2 && 'Narrow it down so we can recommend the best spots.'}
+        {step === 2 && (initialItem ? 'Refine your preferences to find the perfect destination.' : 'Narrow it down so we can recommend the best spots.')}
         {step === 3 && 'Save as a city and add it to your trip as a destination.'}
       </p>
+      
+      {initialItem && step === 2 && (
+        <div className="mb-4 p-3 bg-sky-50 border border-sky-200 rounded-lg">
+          <p className="text-sm text-sky-800">
+            Planning around: <span className="font-medium">
+              {initialItem.concert?.name || initialItem.hike?.name || initialItem.dining?.name || initialItem.attraction?.name || initialItem.title}
+            </span>
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
@@ -183,7 +227,8 @@ export default function PlanWizardClient({ tripCrewId, initialTripId }: PlanWiza
           />
           <button
             onClick={() => setStep(2)}
-            className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700"
+            disabled={!whereText.trim()}
+            className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next — Let’s think through it
           </button>
@@ -192,6 +237,18 @@ export default function PlanWizardClient({ tripCrewId, initialTripId }: PlanWiza
 
       {step === 2 && (
         <div className="space-y-6">
+          {!initialItem && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Where are you thinking?</label>
+              <textarea
+                value={whereText}
+                onChange={(e) => setWhereText(e.target.value)}
+                placeholder="e.g. beach, summer concerts, DC, Europe..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                rows={2}
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Choose region</label>
             <select
@@ -246,12 +303,14 @@ export default function PlanWizardClient({ tripCrewId, initialTripId }: PlanWiza
             </div>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={() => setStep(1)}
-              className="px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300"
-            >
-              Back
-            </button>
+            {!initialItem && (
+              <button
+                onClick={() => setStep(1)}
+                className="px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300"
+              >
+                Back
+              </button>
+            )}
             <button
               onClick={handleGetRecommendations}
               disabled={loading}

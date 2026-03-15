@@ -6,9 +6,22 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
     const name = searchParams.get('name')
     const country = searchParams.get('country')
 
+    // If ID provided, fetch single city
+    if (id) {
+      const city = await prisma.city.findUnique({
+        where: { id },
+      })
+      if (!city) {
+        return NextResponse.json({ error: 'City not found' }, { status: 404 })
+      }
+      return NextResponse.json(city)
+    }
+
+    // Otherwise, list cities
     const cities = await prisma.city.findMany({
       where: {
         ...(name && { name: { contains: name, mode: 'insensitive' } }),

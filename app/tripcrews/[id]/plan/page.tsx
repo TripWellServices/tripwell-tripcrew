@@ -1,24 +1,16 @@
 /**
- * Plan a trip — Where would you like to go?
- * Steps: Where + AI → Choose region / something / who / vibes → AI recommendation → Save city + Add to trip as destination
+ * Plan a trip — Landing page with card-based options
  */
 
 export const dynamic = 'force-dynamic'
 
-import PlanWizardClient from './PlanWizardClient'
+import PlanLandingClient from './PlanLandingClient'
 
 interface PageProps {
   params: Promise<{ id: string }>
   searchParams: Promise<{ tripId?: string }>
 }
 
-export default async function PlanPage({ params, searchParams }: PageProps) {
-  const { id: tripCrewId } = await params
-  const { tripId } = await searchParams
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-blue-50">
-      <PlanWizardClient tripCrewId={tripCrewId} initialTripId={tripId || null} />
-    </div>
-  )
+export default async function PlanPage({ params }: PageProps) {
+  return <PlanLandingClient />
 }
