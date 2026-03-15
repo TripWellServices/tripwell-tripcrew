@@ -223,89 +223,90 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
   // Use TripCrewLayout from parent layout.tsx
   // This component now only handles the main content area
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+    <>
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
 
-          {navView === 'past' ? (
-            /* Past trips: secondary view from nav */
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Past trips</h2>
-              {categorizedTrips.past.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {categorizedTrips.past.map((trip: any) => tripCard(trip, true))}
-                </div>
-              ) : (
-                <p className="text-gray-500">No past trips.</p>
-              )}
-            </div>
-          ) : (
-            /* Default: My Trips — current/upcoming focus */
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">My Trips</h2>
-                <div className="flex gap-2">
-                  <Link
-                    href={`/tripcrews/${tripCrewId}/plan`}
-                    className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200 transition text-sm"
-                  >
-                    Plan a Trip
-                  </Link>
-                  <button
-                    onClick={() => setShowCreateTripModal(true)}
-                    className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-sm"
-                  >
-                    Create Trip
-                  </button>
-                </div>
+        {navView === 'past' ? (
+          /* Past trips: secondary view from nav */
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Past trips</h2>
+            {categorizedTrips.past.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {categorizedTrips.past.map((trip: any) => tripCard(trip, true))}
               </div>
+            ) : (
+              <p className="text-gray-500">No past trips.</p>
+            )}
+          </div>
+        ) : (
+          /* Default: My Trips — current/upcoming focus */
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">My Trips</h2>
+              <div className="flex gap-2">
+                <Link
+                  href={`/tripcrews/${tripCrewId}/plan`}
+                  className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200 transition text-sm"
+                >
+                  Plan a Trip
+                </Link>
+                <button
+                  onClick={() => setShowCreateTripModal(true)}
+                  className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-sm"
+                >
+                  Create Trip
+                </button>
+              </div>
+            </div>
 
-              {tripCrew.trips && tripCrew.trips.length > 0 ? (
-                <>
-                  {categorizedTrips.upcoming.length > 0 ? (
-                    <div className="space-y-4">
-                      <p className="text-sm text-gray-600">Upcoming and current trips</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {categorizedTrips.upcoming.map((trip: any) => tripCard(trip))}
-                      </div>
+            {tripCrew.trips && tripCrew.trips.length > 0 ? (
+              <>
+                {categorizedTrips.upcoming.length > 0 ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">Upcoming and current trips</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {categorizedTrips.upcoming.map((trip: any) => tripCard(trip))}
                     </div>
-                  ) : (
-                    <div className="py-8 text-center">
-                      <p className="text-gray-500 mb-4">No upcoming trips. Plan or create one.</p>
-                      <div className="flex justify-center gap-3">
-                        <Link
-                          href={`/tripcrews/${tripCrewId}/plan`}
-                          className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200"
-                        >
-                          Plan a Trip
-                        </Link>
-                        <button
-                          onClick={() => setShowCreateTripModal(true)}
-                          className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700"
-                        >
-                          Create Trip
-                        </button>
-                      </div>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center">
+                    <p className="text-gray-500 mb-4">No upcoming trips. Plan or create one.</p>
+                    <div className="flex justify-center gap-3">
+                      <Link
+                        href={`/tripcrews/${tripCrewId}/plan`}
+                        className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200"
+                      >
+                        Plan a Trip
+                      </Link>
+                      <button
+                        onClick={() => setShowCreateTripModal(true)}
+                        className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700"
+                      >
+                        Create Trip
+                      </button>
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="py-12 text-center">
-                  <p className="text-gray-600 mb-4">No trips yet. Plan or create your first trip.</p>
-                  <button
-                    onClick={() => setShowCreateTripModal(true)}
-                    className="px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition"
-                  >
-                    Create Your First Trip
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="py-12 text-center">
+                <p className="text-gray-600 mb-4">No trips yet. Plan or create your first trip.</p>
+                <button
+                  onClick={() => setShowCreateTripModal(true)}
+                  className="px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition"
+                >
+                  Create Your First Trip
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {showCreateTripModal && travelerId && (
         <CreateTripModal
@@ -314,7 +315,7 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
           onClose={() => setShowCreateTripModal(false)}
         />
       )}
-    </div>
+    </>
   )
 }
 
