@@ -170,14 +170,14 @@ export async function PUT(request: NextRequest) {
       where: {
         name_state_country: {
           name: cityName.trim(),
-          state: state?.trim() ?? null,
+          state: state?.trim() ?? undefined,
           country: country.trim(),
         },
       },
       update: {},
       create: {
         name: cityName.trim(),
-        state: state?.trim() ?? null,
+        state: state?.trim() || null,
         country: country.trim(),
       },
     })
