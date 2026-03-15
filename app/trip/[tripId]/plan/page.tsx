@@ -92,7 +92,7 @@ export default async function TripPlanPage({ params }: PageProps) {
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Concerts</h2>
           {itineraryConcerts.length > 0 ? (
             <ul className="space-y-2">
-              {itineraryConcerts.map((item: { id: string; title: string; concert?: { name?: string; artist?: string; venue?: string; eventDate?: string } | null }) => (
+              {itineraryConcerts.map((item) => (
                 <li key={item.id} className="text-gray-700">
                   {item.concert?.name ?? item.title}
                   {item.concert?.artist && ` · ${item.concert.artist}`}
@@ -112,7 +112,7 @@ export default async function TripPlanPage({ params }: PageProps) {
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Hikes</h2>
           {itineraryHikes.length > 0 ? (
             <ul className="space-y-2">
-              {itineraryHikes.map((item: { id: string; title: string; hike?: { name?: string; trailOrPlace?: string; difficulty?: string } | null }) => (
+              {itineraryHikes.map((item) => (
                 <li key={item.id} className="text-gray-700">
                   {item.hike?.name ?? item.title}
                   {item.hike?.trailOrPlace && ` — ${item.hike.trailOrPlace}`}
