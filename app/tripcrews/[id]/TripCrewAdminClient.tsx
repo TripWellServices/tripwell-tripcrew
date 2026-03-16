@@ -54,7 +54,7 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
     } finally {
       setLoading(false)
     }
-  }, [tripCrewId, router, loadInviteLink])
+  }, [tripCrewId, router])
 
   useEffect(() => {
     const auth = getFirebaseAuth()
