@@ -41,11 +41,7 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
         LocalStorageAPI.setTripCrewData(result.tripCrew)
         console.log('✅ TRIPCREW ADMIN: Stored TripCrew data to localStorage')
         
-        // Generate invite link if admin
-        const isAdmin = result.tripCrew.roles?.some((r: any) => r.travelerId === id && r.role === 'admin')
-        if (isAdmin) {
-          loadInviteLink(id)
-        }
+        // Note: Invite link handling moved to layout.tsx
       } else {
         setError(result.error || 'Failed to load TripCrew')
         // If not a member, redirect to /tripcrews
