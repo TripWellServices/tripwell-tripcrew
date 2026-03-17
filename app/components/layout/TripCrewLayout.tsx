@@ -69,8 +69,11 @@ export default function TripCrewLayout({
       {/* Left sidebar — persistent navigation */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto">
         <div className="p-4 border-b border-gray-200">
-          <Link href="/tripcrews" className="text-sm text-sky-600 hover:underline font-medium">
-            ← Back to TripCrews
+          <Link href="/home" className="text-sm text-sky-600 hover:underline font-medium">
+            ← Dashboard
+          </Link>
+          <Link href="/tripcrews" className="text-sm text-gray-500 hover:text-gray-700 ml-2">
+            Crews
           </Link>
           <h1 className="text-lg font-bold text-gray-900 mt-2 truncate" title={tripCrew.name || ''}>
             {tripCrew.name}
@@ -89,7 +92,7 @@ export default function TripCrewLayout({
                 : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
             }`}
           >
-            <span>Plan a Trip</span>
+            <span>Start a Trip</span>
           </Link>
           <Link
             href={`/tripcrews/${tripCrewId}/discover`}
@@ -99,22 +102,12 @@ export default function TripCrewLayout({
                 : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
             }`}
           >
-            <span>Discover</span>
+            <span>Add Experiences</span>
           </Link>
           <Link
-            href={`/tripcrews/${tripCrewId}/wishlist`}
+            href={`/tripcrews/${tripCrewId}/plans`}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
-              isActive(`/tripcrews/${tripCrewId}/wishlist`)
-                ? 'bg-sky-100 text-sky-800'
-                : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
-            }`}
-          >
-            <span>Wishlist</span>
-          </Link>
-          <Link
-            href="/traveler/plans"
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
-              isActive('/traveler/plans')
+              isActive(`/tripcrews/${tripCrewId}/plans`)
                 ? 'bg-sky-100 text-sky-800'
                 : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
             }`}

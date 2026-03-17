@@ -91,12 +91,15 @@ export default function TravelerPlansPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <Link href="/tripcrews" className="text-sm text-sky-600 hover:underline font-medium mb-6 inline-block">
-          &larr; Back to TripCrews
+        <Link href="/home" className="text-sm text-sky-600 hover:underline font-medium mb-6 inline-block">
+          &larr; Dashboard
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 mb-1">My Plans</h1>
-        <p className="text-gray-500 text-sm mb-8">
-          Group trips and wishlist items by plan. Create a plan, then build trips from Discover or add wishlist items.
+        <p className="text-gray-500 text-sm mb-2">
+          Plans group your trips and saved experiences. Add experiences first, then start a trip from your list — or create a plan to organize ideas.
+        </p>
+        <p className="text-sm text-gray-600 mb-8">
+          For full planning nav (Add experiences, Start a trip, My Plans in one place), open a crew and use My Plans there.
         </p>
 
         <div className="space-y-4">

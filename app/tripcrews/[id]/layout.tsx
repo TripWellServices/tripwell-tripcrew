@@ -88,7 +88,7 @@ export default function TripCrewLayoutWrapper({ children }: TripCrewLayoutWrappe
       } else {
         setError(result.error || 'Failed to load TripCrew')
         if (result.error?.includes('Not a member')) {
-          router.push('/tripcrews')
+          router.push('/home')
         }
       }
     } catch (err: any) {
@@ -183,8 +183,8 @@ export default function TripCrewLayoutWrapper({ children }: TripCrewLayoutWrappe
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
-          <Link href="/tripcrews" className="text-sky-600 hover:underline">
-            Back to TripCrews
+          <Link href="/home" className="text-sky-600 hover:underline">
+            Dashboard
           </Link>
         </div>
       </div>

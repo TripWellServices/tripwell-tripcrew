@@ -186,10 +186,10 @@ export default function JoinPageClient({ slug, tripCrew }: JoinPageClientProps) 
 
         <div className="mt-6 text-center">
           <Link
-            href="/tripcrews"
+            href="/home"
             className="text-sm text-gray-600 hover:text-gray-800 underline"
           >
-            Back to TripCrews
+            Dashboard
           </Link>
         </div>
       </div>

@@ -1,39 +1,37 @@
 /**
- * Traveler Home Page
- * 
- * Main dashboard after authentication
- * Shows all TripCrews, recent trips, and quick actions
+ * Travel Cockpit (Planner Dashboard)
+ *
+ * Primary landing after auth. Shows Upcoming trips and Keep planning.
+ * Crews are a secondary surface; back links from crew context go here.
  */
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
-import { format } from 'date-fns'
+
+interface Trip {
+  id: string
+  tripName: string
+  city: string | null
+  state: string | null
+  country: string
+  dateRange: string | null
+  startDate: Date | string | null
+  endDate: Date | string | null
+}
 
 interface TripCrew {
   id: string
   name: string | null
-  trips: Array<{
-    id: string
-    tripName: string
-    city: string
-    state: string | null
-    country: string
-    dateRange: string | null
-    startDate: Date | string | null
-    endDate: Date | string | null
-  }>
-  _count: {
-    memberships: number
-    trips: number
-  }
+  trips: Trip[]
+  _count: { memberships: number; trips: number }
 }
 
-export default function TravelerHomePage() {
+export default function TravelCockpitPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [tripCrews, setTripCrews] = useState<TripCrew[]>([])
@@ -48,51 +46,48 @@ export default function TravelerHomePage() {
         return
       }
 
-      // Get travelerId from localStorage
-      if (typeof window !== 'undefined') {
-        const storedTravelerId = localStorage.getItem('travelerId')
-        if (storedTravelerId) {
-          setTravelerId(storedTravelerId)
-          loadTripCrews(storedTravelerId)
-        } else {
-          // Hydrate if not in localStorage
-          try {
-            const response = await fetch('/api/auth/hydrate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                firebaseId: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: firebaseUser.displayName,
-                picture: firebaseUser.photoURL,
-              }),
-            })
-
-            if (response.ok) {
-              const data = await response.json()
-              const travelerId = data.traveler.id
-              setTravelerId(travelerId)
-              localStorage.setItem('travelerId', travelerId)
-              loadTripCrews(travelerId)
+      const storedTravelerId =
+        typeof window !== 'undefined' ? localStorage.getItem('travelerId') : null
+      if (storedTravelerId) {
+        setTravelerId(storedTravelerId)
+        loadTripCrews(storedTravelerId)
+      } else {
+        try {
+          const response = await fetch('/api/auth/hydrate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firebaseId: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: firebaseUser.displayName,
+              picture: firebaseUser.photoURL,
+            }),
+          })
+          if (response.ok) {
+            const data = await response.json()
+            const tid = data.traveler?.id ?? null
+            setTravelerId(tid)
+            if (tid) {
+              if (typeof window !== 'undefined') localStorage.setItem('travelerId', tid)
+              loadTripCrews(tid)
             }
-          } catch (err) {
-            console.error('Error hydrating:', err)
+          } else {
             setError('Failed to load your account')
-          } finally {
-            setLoading(false)
           }
+        } catch (err) {
+          console.error('Error hydrating:', err)
+          setError('Failed to load your account')
+        } finally {
+          setLoading(false)
         }
       }
     })
-
     return () => unsubscribe()
   }, [router])
 
-  const loadTripCrews = async (travelerId: string) => {
+  const loadTripCrews = async (tid: string) => {
     try {
-      // TODO: Use server action or API route
-      // For now, fetch from API
-      const response = await fetch(`/api/tripcrew?travelerId=${travelerId}`)
+      const response = await fetch(`/api/tripcrew?travelerId=${tid}`)
       if (response.ok) {
         const data = await response.json()
         setTripCrews(data.tripCrews || [])
@@ -104,11 +99,36 @@ export default function TravelerHomePage() {
     }
   }
 
+  const upcomingTrips = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const all: Array<{ trip: Trip; crewName: string | null }> = []
+    tripCrews.forEach((crew) => {
+      ;(crew.trips || []).forEach((trip: Trip) => {
+        if (!trip.endDate) {
+          all.push({ trip, crewName: crew.name })
+          return
+        }
+        const endDate = new Date(trip.endDate)
+        endDate.setHours(0, 0, 0, 0)
+        if (endDate >= today) all.push({ trip, crewName: crew.name })
+      })
+    })
+    all.sort((a, b) => {
+      if (!a.trip.startDate) return 1
+      if (!b.trip.startDate) return -1
+      return new Date(a.trip.startDate).getTime() - new Date(b.trip.startDate).getTime()
+    })
+    return all
+  }, [tripCrews])
+
+  const firstCrewId = tripCrews.length === 1 ? tripCrews[0].id : null
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-4" />
           <p className="text-white text-xl">Loading...</p>
         </div>
       </div>
@@ -131,93 +151,126 @@ export default function TravelerHomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2">TripWell Home</h1>
-              <p className="text-white/80">Your trip planning dashboard</p>
+              <h1 className="text-3xl font-bold text-white mb-1">Travel cockpit</h1>
+              <p className="text-white/90 text-sm">Your planning dashboard</p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <Link
                 href="/profile/settings"
-                className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition"
+                className="px-3 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 text-sm"
               >
                 Settings
               </Link>
               <Link
-                href="/tripcrews/new"
-                className="px-6 py-2 bg-white text-sky-600 font-semibold rounded-lg hover:bg-sky-50 transition shadow-lg"
+                href="/tripcrews"
+                className="px-3 py-2 text-white/90 hover:text-white text-sm font-medium"
               >
-                + Create TripCrew
+                Crews
               </Link>
             </div>
           </div>
 
-          {/* TripCrews Section */}
-          {tripCrews.length === 0 ? (
-            <div className="bg-white/90 rounded-lg shadow-xl p-12 text-center">
-              <div className="mb-6">
-                <svg
-                  className="w-24 h-24 mx-auto text-sky-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">No TripCrews Yet</h2>
-              <p className="text-gray-600 mb-6">
-                Create your first TripCrew to start planning trips with your crew!
-              </p>
+          <nav className="flex flex-wrap items-center gap-3 text-sm mb-8">
+            <Link
+              href="/traveler/plans"
+              className="text-white/90 hover:text-white font-medium"
+            >
+              My Plans
+            </Link>
+            <span className="text-white/50">·</span>
+            {firstCrewId ? (
               <Link
-                href="/tripcrews/new"
-                className="inline-block px-8 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition shadow-lg"
+                href={`/tripcrews/${firstCrewId}/discover`}
+                className="text-white/90 hover:text-white font-medium"
               >
-                Create Your First TripCrew
+                Add experiences
               </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {tripCrews.map((crew) => (
+            ) : (
+              <Link
+                href="/tripcrews"
+                className="text-white/90 hover:text-white font-medium"
+              >
+                Add experiences
+              </Link>
+            )}
+            <span className="text-white/50">·</span>
+            <Link
+              href="/tripcrews"
+              className="text-white/90 hover:text-white font-medium"
+            >
+              Crews
+            </Link>
+          </nav>
+
+          <section className="mb-8">
+            <h2 className="text-xl font-bold text-white mb-3">Upcoming trips</h2>
+            {upcomingTrips.length === 0 ? (
+              <div className="bg-white/95 rounded-xl shadow-lg p-6 border border-white/20">
+                <p className="text-gray-600">No upcoming trips. Start one from My Plans or a crew.</p>
                 <Link
-                  key={crew.id}
-                  href={`/tripcrews/${crew.id}`}
-                  className="bg-white rounded-lg shadow-xl overflow-hidden hover:shadow-2xl transition"
+                  href="/traveler/plans"
+                  className="inline-block mt-3 text-sky-600 font-medium hover:underline"
                 >
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">{crew.name}</h3>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>{crew._count.memberships} member{crew._count.memberships !== 1 ? 's' : ''}</span>
-                      <span>{crew._count.trips} trip{crew._count.trips !== 1 ? 's' : ''}</span>
-                    </div>
-                    {crew.trips.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <p className="text-xs font-semibold text-gray-500 mb-2">Recent Trips</p>
-                        {crew.trips.slice(0, 2).map((trip) => (
-                          <div key={trip.id} className="text-sm text-gray-700 mb-1">
-                            {trip.tripName}
-                            {trip.city && trip.country && (
-                              <span className="text-gray-500"> • {trip.city}, {trip.country}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  My Plans →
                 </Link>
-              ))}
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {upcomingTrips.map(({ trip, crewName }) => (
+                  <li key={trip.id}>
+                    <Link
+                      href={`/trip/${trip.id}/admin`}
+                      className="block bg-white/95 rounded-xl shadow-lg p-4 border border-white/20 hover:shadow-xl transition"
+                    >
+                      <h3 className="font-semibold text-gray-800">{trip.tripName}</h3>
+                      {trip.city && trip.country && (
+                        <p className="text-sm text-gray-600 mt-0.5">
+                          {trip.city}
+                          {trip.state ? `, ${trip.state}` : ''}, {trip.country}
+                        </p>
+                      )}
+                      {trip.dateRange && (
+                        <p className="text-xs text-gray-500 mt-1">{trip.dateRange}</p>
+                      )}
+                      {crewName && (
+                        <p className="text-xs text-sky-600 mt-1">{crewName}</p>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">Keep planning</h2>
+            <div className="bg-white/95 rounded-xl shadow-lg p-6 border border-white/20">
+              <p className="text-gray-800 font-medium mb-2">Start a trip</p>
+              <p className="text-gray-500 text-sm mb-4">
+                Pick from your list or start from a city or event.
+              </p>
+              {firstCrewId ? (
+                <Link
+                  href={`/tripcrews/${firstCrewId}/plan`}
+                  className="inline-block px-4 py-2 bg-sky-600 text-white font-medium rounded-lg hover:bg-sky-700 transition"
+                >
+                  Start a trip →
+                </Link>
+              ) : (
+                <Link
+                  href="/traveler/plans"
+                  className="inline-block px-4 py-2 bg-sky-600 text-white font-medium rounded-lg hover:bg-sky-700 transition"
+                >
+                  My Plans →
+                </Link>
+              )}
             </div>
-          )}
+          </section>
         </div>
       </div>
     </div>
   )
 }
-

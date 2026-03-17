@@ -115,8 +115,8 @@ export default function ProfileSetupPage() {
         throw new Error(errorData.error || 'Failed to save profile')
       }
 
-      // Redirect to TripCrews page
-      router.push('/tripcrews')
+      // Redirect to travel cockpit
+      router.push('/home')
     } catch (err: any) {
       console.error('Error saving profile:', err)
       setError(err.message || 'Failed to save profile')

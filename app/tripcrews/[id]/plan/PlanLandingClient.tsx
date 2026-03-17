@@ -108,50 +108,16 @@ export default function PlanLandingClient() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Plan a Trip</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Start a Trip</h1>
       <p className="text-gray-600 mb-8">
-        Choose how you&apos;d like to start planning your next adventure.
+        Pick from your list first, or start from a city or event.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Start from City Card */}
-        <button
-          onClick={handleStartFromCity}
-          className="flex flex-col items-start gap-4 p-6 border-2 border-gray-200 rounded-xl hover:border-sky-400 hover:bg-sky-50 transition group text-left"
-        >
-          <div className="text-4xl">🗺️</div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 group-hover:text-sky-700 mb-1">
-              Start from a City
-            </h3>
-            <p className="text-sm text-gray-600">
-              Search destinations and get AI recommendations for your trip
-            </p>
-          </div>
-        </button>
-
-        {/* Start from Event Card */}
-        <button
-          onClick={handleStartFromEvent}
-          className="flex flex-col items-start gap-4 p-6 border-2 border-gray-200 rounded-xl hover:border-sky-400 hover:bg-sky-50 transition group text-left"
-        >
-          <div className="text-4xl">🎭</div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 group-hover:text-sky-700 mb-1">
-              Start from an Event
-            </h3>
-            <p className="text-sm text-gray-600">
-              Plan around a concert, hike, restaurant, or attraction
-            </p>
-          </div>
-        </button>
-      </div>
-
-      {/* Wishlist Preview */}
+      {/* Your list (wishlist) first — anchor-first */}
       {travelerId && (
-        <div className="border-t border-gray-200 pt-8">
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Your Wishlist</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Your experiences</h2>
             {wishlistItems.length > 5 && (
               <Link
                 href={`/tripcrews/${tripCrewId}/wishlist`}
@@ -163,7 +129,7 @@ export default function PlanLandingClient() {
           </div>
 
           {wishlistLoading ? (
-            <p className="text-sm text-gray-500">Loading wishlist...</p>
+            <p className="text-sm text-gray-500">Loading...</p>
           ) : recentWishlist.length > 0 ? (
             <div className="space-y-3">
               {recentWishlist.map((item) => {
@@ -199,7 +165,7 @@ export default function PlanLandingClient() {
                       onClick={() => handlePlanFromItem(item)}
                       className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition"
                     >
-                      Plan from this
+                      Start a trip from this
                     </button>
                   </div>
                 )
@@ -207,17 +173,50 @@ export default function PlanLandingClient() {
             </div>
           ) : (
             <div className="text-center py-8 border border-gray-200 rounded-lg bg-gray-50">
-              <p className="text-sm text-gray-600 mb-2">No wishlist items yet</p>
+              <p className="text-sm text-gray-600 mb-2">No experiences yet. Add some first.</p>
               <Link
                 href={`/tripcrews/${tripCrewId}/discover`}
                 className="text-sm text-sky-600 hover:underline"
               >
-                Discover things to do →
+                Add experiences →
               </Link>
             </div>
           )}
         </div>
       )}
+
+      <p className="text-sm text-gray-500 mb-4">Or start from a city or event if you don&apos;t have a list yet.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <button
+          onClick={handleStartFromCity}
+          className="flex flex-col items-start gap-4 p-6 border-2 border-gray-200 rounded-xl hover:border-sky-400 hover:bg-sky-50 transition group text-left"
+        >
+          <div className="text-4xl">🗺️</div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 group-hover:text-sky-700 mb-1">
+              Start from a City
+            </h3>
+            <p className="text-sm text-gray-600">
+              Search destinations and get AI recommendations for your trip
+            </p>
+          </div>
+        </button>
+
+        <button
+          onClick={handleStartFromEvent}
+          className="flex flex-col items-start gap-4 p-6 border-2 border-gray-200 rounded-xl hover:border-sky-400 hover:bg-sky-50 transition group text-left"
+        >
+          <div className="text-4xl">🎭</div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 group-hover:text-sky-700 mb-1">
+              Start from an Event
+            </h3>
+            <p className="text-sm text-gray-600">
+              Plan around a concert, hike, restaurant, or attraction
+            </p>
+          </div>
+        </button>
+      </div>
     </div>
   )
 }

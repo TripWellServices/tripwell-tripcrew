@@ -34,10 +34,10 @@ export default async function TripLayout({ children, params }: LayoutProps) {
         <div className="p-4 border-b border-gray-200">
           {hasCrew ? (
             <Link
-              href={`/tripcrews/${crewId}`}
+              href={`/tripcrews/${crewId}/plans`}
               className="text-sm text-sky-600 hover:underline font-medium"
             >
-              ← Back to {crewName}
+              ← Back to My Plans
             </Link>
           ) : (
             <Link

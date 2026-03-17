@@ -44,9 +44,9 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
         // Note: Invite link handling moved to layout.tsx
       } else {
         setError(result.error || 'Failed to load TripCrew')
-        // If not a member, redirect to /tripcrews
+        // If not a member, redirect to dashboard
         if (result.error?.includes('Not a member')) {
-          router.push('/tripcrews')
+          router.push('/home')
         }
       }
     } catch (err: any) {
@@ -184,10 +184,10 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Link
-            href="/tripcrews"
+            href="/home"
             className="text-sky-600 hover:underline"
           >
-            Back to TripCrews
+            Dashboard
           </Link>
         </div>
       </div>
@@ -247,13 +247,13 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
               <div className="flex gap-2">
                 <Link
                   href={`/tripcrews/${tripCrewId}/plan`}
-                  className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200 transition text-sm"
+                  className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-sm"
                 >
-                  Plan a Trip
+                  Start a Trip
                 </Link>
                 <button
                   onClick={() => setShowCreateTripModal(true)}
-                  className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-sm"
+                  className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200 transition text-sm"
                 >
                   Create Trip
                 </button>
@@ -275,13 +275,13 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
                     <div className="flex justify-center gap-3">
                       <Link
                         href={`/tripcrews/${tripCrewId}/plan`}
-                        className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200"
+                        className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700"
                       >
-                        Plan a Trip
+                        Start a Trip
                       </Link>
                       <button
                         onClick={() => setShowCreateTripModal(true)}
-                        className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700"
+                        className="px-4 py-2 bg-sky-100 text-sky-700 font-semibold rounded-lg hover:bg-sky-200"
                       >
                         Create Trip
                       </button>

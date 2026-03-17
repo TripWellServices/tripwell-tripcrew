@@ -39,11 +39,10 @@ export default function CrewDiscoverPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Discover</h1>
-      <p className="text-gray-500 text-sm mb-8">
-        Pick a city, choose a category, and explore what&apos;s out there. Save anything to your
-        wishlist — no trip required.
-      </p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Add Experiences</h1>
+        <p className="text-gray-500 text-sm mb-8">
+          Add hikes, concerts, dining, and attractions — they&apos;re saved to your list for when you start a trip.
+        </p>
 
       {/* No tripId — city must be entered by user; no itinerary action */}
       <DiscoverFlow travelerId={travelerId} />
