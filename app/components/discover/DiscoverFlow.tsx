@@ -34,6 +34,10 @@ interface Suggestion {
   detail?: string
   url?: string
   notes?: string
+  /** Echoed from discover API for hikes; sent back on catalogue save */
+  difficulty?: string
+  distanceMi?: number
+  durationMin?: number
 }
 
 interface PlanSummary {

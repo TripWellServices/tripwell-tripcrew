@@ -11,6 +11,51 @@ interface Suggestion {
   detail?: string     // venue, difficulty, address, etc.
   url?: string
   notes?: string
+  /** Hike-only: optional structured fields (preferred over parsing `detail`) */
+  difficulty?: string
+  distanceMi?: number
+  durationMin?: number
+}
+
+/** Resolve hike metrics for create: explicit suggestion fields, else parse `detail` / `notes`. */
+function resolveHikeMetrics(s: Suggestion): {
+  difficulty: string | null
+  distanceMi: number | null
+  durationMin: number | null
+} {
+  let difficulty: string | null =
+    typeof s.difficulty === 'string' && s.difficulty.trim()
+      ? s.difficulty.trim()
+      : null
+  let distanceMi: number | null =
+    typeof s.distanceMi === 'number' && Number.isFinite(s.distanceMi)
+      ? s.distanceMi
+      : null
+  let durationMin: number | null =
+    typeof s.durationMin === 'number' && Number.isFinite(s.durationMin)
+      ? Math.round(s.durationMin)
+      : null
+
+  const detail = s.detail?.trim() ?? ''
+  const notes = s.notes?.trim() ?? ''
+  const combined = `${detail} ${notes}`.trim()
+
+  if (!difficulty && detail) {
+    const beforeSep = detail.split('·')[0]?.trim() ?? ''
+    if (beforeSep) difficulty = beforeSep
+  }
+
+  if (distanceMi == null && combined) {
+    const m = combined.match(/(\d+\.?\d*)\s*mi\b/i)
+    if (m) distanceMi = parseFloat(m[1])
+  }
+
+  if (durationMin == null && combined) {
+    const dm = combined.match(/(\d+)\s*(?:min|minutes|mins)\b/i)
+    if (dm) durationMin = parseInt(dm[1], 10)
+  }
+
+  return { difficulty, distanceMi, durationMin }
 }
 
 /**
@@ -83,21 +128,71 @@ function getStubSuggestions(city: string, _state: string, type: DiscoverType): S
   if (type === 'hike') {
     if (cityLower.includes('los angeles') || cityLower.includes('la')) {
       return [
-        { name: 'Griffith Park Loop', subtitle: 'Griffith Park', detail: 'Moderate · 6.5 mi', notes: 'Great views of the Hollywood Sign' },
-        { name: 'Runyon Canyon', subtitle: 'Runyon Canyon Park', detail: 'Easy · 3.3 mi' },
-        { name: 'Eagle Rock Loop', subtitle: 'Topanga State Park', detail: 'Hard · 8 mi' },
+        {
+          name: 'Griffith Park Loop',
+          subtitle: 'Griffith Park',
+          detail: 'Moderate · 6.5 mi',
+          notes: 'Great views of the Hollywood Sign',
+          difficulty: 'Moderate',
+          distanceMi: 6.5,
+          durationMin: 150,
+        },
+        {
+          name: 'Runyon Canyon',
+          subtitle: 'Runyon Canyon Park',
+          detail: 'Easy · 3.3 mi',
+          difficulty: 'Easy',
+          distanceMi: 3.3,
+        },
+        {
+          name: 'Eagle Rock Loop',
+          subtitle: 'Topanga State Park',
+          detail: 'Hard · 8 mi',
+          difficulty: 'Hard',
+          distanceMi: 8,
+        },
       ]
     }
     if (cityLower.includes('denver') || cityLower.includes('boulder')) {
       return [
-        { name: 'Chautauqua Trail', subtitle: 'Chautauqua Park', detail: 'Moderate · 3.9 mi' },
-        { name: 'Royal Arch Trail', subtitle: 'Boulder Open Space', detail: 'Hard · 3.4 mi' },
-        { name: 'South Boulder Peak', subtitle: 'OSMP', detail: 'Hard · 9 mi' },
+        {
+          name: 'Chautauqua Trail',
+          subtitle: 'Chautauqua Park',
+          detail: 'Moderate · 3.9 mi',
+          difficulty: 'Moderate',
+          distanceMi: 3.9,
+        },
+        {
+          name: 'Royal Arch Trail',
+          subtitle: 'Boulder Open Space',
+          detail: 'Hard · 3.4 mi',
+          difficulty: 'Hard',
+          distanceMi: 3.4,
+        },
+        {
+          name: 'South Boulder Peak',
+          subtitle: 'OSMP',
+          detail: 'Hard · 9 mi',
+          difficulty: 'Hard',
+          distanceMi: 9,
+        },
       ]
     }
     return [
-      { name: `${city} Nature Trail`, subtitle: 'Local park', detail: 'Easy · 2 mi' },
-      { name: `${city} Ridge Loop`, subtitle: 'State park', detail: 'Moderate · 5 mi' },
+      {
+        name: `${city} Nature Trail`,
+        subtitle: 'Local park',
+        detail: 'Easy · 2 mi',
+        difficulty: 'Easy',
+        distanceMi: 2,
+      },
+      {
+        name: `${city} Ridge Loop`,
+        subtitle: 'State park',
+        detail: 'Moderate · 5 mi',
+        difficulty: 'Moderate',
+        distanceMi: 5,
+      },
     ]
   }
 
@@ -198,11 +293,14 @@ export async function PUT(request: NextRequest) {
         },
       })
     } else if (type === 'hike') {
+      const { difficulty, distanceMi, durationMin } = resolveHikeMetrics(suggestion)
       saved = await prisma.hike.create({
         data: {
           name: suggestion.name,
           trailOrPlace: suggestion.subtitle ?? null,
-          difficulty: suggestion.detail?.split('·')[0]?.trim() ?? null,
+          difficulty,
+          distanceMi,
+          durationMin,
           notes: suggestion.notes ?? null,
           url: suggestion.url ?? null,
           cityId: city.id,
