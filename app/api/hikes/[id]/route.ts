@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { HIKE_ROUTE_TYPES, type HikeRouteType } from '@/lib/hike-model'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,11 @@ export async function PATCH(
       difficulty,
       distanceMi,
       durationMin,
+      routeType,
+      trailheadLat,
+      trailheadLng,
+      nearestTown,
+      sourcePaste,
       url,
       notes,
     } = body
@@ -65,6 +71,25 @@ export async function PATCH(
         typeof durationMin === 'number' && Number.isFinite(durationMin)
           ? Math.round(durationMin)
           : null
+    if (routeType !== undefined) {
+      const rt = typeof routeType === 'string' ? routeType.trim() : ''
+      data.routeType =
+        rt && HIKE_ROUTE_TYPES.includes(rt as HikeRouteType) ? rt : null
+    }
+    if (trailheadLat !== undefined)
+      data.trailheadLat =
+        typeof trailheadLat === 'number' && Number.isFinite(trailheadLat)
+          ? trailheadLat
+          : null
+    if (trailheadLng !== undefined)
+      data.trailheadLng =
+        typeof trailheadLng === 'number' && Number.isFinite(trailheadLng)
+          ? trailheadLng
+          : null
+    if (nearestTown !== undefined)
+      data.nearestTown = nearestTown?.trim() || null
+    if (sourcePaste !== undefined)
+      data.sourcePaste = sourcePaste?.trim() || null
     if (url !== undefined) data.url = url?.trim() || null
     if (notes !== undefined) data.notes = notes?.trim() || null
 

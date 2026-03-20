@@ -178,7 +178,7 @@ export default function PlanLandingClient() {
                 href={`/tripcrews/${tripCrewId}/discover`}
                 className="text-sm text-sky-600 hover:underline"
               >
-                Add experiences →
+                Experiences →
               </Link>
             </div>
           )}

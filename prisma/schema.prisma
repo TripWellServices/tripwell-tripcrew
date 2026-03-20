@@ -111,6 +111,7 @@ model Traveler {
   // Profile fields (from OG TripWell ProfileSetup)
   hometownCity     String?
   homeState        String?
+  homeAddress      String? // full street address for drive-time / day plans
   persona          String? // "Art", "Food", "History", "Adventure"
   planningStyle    String? // "Spontaneous", "Mix of spontaneous and planned", "Set a plan and stick to it!"
   dreamDestination String?
@@ -390,6 +391,11 @@ model Hike {
   difficulty  String?   // e.g. "easy", "moderate", "hard"
   distanceMi  Float?   // distance in miles
   durationMin Int?     // estimated duration minutes
+  routeType   String?  // out_and_back | loop | point_to_point | lollipop
+  trailheadLat  Float?
+  trailheadLng  Float?
+  nearestTown   String?
+  sourcePaste   String? @db.Text
   url         String?
   notes       String?
 

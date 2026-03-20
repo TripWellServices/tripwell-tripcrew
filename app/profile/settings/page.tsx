@@ -33,6 +33,7 @@ export default function ProfileSettingsPage() {
     email: '',
     hometownCity: '',
     state: '',
+    homeAddress: '',
     persona: '',
     planningStyle: '',
     dreamDestination: '',
@@ -68,11 +69,12 @@ export default function ProfileSettingsPage() {
             firstName: hydratedTraveler.firstName || '',
             lastName: hydratedTraveler.lastName || '',
             email: hydratedTraveler.email || firebaseUser.email || '',
-            hometownCity: '',
-            state: '',
-            persona: '',
-            planningStyle: '',
-            dreamDestination: '',
+            hometownCity: hydratedTraveler.hometownCity || '',
+            state: hydratedTraveler.homeState || '',
+            homeAddress: hydratedTraveler.homeAddress || '',
+            persona: hydratedTraveler.persona || '',
+            planningStyle: hydratedTraveler.planningStyle || '',
+            dreamDestination: hydratedTraveler.dreamDestination || '',
           })
         }
       } catch (err) {
@@ -96,7 +98,10 @@ export default function ProfileSettingsPage() {
       const response = await fetch('/api/traveler/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          firebaseId: traveler?.firebaseId ?? getFirebaseAuth().currentUser?.uid,
+        }),
       })
 
       if (!response.ok) {
@@ -200,6 +205,21 @@ export default function ProfileSettingsPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="font-semibold text-gray-700">Home street address</label>
+            <p className="text-xs text-gray-500">
+              Used for hike day plans (drive time to trailhead). Optional.
+            </p>
+            <input
+              value={formData.homeAddress}
+              onChange={(e) =>
+                setFormData({ ...formData, homeAddress: e.target.value })
+              }
+              placeholder="123 Main St, Nashville, TN 37201"
+              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
           </div>
 
           <div className="space-y-4">

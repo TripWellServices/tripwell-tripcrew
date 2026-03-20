@@ -96,7 +96,7 @@ export default function CrewPlansPage() {
         Plans group your trips and saved experiences. Add experiences first, then start a trip from your list — or create a plan to organize ideas.
       </p>
       <p className="text-sm text-gray-600 mb-8">
-        <Link href={`/tripcrews/${tripCrewId}/discover`} className="text-sky-600 hover:underline">Add experiences</Link>
+        <Link href={`/tripcrews/${tripCrewId}/discover`} className="text-sky-600 hover:underline">Experiences</Link>
         {' · '}
         <Link href={`/tripcrews/${tripCrewId}/plan`} className="text-sky-600 hover:underline">Start a trip</Link>
       </p>

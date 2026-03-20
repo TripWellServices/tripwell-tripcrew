@@ -81,7 +81,7 @@ export default function TripDiscoverPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Add Experiences</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Experiences</h1>
       <p className="text-gray-500 text-sm mb-6">
         Add things to do here — save to your list or drop straight into this trip&apos;s itinerary.
       </p>

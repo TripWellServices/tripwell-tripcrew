@@ -19,6 +19,7 @@ export async function PUT(request: NextRequest) {
       email,
       hometownCity,
       state,
+      homeAddress,
       persona,
       planningStyle,
       dreamDestination,
@@ -45,6 +46,12 @@ export async function PUT(request: NextRequest) {
         email: email || undefined,
         hometownCity: hometownCity || undefined,
         homeState: state || undefined,
+        homeAddress:
+          homeAddress !== undefined
+            ? typeof homeAddress === 'string'
+              ? homeAddress.trim() || null
+              : null
+            : undefined,
         persona: persona || undefined,
         planningStyle: planningStyle || undefined,
         dreamDestination: dreamDestination || undefined,
@@ -57,6 +64,8 @@ export async function PUT(request: NextRequest) {
         lastName: lastName || null,
         hometownCity: hometownCity || null,
         homeState: state || null,
+        homeAddress:
+          typeof homeAddress === 'string' ? homeAddress.trim() || null : null,
         persona: persona || null,
         planningStyle: planningStyle || null,
         dreamDestination: dreamDestination || null,

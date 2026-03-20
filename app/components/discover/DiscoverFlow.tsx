@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -18,6 +19,8 @@ interface CatalogueItem {
   trailOrPlace?: string
   difficulty?: string
   distanceMi?: number
+  durationMin?: number
+  routeType?: string | null
   // Dining / Attraction fields
   title?: string
   category?: string
@@ -77,7 +80,16 @@ function itemDisplayName(item: CatalogueItem): string {
 
 function itemSubtitle(item: CatalogueItem, type: DiscoverType): string {
   if (type === 'concert') return [item.artist, item.venue].filter(Boolean).join(' @ ')
-  if (type === 'hike')    return [item.trailOrPlace, item.difficulty].filter(Boolean).join(' · ')
+  if (type === 'hike') {
+    const bits = [
+      item.trailOrPlace,
+      item.difficulty,
+      item.distanceMi != null ? `${item.distanceMi} mi` : null,
+      item.durationMin != null ? `${item.durationMin} min` : null,
+      item.routeType?.replace(/_/g, ' '),
+    ].filter(Boolean)
+    return bits.join(' · ')
+  }
   if (type === 'dining')  return [item.category, item.address].filter(Boolean).join(' · ')
   return [item.category, item.address].filter(Boolean).join(' · ')
 }
@@ -420,6 +432,24 @@ export default function DiscoverFlow({ defaultCity, defaultState, tripId, travel
           <span className="font-semibold text-gray-800">
             {defaultCity}{defaultState ? `, ${defaultState}` : ''}
           </span>
+        </div>
+      )}
+
+      {(inTripMode || committedCity) && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-950">
+          <span className="font-medium">Trail write-up?</span>{' '}
+          Paste an AllTrails-style description and we&apos;ll infer distance, route type,
+          trailhead, nearest town, and more —{' '}
+          <Link
+            href={`/hikes/new?${new URLSearchParams({
+              ...(effectiveCity ? { city: effectiveCity } : {}),
+              ...(effectiveState ? { state: effectiveState } : {}),
+            }).toString()}`}
+            className="text-emerald-800 underline font-semibold hover:text-emerald-950"
+          >
+            Add a hike with AI
+          </Link>
+          .
         </div>
       )}
 

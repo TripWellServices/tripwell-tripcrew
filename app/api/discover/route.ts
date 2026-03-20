@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { upsertCityByName } from '@/lib/city-upsert'
 
 export const dynamic = 'force-dynamic'
 
@@ -260,23 +261,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'city, type, and suggestion.name are required' }, { status: 400 })
     }
 
-    // Upsert City so catalogue saves always resolve to a real City row
-    // Note: Prisma's generated TypeScript types for compound unique constraints with nullable
-    // fields don't properly handle null, but the runtime accepts it. Using type assertion.
-    const city = await prisma.city.upsert({
-      where: {
-        name_state_country: {
-          name: cityName.trim(),
-          state: state?.trim() ?? null,
-          country: country.trim(),
-        } as any,
-      },
-      update: {},
-      create: {
-        name: cityName.trim(),
-        state: state?.trim() || null,
-        country: country.trim(),
-      },
+    const city = await upsertCityByName({
+      name: cityName,
+      state: state?.trim() ?? null,
+      country: country.trim(),
     })
 
     let saved: unknown

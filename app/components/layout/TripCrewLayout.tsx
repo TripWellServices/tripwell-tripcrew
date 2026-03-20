@@ -102,7 +102,7 @@ export default function TripCrewLayout({
                 : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
             }`}
           >
-            <span>Add Experiences</span>
+            <span>Experiences</span>
           </Link>
           <Link
             href={`/tripcrews/${tripCrewId}/plans`}

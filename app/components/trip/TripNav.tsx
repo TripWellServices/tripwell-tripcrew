@@ -39,7 +39,7 @@ export default function TripNav({ tripId }: TripNavProps) {
           isDiscover ? 'bg-sky-100 text-sky-800' : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
         }`}
       >
-        <span>Add Experiences</span>
+        <span>Experiences</span>
       </Link>
     </nav>
   )
