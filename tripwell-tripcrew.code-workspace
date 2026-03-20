@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../../GoFast/tripwell-gofastbackend"
+		},
+		{
+			"path": "../../GoFast/GoFastCompany"
 		}
 	],
 	"settings": {}
