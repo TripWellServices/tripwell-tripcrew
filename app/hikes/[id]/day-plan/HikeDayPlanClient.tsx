@@ -41,7 +41,8 @@ function formatShareText(
 export default function HikeDayPlanClient() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const hikeId = params.id as string
+  const hikeId =
+    (params.hikeId as string) || (params.id as string)
   const returnTo = searchParams.get('return') ?? '/'
 
   const [hikeName, setHikeName] = useState('')

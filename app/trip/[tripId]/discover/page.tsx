@@ -115,6 +115,7 @@ export default function TripDiscoverPage() {
         defaultState={activeState}
         tripId={tripId}
         travelerId={travelerId}
+        tripCrewId={trip?.crewId ?? null}
       />
     </div>
   )

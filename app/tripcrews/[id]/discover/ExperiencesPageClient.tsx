@@ -213,7 +213,7 @@ export default function ExperiencesPageClient({
             title="Hikes"
             emoji="🥾"
             empty="No saved hikes yet."
-            addHref={`/hikes/new?return=${encodeURIComponent(returnPath)}`}
+            addHref={`/tripcrews/${tripCrewId}/hikes/new?return=${encodeURIComponent(returnPath)}`}
             addLabel="Add a hike (AI paste)"
             secondaryHref={`/tripcrews/${tripCrewId}/discover/add`}
             secondaryLabel="Browse hikes in catalogue"
@@ -255,7 +255,7 @@ export default function ExperiencesPageClient({
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      href={`/hikes/${h.id}/day-plan?return=${encodeURIComponent(returnPath)}`}
+                      href={`/tripcrews/${tripCrewId}/hikes/${h.id}/day-plan?return=${encodeURIComponent(returnPath)}`}
                       className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"
                     >
                       Plan a day

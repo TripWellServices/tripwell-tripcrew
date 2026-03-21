@@ -51,7 +51,7 @@ export default function DiscoverAddPage() {
         Pick a city, then explore concerts, hikes, dining, and attractions to save to your
         list.
       </p>
-      <DiscoverFlow travelerId={travelerId} />
+      <DiscoverFlow travelerId={travelerId} tripCrewId={tripCrewId} />
     </div>
   )
 }

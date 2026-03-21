@@ -9,6 +9,8 @@ import {
   type HikeParseResult,
 } from '@/lib/hike-model'
 
+type FlowMode = 'discover' | 'paste'
+
 function NumField(props: {
   label: string
   value: number | null
@@ -46,7 +48,16 @@ export default function HikePasteClient() {
   const prefState = searchParams.get('state') ?? ''
   const returnTo = searchParams.get('return') ?? ''
 
-  const [regionHint, setRegionHint] = useState(
+  const [mode, setMode] = useState<FlowMode>('discover')
+
+  const [discoverPlace, setDiscoverPlace] = useState(prefCity || '')
+  const [discoverState, setDiscoverState] = useState(prefState)
+  const [discoverDifficulty, setDiscoverDifficulty] = useState('')
+  const [discoverInterests, setDiscoverInterests] = useState('')
+  const [suggestions, setSuggestions] = useState<HikeParseResult[] | null>(null)
+  const [loadingRecs, setLoadingRecs] = useState(false)
+
+  const [pasteHint, setPasteHint] = useState(
     [prefCity, prefState].filter(Boolean).join(', ')
   )
   const [pastedDescription, setPastedDescription] = useState('')
@@ -60,13 +71,56 @@ export default function HikePasteClient() {
 
   const backHref = returnTo || '/'
 
-  const applyParsed = useCallback((p: HikeParseResult) => {
-    setDraft(p)
-    setCatalogCityName(p.nearestTown ?? prefCity ?? '')
-    setCatalogCityState(p.nearestState ?? prefState ?? '')
-  }, [prefCity, prefState])
+  const applyParsed = useCallback(
+    (p: HikeParseResult, catalogName?: string, catalogState?: string) => {
+      setDraft(p)
+      setCatalogCityName(
+        catalogName ??
+          p.nearestTown ??
+          prefCity ??
+          discoverPlace.split(',')[0]?.trim() ??
+          ''
+      )
+      setCatalogCityState(
+        catalogState ?? p.nearestState ?? prefState ?? discoverState
+      )
+    },
+    [prefCity, prefState, discoverPlace, discoverState]
+  )
 
-  const parse = async () => {
+  const fetchRecommendations = async () => {
+    setError(null)
+    setSuggestions(null)
+    setLoadingRecs(true)
+    try {
+      const res = await fetch('/api/hikes/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          place: discoverPlace.trim(),
+          state: discoverState.trim() || undefined,
+          difficulty: discoverDifficulty.trim() || undefined,
+          interests: discoverInterests.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Recommendations failed')
+      setError(null)
+      setSuggestions(data.suggestions ?? [])
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoadingRecs(false)
+    }
+  }
+
+  function applySuggestion(s: HikeParseResult) {
+    setSourcePaste('ai_discovery')
+    applyParsed(s)
+    setError(null)
+  }
+
+  const parsePaste = async () => {
     setError(null)
     setParsing(true)
     try {
@@ -74,7 +128,7 @@ export default function HikePasteClient() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          regionHint: regionHint.trim() || undefined,
+          regionHint: pasteHint.trim() || undefined,
           pastedDescription: pastedDescription.trim(),
         }),
       })
@@ -104,7 +158,10 @@ export default function HikePasteClient() {
           ...draft,
           catalogCityName: catalogCityName.trim() || undefined,
           catalogCityState: catalogCityState.trim() || undefined,
-          sourcePaste: sourcePaste || undefined,
+          sourcePaste:
+            sourcePaste === 'ai_discovery'
+              ? `AI discovery: ${discoverPlace}${discoverState ? `, ${discoverState}` : ''}. ${discoverInterests ? `Interests: ${discoverInterests}` : ''}`
+              : sourcePaste || undefined,
         }),
       })
       const data = await res.json()
@@ -134,56 +191,207 @@ export default function HikePasteClient() {
       </Link>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Add a hike</h1>
-      <p className="text-gray-500 text-sm mb-8">
-        Paste an AllTrails blurb or any trail write-up. We use the same style of AI JSON
-        extraction as GoFast workout paste — then you can edit before saving to the city
-        catalogue.
+      <p className="text-gray-500 text-sm mb-6">
+        Two different jobs: <strong className="text-gray-700">Discover</strong> ideas from a
+        short form (AI suggests 3–4 trails), or <strong className="text-gray-700">Paste</strong>{' '}
+        text you already have (e.g. AllTrails) to structure and save to the catalogue.
       </p>
 
-      <div className="space-y-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <label className="block">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-            Where are you thinking of hiking? (optional context)
-          </span>
-          <input
-            type="text"
-            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            placeholder="e.g. Boulder, Sedona, near Portland"
-            value={regionHint}
-            onChange={(e) => setRegionHint(e.target.value)}
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-            Paste trail description
-          </span>
-          <textarea
-            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[160px] font-mono"
-            placeholder="Paste from AllTrails, park website, or describe the trail…"
-            value={pastedDescription}
-            onChange={(e) => setPastedDescription(e.target.value)}
-          />
-        </label>
-
-        {error && (
-          <p className="text-sm text-red-600 font-medium">{error}</p>
-        )}
-
+      <div className="flex rounded-xl border border-gray-200 bg-gray-100 p-1 mb-8">
         <button
           type="button"
-          onClick={parse}
-          disabled={parsing || pastedDescription.trim().length < 20}
-          className="px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-40"
+          onClick={() => {
+            setMode('discover')
+            setError(null)
+          }}
+          className={`flex-1 py-2.5 px-3 text-sm font-semibold rounded-lg transition ${
+            mode === 'discover'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
         >
-          {parsing ? 'Parsing…' : 'Parse with AI'}
+          Discover trails
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('paste')
+            setError(null)
+          }}
+          className={`flex-1 py-2.5 px-3 text-sm font-semibold rounded-lg transition ${
+            mode === 'paste'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Paste &amp; save to DB
         </button>
       </div>
+
+      {mode === 'discover' && (
+        <div className="space-y-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <p className="text-sm text-gray-600">
+            Tell us where and what you&apos;re in the mood for. We&apos;ll ask the model for a
+            handful of plausible trail ideas — not a map search, just structured suggestions you
+            can edit and save.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Place / region
+              </span>
+              <input
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. Sedona, North Cascades, near Asheville"
+                value={discoverPlace}
+                onChange={(e) => setDiscoverPlace(e.target.value)}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                State (optional)
+              </span>
+              <input
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. AZ, WA"
+                value={discoverState}
+                onChange={(e) => setDiscoverState(e.target.value)}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Difficulty (optional)
+              </span>
+              <select
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={discoverDifficulty}
+                onChange={(e) => setDiscoverDifficulty(e.target.value)}
+              >
+                <option value="">No preference</option>
+                <option value="easy">Easy</option>
+                <option value="moderate">Moderate</option>
+                <option value="hard">Hard</option>
+                <option value="strenuous">Strenuous</option>
+              </select>
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                What do you want to see?
+              </span>
+              <input
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. waterfalls, alpine views, red rocks, lake loop, dog-friendly"
+                value={discoverInterests}
+                onChange={(e) => setDiscoverInterests(e.target.value)}
+              />
+            </label>
+          </div>
+          {error && mode === 'discover' && (
+            <p className="text-sm text-red-600 font-medium">{error}</p>
+          )}
+          <button
+            type="button"
+            onClick={fetchRecommendations}
+            disabled={loadingRecs || discoverPlace.trim().length < 2}
+            className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-40"
+          >
+            {loadingRecs ? 'Getting ideas…' : 'Get 3–4 trail ideas'}
+          </button>
+
+          {suggestions && suggestions.length > 0 && (
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Suggestions — pick one to review &amp; save
+              </h2>
+              <ul className="space-y-2">
+                {suggestions.map((s, i) => (
+                  <li
+                    key={`${s.name}-${i}`}
+                    className="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900">{s.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {[s.trailOrPlace, s.difficulty, s.distanceMi != null ? `${s.distanceMi} mi` : null]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                      {s.notes && (
+                        <p className="text-xs text-gray-600 mt-1">{s.notes}</p>
+                      )}
+                      {(s.nearestTown || s.nearestState) && (
+                        <p className="text-xs text-emerald-700 mt-1">
+                          Near {s.nearestTown}
+                          {s.nearestState ? `, ${s.nearestState}` : ''}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => applySuggestion(s)}
+                      className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"
+                    >
+                      Use this trail
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {mode === 'paste' && (
+        <div className="space-y-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <p className="text-sm text-gray-600">
+            You already have the write-up — we extract fields the same way as GoFast workout
+            paste, then you confirm before saving to the catalogue.
+          </p>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Trail description (required)
+            </span>
+            <textarea
+              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[160px] font-mono"
+              placeholder="Paste from AllTrails, park website, or describe the trail…"
+              value={pastedDescription}
+              onChange={(e) => setPastedDescription(e.target.value)}
+            />
+          </label>
+          <details className="text-sm">
+            <summary className="cursor-pointer text-gray-600 hover:text-gray-900">
+              Optional: short hint if the paste is vague
+            </summary>
+            <p className="text-xs text-gray-500 mt-2 mb-2">
+              Only if the paste is a trail name or very thin — we prepend this line for the
+              parser. Skip if your paste already includes location or park details.
+            </p>
+            <input
+              type="text"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              placeholder="e.g. near Boulder CO"
+              value={pasteHint}
+              onChange={(e) => setPasteHint(e.target.value)}
+            />
+          </details>
+          {error && mode === 'paste' && (
+            <p className="text-sm text-red-600 font-medium">{error}</p>
+          )}
+          <button
+            type="button"
+            onClick={parsePaste}
+            disabled={parsing || pastedDescription.trim().length < 20}
+            className="px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-40"
+          >
+            {parsing ? 'Parsing…' : 'Parse with AI'}
+          </button>
+        </div>
+      )}
 
       {draft && (
         <div className="mt-8 space-y-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            Review & edit
+            Review &amp; edit
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -343,6 +551,10 @@ export default function HikePasteClient() {
               </label>
             </div>
           </div>
+
+          {error && draft && (
+            <p className="text-sm text-red-600 font-medium">{error}</p>
+          )}
 
           <button
             type="button"

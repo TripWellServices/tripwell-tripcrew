@@ -61,6 +61,8 @@ interface DiscoverFlowProps {
   /** Traveler home city/state for tripScope pre-fill (local vs travel). */
   hometownCity?: string | null
   homeState?: string | null
+  /** When set, "Add a hike with AI" uses crew layout (sidebar) at /tripcrews/:id/hikes/new */
+  tripCrewId?: string | null
 }
 
 // ─── Category cards config ────────────────────────────────────────────────────
@@ -96,7 +98,15 @@ function itemSubtitle(item: CatalogueItem, type: DiscoverType): string {
 
 // ─── DiscoverFlow ─────────────────────────────────────────────────────────────
 
-export default function DiscoverFlow({ defaultCity, defaultState, tripId, travelerId, hometownCity, homeState }: DiscoverFlowProps) {
+export default function DiscoverFlow({
+  defaultCity,
+  defaultState,
+  tripId,
+  travelerId,
+  hometownCity,
+  homeState,
+  tripCrewId,
+}: DiscoverFlowProps) {
   // City state (standalone mode only; in-trip mode is pre-set)
   const [cityInput, setCityInput] = useState(defaultCity ?? '')
   const [stateInput, setStateInput] = useState(defaultState ?? '')
@@ -437,14 +447,29 @@ export default function DiscoverFlow({ defaultCity, defaultState, tripId, travel
 
       {(inTripMode || committedCity) && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-950">
-          <span className="font-medium">Trail write-up?</span>{' '}
-          Paste an AllTrails-style description and we&apos;ll infer distance, route type,
-          trailhead, nearest town, and more —{' '}
+          <span className="font-medium">Add a hike</span>{' '}
+          Discover ideas from a short form, or paste an AllTrails-style blurb to save to the
+          catalogue —{' '}
           <Link
-            href={`/hikes/new?${new URLSearchParams({
-              ...(effectiveCity ? { city: effectiveCity } : {}),
-              ...(effectiveState ? { state: effectiveState } : {}),
-            }).toString()}`}
+            href={(() => {
+              const qs = new URLSearchParams({
+                ...(effectiveCity ? { city: effectiveCity } : {}),
+                ...(effectiveState ? { state: effectiveState } : {}),
+              })
+              if (tripCrewId) {
+                qs.set(
+                  'return',
+                  tripId
+                    ? `/trip/${tripId}/discover`
+                    : `/tripcrews/${tripCrewId}/discover/add`
+                )
+              }
+              const base = tripCrewId
+                ? `/tripcrews/${tripCrewId}/hikes/new`
+                : '/hikes/new'
+              const q = qs.toString()
+              return `${base}${q ? `?${q}` : ''}`
+            })()}
             className="text-emerald-800 underline font-semibold hover:text-emerald-950"
           >
             Add a hike with AI
