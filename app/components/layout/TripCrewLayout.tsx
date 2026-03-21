@@ -68,8 +68,21 @@ export default function TripCrewLayout({
     pathname === `/tripcrews/${tripCrewId}/plan` ||
     pathname.startsWith(`/tripcrews/${tripCrewId}/plan/`)
 
+  const isWishlistPage = pathname.startsWith(`/tripcrews/${tripCrewId}/wishlist`)
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-2.5 flex items-center justify-end gap-3">
+        <Link
+          href={`/tripcrews/${tripCrewId}/wishlist`}
+          className={`text-sm font-medium transition ${
+            isWishlistPage ? 'text-sky-700' : 'text-gray-600 hover:text-sky-700'
+          }`}
+        >
+          My Wishlist
+        </Link>
+      </header>
+      <div className="flex flex-1 min-h-0">
       {/* Left sidebar — persistent navigation */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto">
         <div className="p-4 border-b border-gray-200">
@@ -234,6 +247,7 @@ export default function TripCrewLayout({
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
+      </div>
     </div>
   )
 }

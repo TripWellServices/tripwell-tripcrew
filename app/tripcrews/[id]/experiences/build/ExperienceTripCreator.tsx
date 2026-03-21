@@ -39,7 +39,10 @@ export interface ExperienceAnchorItem {
   attraction?: { id: string; title?: string | null; cityId?: string | null } | null
 }
 
-function mapRowToAnchor(row: Record<string, unknown>): ExperienceAnchorItem {
+/** Map a wishlist API row (or compatible shape) to the trip anchor — use from Build to avoid re-fetch. */
+export function mapWishlistRowToExperienceAnchor(
+  row: Record<string, unknown>
+): ExperienceAnchorItem {
   const concert = row.concert as ExperienceAnchorItem['concert']
   const hike = row.hike as ExperienceAnchorItem['hike']
   const dining = row.dining as ExperienceAnchorItem['dining']
@@ -170,7 +173,19 @@ export default function ExperienceTripCreator({
   const [hydrateError, setHydrateError] = useState('')
 
   useEffect(() => {
-    if (forceCityFlow || !experienceWishlistId) {
+    if (forceCityFlow) {
+      setHydratedItem(null)
+      setHydrateError('')
+      setHydrating(false)
+      return
+    }
+    if (initialItem) {
+      setHydratedItem(null)
+      setHydrateError('')
+      setHydrating(false)
+      return
+    }
+    if (!experienceWishlistId) {
       setHydratedItem(null)
       setHydrateError('')
       setHydrating(false)
@@ -193,7 +208,8 @@ export default function ExperienceTripCreator({
         const data = await r.json().catch(() => ({}))
         if (!r.ok) throw new Error(data.error || 'Failed to load experience')
         if (!data.item) throw new Error('Experience not found')
-        if (!cancelled) setHydratedItem(mapRowToAnchor(data.item as Record<string, unknown>))
+        if (!cancelled)
+          setHydratedItem(mapWishlistRowToExperienceAnchor(data.item as Record<string, unknown>))
       })
       .catch((e: unknown) => {
         if (!cancelled)
@@ -205,7 +221,7 @@ export default function ExperienceTripCreator({
     return () => {
       cancelled = true
     }
-  }, [experienceWishlistId, forceCityFlow])
+  }, [experienceWishlistId, forceCityFlow, initialItem])
 
   const experienceItem = useMemo(
     () => hydratedItem ?? initialItem ?? null,
