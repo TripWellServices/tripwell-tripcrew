@@ -12,7 +12,10 @@ export async function GET(
     const { id } = await params
     const hike = await prisma.hike.findUnique({
       where: { id },
-      include: { city: true },
+      include: {
+        city: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
     })
     if (!hike) {
       return NextResponse.json({ error: 'Hike not found' }, { status: 404 })
@@ -48,6 +51,7 @@ export async function PATCH(
       sourcePaste,
       url,
       notes,
+      createdById,
     } = body
 
     const existing = await prisma.hike.findUnique({ where: { id } })
@@ -93,10 +97,27 @@ export async function PATCH(
     if (url !== undefined) data.url = url?.trim() || null
     if (notes !== undefined) data.notes = notes?.trim() || null
 
+    if (createdById !== undefined) {
+      const nextAuthor =
+        typeof createdById === 'string' && createdById.trim() ? createdById.trim() : null
+      if (existing.createdById && nextAuthor && existing.createdById !== nextAuthor) {
+        return NextResponse.json(
+          { error: 'Hike already has an author' },
+          { status: 409 }
+        )
+      }
+      if (!existing.createdById && nextAuthor) {
+        data.createdById = nextAuthor
+      }
+    }
+
     const updated = await prisma.hike.update({
       where: { id },
       data,
-      include: { city: true },
+      include: {
+        city: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
     })
     return NextResponse.json(updated)
   } catch (error) {

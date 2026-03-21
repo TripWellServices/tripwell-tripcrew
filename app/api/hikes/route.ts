@@ -5,6 +5,28 @@ import { HIKE_ROUTE_TYPES, type HikeRouteType } from '@/lib/hike-model'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * GET /api/hikes?createdById=xxx — hikes authored by that traveler (shared catalogue, queryable by author).
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const createdById = searchParams.get('createdById')
+    if (!createdById?.trim()) {
+      return NextResponse.json({ error: 'createdById is required' }, { status: 400 })
+    }
+    const hikes = await prisma.hike.findMany({
+      where: { createdById: createdById.trim() },
+      orderBy: { createdAt: 'desc' },
+      include: { city: true, createdBy: { select: { id: true, firstName: true, lastName: true } } },
+    })
+    return NextResponse.json({ hikes })
+  } catch (error) {
+    console.error('Hike list error:', error)
+    return NextResponse.json({ error: 'Failed to list hikes' }, { status: 500 })
+  }
+}
+
 function validRouteType(v: unknown): HikeRouteType | null {
   if (typeof v !== 'string') return null
   const s = v.trim() as HikeRouteType
@@ -35,6 +57,7 @@ export async function POST(request: NextRequest) {
       sourcePaste,
       catalogCityName,
       catalogCityState,
+      createdById,
     } = body as Record<string, unknown>
 
     const title = typeof name === 'string' ? name.trim() : ''
@@ -77,9 +100,13 @@ export async function POST(request: NextRequest) {
 
     const rt = validRouteType(routeType)
 
+    const authorId =
+      typeof createdById === 'string' && createdById.trim() ? createdById.trim() : null
+
     const hike = await prisma.hike.create({
       data: {
         name: title,
+        createdById: authorId,
         trailOrPlace:
           typeof trailOrPlace === 'string' && trailOrPlace.trim()
             ? trailOrPlace.trim()
@@ -117,7 +144,10 @@ export async function POST(request: NextRequest) {
         notes: typeof notes === 'string' && notes.trim() ? notes.trim() : null,
         cityId: city.id,
       },
-      include: { city: true },
+      include: {
+        city: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
     })
 
     return NextResponse.json({ city, hike }, { status: 201 })

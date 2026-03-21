@@ -10,13 +10,15 @@ import Link from 'next/link'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import ExperienceTripCreator from './ExperienceTripCreator'
+import ExperienceTripCreator, { type ExperienceAnchorItem } from './ExperienceTripCreator'
 
 type ExpFilter = 'all' | 'hike' | 'concert' | 'dining' | 'attraction'
 
 export interface ExperienceWishlistRow {
   id: string
   title: string
+  /** True when row comes from hikes you authored (not a wishlist bookmark). */
+  fromAuthor?: boolean
   concert?: {
     id: string
     name: string
@@ -88,6 +90,9 @@ export default function ExperiencePlannerAll() {
   const [selectedExperienceWishlistId, setSelectedExperienceWishlistId] = useState<
     string | null
   >(null)
+  const [selectedInitialItem, setSelectedInitialItem] = useState<ExperienceAnchorItem | null>(
+    null
+  )
   const [filter, setFilter] = useState<ExpFilter>('all')
 
   useEffect(() => {
@@ -123,18 +128,58 @@ export default function ExperiencePlannerAll() {
     setListLoading(true)
     setListError(null)
     try {
-      const res = await fetch(`/api/wishlist?travelerId=${tid}`)
-      const data = await res.json()
-      if (!res.ok) {
-        console.error('[wishlist] API error', res.status, data)
-        setListError(data.error || `API error ${res.status}`)
-        setSavedRows([])
-      } else {
-        setSavedRows(data.items || [])
+      const [wlRes, hikeRes] = await Promise.all([
+        fetch(`/api/wishlist?travelerId=${tid}`),
+        fetch(`/api/hikes?createdById=${encodeURIComponent(tid)}`),
+      ])
+      const wlData = await wlRes.json().catch(() => ({}))
+      const hikeData = await hikeRes.json().catch(() => ({}))
+
+      const errs: string[] = []
+      if (!wlRes.ok) {
+        console.error('[wishlist] API error', wlRes.status, wlData)
+        errs.push(String(wlData.error || `wishlist ${wlRes.status}`))
       }
+      if (!hikeRes.ok) {
+        console.error('[hikes] API error', hikeRes.status, hikeData)
+        errs.push(String(hikeData.error || `hikes ${hikeRes.status}`))
+      }
+
+      const wishItems: ExperienceWishlistRow[] = wlRes.ok ? wlData.items || [] : []
+      const hikesRaw = hikeRes.ok ? hikeData.hikes || [] : []
+
+      const wishHikeIds = new Set(
+        wishItems.map((w) => w.hike?.id).filter(Boolean) as string[]
+      )
+
+      const authoredRows: ExperienceWishlistRow[] = hikesRaw
+        .filter((h: { id: string }) => !wishHikeIds.has(h.id))
+        .map(
+          (h: {
+            id: string
+            name: string
+            cityId: string | null
+            trailOrPlace: string | null
+            nearestTown: string | null
+          }) => ({
+            id: `hike:${h.id}`,
+            title: h.name,
+            fromAuthor: true,
+            hike: {
+              id: h.id,
+              name: h.name,
+              cityId: h.cityId,
+              trailOrPlace: h.trailOrPlace,
+              nearestTown: h.nearestTown,
+            },
+          })
+        )
+
+      setSavedRows([...wishItems, ...authoredRows])
+      if (errs.length) setListError(errs.join(' · '))
     } catch (e) {
-      console.error('[wishlist] fetch failed', e)
-      setListError('Could not reach wishlist API')
+      console.error('[saved experiences] fetch failed', e)
+      setListError('Could not load saved experiences')
       setSavedRows([])
     } finally {
       setListLoading(false)
@@ -142,7 +187,22 @@ export default function ExperiencePlannerAll() {
   }
 
   function handlePlanFromRow(row: ExperienceWishlistRow) {
-    setSelectedExperienceWishlistId(row.id)
+    if (row.fromAuthor && row.hike) {
+      setSelectedExperienceWishlistId(null)
+      setSelectedInitialItem({
+        id: row.hike.id,
+        title: row.title,
+        hike: {
+          id: row.hike.id,
+          name: row.hike.name,
+          cityId: row.hike.cityId ?? null,
+          trailOrPlace: row.hike.trailOrPlace ?? null,
+        },
+      })
+    } else {
+      setSelectedInitialItem(null)
+      setSelectedExperienceWishlistId(row.id)
+    }
     setShowCreator(true)
   }
 
@@ -157,6 +217,7 @@ export default function ExperiencePlannerAll() {
         tripCrewId={tripCrewId}
         initialTripId={null}
         experienceWishlistId={selectedExperienceWishlistId}
+        initialItem={selectedInitialItem ?? undefined}
         backHref={`/tripcrews/${tripCrewId}/experiences/build`}
       />
     )

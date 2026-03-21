@@ -126,6 +126,7 @@ model Traveler {
   tripCrewRoles       TripCrewRole[]      @relation("TravelerTripCrewRoles")
   suggestedItineraryItems ItineraryItem[] @relation("ItineraryItemSuggestedBy")
   experienceWishlists ExperienceWishlist[]  @relation("TravelerExperienceWishlist")
+  authoredHikes       Hike[]              @relation("HikeAuthor")
   plans               Plan[]              @relation("TravelerPlans")
 }
 
@@ -387,6 +388,7 @@ model Hike {
   id          String   @id @default(uuid())
   name        String   // e.g. "Eagle Rock Loop", "Griffith Peak"
   trailOrPlace String?  // trail name or place name
+  createdById String?   // author Traveler id; null = legacy/seed (shared catalogue)
   cityId      String?
   difficulty  String?   // e.g. "easy", "moderate", "hard"
   distanceMi  Float?   // distance in miles
@@ -403,10 +405,12 @@ model Hike {
   updatedAt DateTime @updatedAt
 
   city           City?            @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  createdBy      Traveler?        @relation("HikeAuthor", fields: [createdById], references: [id], onDelete: SetNull)
   itineraryItems ItineraryItem[]
   experienceWishlists ExperienceWishlist[]
 
   @@index([cityId])
+  @@index([createdById])
 }
 
 // ItineraryItem — the one universal thing; optional refs to artifacts + catalogue

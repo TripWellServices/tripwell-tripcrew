@@ -87,7 +87,8 @@ export default function HikePasteClient() {
   const [saveSuccess, setSaveSuccess] = useState<{
     hikeId: string
     title: string
-    bookmarked: boolean
+    /** You are recorded as catalogue author (shows in Build from saved). */
+    attributed: boolean
   } | null>(null)
   const [wishlistingAfterSave, setWishlistingAfterSave] = useState(false)
 
@@ -110,29 +111,25 @@ export default function HikePasteClient() {
   }
 
   async function addToExperiencesFromSuccess() {
-    if (!saveSuccess || saveSuccess.bookmarked) return
+    if (!saveSuccess || saveSuccess.attributed) return
     setWishlistingAfterSave(true)
     setError(null)
     try {
       const tid = await resolveTravelerId()
       if (!tid) {
-        setError('Sign in to add this hike to Experiences.')
+        setError('Sign in to attribute this hike to your profile.')
         return
       }
-      const wl = await fetch('/api/wishlist', {
-        method: 'POST',
+      const patch = await fetch(`/api/hikes/${saveSuccess.hikeId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          travelerId: tid,
-          title: saveSuccess.title,
-          hikeId: saveSuccess.hikeId,
-        }),
+        body: JSON.stringify({ createdById: tid }),
       })
-      if (!wl.ok) {
-        const w = await wl.json().catch(() => ({}))
-        throw new Error(w.error || 'Could not add to Experiences')
+      if (!patch.ok) {
+        const w = await patch.json().catch(() => ({}))
+        throw new Error(w.error || 'Could not attribute hike')
       }
-      setSaveSuccess((s) => (s ? { ...s, bookmarked: true } : s))
+      setSaveSuccess((s) => (s ? { ...s, attributed: true } : s))
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -220,6 +217,7 @@ export default function HikePasteClient() {
     setError(null)
     setSaving(true)
     try {
+      const tid = await resolveTravelerId()
       const res = await fetch('/api/hikes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -227,6 +225,7 @@ export default function HikePasteClient() {
           ...draft,
           catalogCityName: catalogCityName.trim() || undefined,
           catalogCityState: catalogCityState.trim() || undefined,
+          createdById: tid ?? undefined,
           sourcePaste:
             sourcePaste === 'ai_discovery'
               ? `AI discovery: ${discoverPlace}${discoverState ? `, ${discoverState}` : ''}. ${discoverInterests ? `Interests: ${discoverInterests}` : ''}`
@@ -237,27 +236,9 @@ export default function HikePasteClient() {
       if (!res.ok) throw new Error(data.error || 'Save failed')
       const hikeId = data.hike?.id as string | undefined
       const title = draft.name.trim()
-      let bookmarked = false
-      if (hikeId && title) {
-        const tid = await resolveTravelerId()
-        if (tid) {
-          const wl = await fetch('/api/wishlist', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              travelerId: tid,
-              title,
-              hikeId,
-            }),
-          })
-          bookmarked = wl.ok
-          if (!wl.ok) {
-            console.warn('Hike saved but wishlist bookmark failed', await wl.json().catch(() => ({})))
-          }
-        }
-      }
+      const attributed = Boolean(tid)
       if (hikeId) {
-        setSaveSuccess({ hikeId, title, bookmarked })
+        setSaveSuccess({ hikeId, title, attributed })
       } else {
         throw new Error('Save succeeded but no hike id returned')
       }
@@ -298,13 +279,15 @@ export default function HikePasteClient() {
               Saved to the catalogue
             </p>
             <p className="text-base font-medium text-gray-900 mt-1">{saveSuccess.title}</p>
-            {saveSuccess.bookmarked ? (
+            {saveSuccess.attributed ? (
               <p className="text-sm text-emerald-800 mt-2">
-                Also added to your <strong>Experiences</strong> list.
+                You&apos;re listed as the author — it appears under <strong>Build from saved</strong>{' '}
+                (Hikes).
               </p>
             ) : (
               <p className="text-sm text-gray-700 mt-2">
-                It isn&apos;t on your Experiences list yet — add it below if you want it there.
+                Sign in was unavailable, so this hike isn&apos;t attributed yet. Use the button below
+                to link it to your profile.
               </p>
             )}
           </div>
@@ -327,14 +310,14 @@ export default function HikePasteClient() {
               >
                 Plan a day for this hike
               </Link>
-              {!saveSuccess.bookmarked && (
+              {!saveSuccess.attributed && (
                 <button
                   type="button"
                   onClick={addToExperiencesFromSuccess}
                   disabled={wishlistingAfterSave}
                   className="inline-flex justify-center px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
                 >
-                  {wishlistingAfterSave ? 'Adding…' : 'Add to Experiences'}
+                  {wishlistingAfterSave ? 'Saving…' : 'Attribute to my profile'}
                 </button>
               )}
               <button
