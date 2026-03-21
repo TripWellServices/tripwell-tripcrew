@@ -83,6 +83,7 @@ export default function ExperiencePlannerAll() {
   const [travelerId, setTravelerId] = useState<string | null>(null)
   const [savedRows, setSavedRows] = useState<ExperienceWishlistRow[]>([])
   const [listLoading, setListLoading] = useState(false)
+  const [listError, setListError] = useState<string | null>(null)
   const [showCreator, setShowCreator] = useState(false)
   const [selectedExperienceWishlistId, setSelectedExperienceWishlistId] = useState<
     string | null
@@ -120,11 +121,20 @@ export default function ExperiencePlannerAll() {
 
   async function loadSaved(tid: string) {
     setListLoading(true)
+    setListError(null)
     try {
       const res = await fetch(`/api/wishlist?travelerId=${tid}`)
       const data = await res.json()
-      setSavedRows(data.items || [])
-    } catch {
+      if (!res.ok) {
+        console.error('[wishlist] API error', res.status, data)
+        setListError(data.error || `API error ${res.status}`)
+        setSavedRows([])
+      } else {
+        setSavedRows(data.items || [])
+      }
+    } catch (e) {
+      console.error('[wishlist] fetch failed', e)
+      setListError('Could not reach wishlist API')
       setSavedRows([])
     } finally {
       setListLoading(false)
@@ -207,6 +217,12 @@ export default function ExperiencePlannerAll() {
             </div>
           </div>
 
+          {listError && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4 font-mono">
+              {listError}
+            </p>
+          )}
+
           {listLoading ? (
             <p className="text-sm text-gray-500">Loading your experiences…</p>
           ) : filteredItems.length > 0 ? (
@@ -250,24 +266,19 @@ export default function ExperiencePlannerAll() {
               Nothing in this category. Try another filter.
             </p>
           ) : (
-            <div className="text-center py-10 border border-gray-200 rounded-xl bg-gray-50">
-              <p className="text-sm text-gray-600 mb-3">No saved experiences yet.</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Link
-                  href={`/tripcrews/${tripCrewId}/experiences/find`}
-                  className="inline-flex text-sm text-sky-600 font-medium hover:underline"
-                >
-                  Find experiences →
-                </Link>
-                <span className="text-gray-300">·</span>
-                <Link
-                  href={`/tripcrews/${tripCrewId}/experiences/enter`}
-                  className="inline-flex text-sm text-sky-600 font-medium hover:underline"
-                >
-                  Enter your own →
-                </Link>
-              </div>
-            </div>
+            <Link
+              href={`/tripcrews/${tripCrewId}/experiences/enter`}
+              className="flex flex-col items-center justify-center gap-2 py-14 border-2 border-dashed border-gray-200 rounded-2xl hover:border-sky-400 hover:bg-sky-50 transition group"
+            >
+              <span className="w-14 h-14 rounded-full border-2 border-gray-300 group-hover:border-sky-400 flex items-center justify-center transition">
+                <span className="text-2xl font-light text-gray-400 group-hover:text-sky-500 leading-none select-none">
+                  +
+                </span>
+              </span>
+              <span className="text-sm text-gray-500 group-hover:text-sky-600 transition">
+                Add an experience
+              </span>
+            </Link>
           )}
         </div>
       )}
