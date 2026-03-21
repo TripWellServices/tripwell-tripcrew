@@ -50,9 +50,9 @@ export default function PlanDetailPage() {
 
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Saved experiences</h2>
-          {plan.experienceWishlists?.length ? (
+          {plan.savedExperiences?.length ? (
             <ul className="space-y-2">
-              {plan.experienceWishlists.map((w: any) => (
+              {plan.savedExperiences.map((w: any) => (
                 <li key={w.id} className="p-3 bg-white border border-gray-200 rounded-lg">
                   {w.title}
                   {(w.concert || w.hike || w.dining || w.attraction) && (

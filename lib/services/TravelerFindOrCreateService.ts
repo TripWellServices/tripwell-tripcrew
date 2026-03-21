@@ -8,6 +8,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
+import { ensureWishlistForTraveler } from '@/lib/ensure-wishlist'
 
 export class TravelerFindOrCreateService {
   /**
@@ -96,6 +97,10 @@ export class TravelerFindOrCreateService {
     })
 
     console.log('✅ TRAVELER SERVICE: Traveler found/created:', traveler.id)
+
+    await ensureWishlistForTraveler(traveler.id).catch((e) => {
+      console.error('ensureWishlistForTraveler failed:', e)
+    })
 
     return traveler
   }

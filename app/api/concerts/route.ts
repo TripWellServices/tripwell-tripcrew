@@ -7,6 +7,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const cityId = searchParams.get('cityId')
+    const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
+
+    if (savedByTravelerId) {
+      const concerts = await prisma.concert.findMany({
+        where: { savedByTravelerId },
+        orderBy: [{ eventDate: 'asc' }, { name: 'asc' }],
+        include: { city: true },
+      })
+      return NextResponse.json({ concerts })
+    }
 
     const concerts = await prisma.concert.findMany({
       where: cityId ? { cityId } : undefined,

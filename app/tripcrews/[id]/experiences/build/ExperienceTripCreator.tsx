@@ -85,7 +85,7 @@ export function mapWishlistRowToExperienceAnchor(
 export interface ExperienceTripCreatorProps {
   tripCrewId: string
   initialTripId: string | null
-  /** Load full experience from /api/wishlist (preferred). */
+  /** Catalogue entity id; hydrated via GET /api/wishlist?id=&travelerId=. */
   experienceWishlistId?: string | null
   /** Optional inline anchor if not using experienceWishlistId. */
   initialItem?: ExperienceAnchorItem

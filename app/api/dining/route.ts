@@ -3,12 +3,22 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-/** List dining artifacts (reusable). Filter by tripWellEnterpriseId or tripId. */
+/** List dining artifacts (reusable). Filter by tripWellEnterpriseId, tripId, or savedByTravelerId. */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const tripWellEnterpriseId = searchParams.get('tripWellEnterpriseId')
     const tripId = searchParams.get('tripId')
+    const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
+
+    if (savedByTravelerId) {
+      const dining = await prisma.dining.findMany({
+        where: { savedByTravelerId },
+        orderBy: { createdAt: 'desc' },
+        include: { city: true },
+      })
+      return NextResponse.json({ dining })
+    }
 
     const dining = await prisma.dining.findMany({
       where: {

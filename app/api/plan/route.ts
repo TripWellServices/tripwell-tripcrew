@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { savedExperienceCountsByPlanIds } from '@/lib/plan-saved-experiences'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,16 +17,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'travelerId is required' }, { status: 400 })
     }
 
-    const plans = await prisma.plan.findMany({
+    const plansRaw = await prisma.plan.findMany({
       where: { travelerId },
       orderBy: { updatedAt: 'desc' },
       include: {
         _count: {
-          select: { trips: true, experienceWishlists: true },
+          select: { trips: true },
         },
         tripCrew: { select: { id: true, name: true } },
       },
     })
+
+    const planIds = plansRaw.map((p) => p.id)
+    const savedCounts = await savedExperienceCountsByPlanIds(planIds)
+
+    const plans = plansRaw.map((p) => ({
+      ...p,
+      _count: {
+        trips: p._count.trips,
+        savedExperiences: savedCounts.get(p.id) ?? 0,
+      },
+    }))
 
     return NextResponse.json({ plans })
   } catch (error) {
@@ -57,7 +69,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ plan }, { status: 201 })
+    return NextResponse.json(
+      {
+        plan: {
+          ...plan,
+          _count: { trips: 0, savedExperiences: 0 },
+        },
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Plan create error:', error)
     return NextResponse.json({ error: 'Failed to create plan' }, { status: 500 })

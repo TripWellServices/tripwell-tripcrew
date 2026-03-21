@@ -6,17 +6,24 @@ import { HIKE_ROUTE_TYPES, type HikeRouteType } from '@/lib/hike-model'
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/hikes?createdById=xxx — hikes authored by that traveler (shared catalogue, queryable by author).
+ * GET /api/hikes?savedByTravelerId= — saved for Build / planning (traveler-scoped).
+ * GET /api/hikes?createdById= — hikes authored by that traveller (catalogue author).
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const createdById = searchParams.get('createdById')
-    if (!createdById?.trim()) {
-      return NextResponse.json({ error: 'createdById is required' }, { status: 400 })
+    const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
+    const createdById = searchParams.get('createdById')?.trim()
+    if (!savedByTravelerId && !createdById) {
+      return NextResponse.json(
+        { error: 'savedByTravelerId or createdById is required' },
+        { status: 400 }
+      )
     }
     const hikes = await prisma.hike.findMany({
-      where: { createdById: createdById.trim() },
+      where: savedByTravelerId
+        ? { savedByTravelerId }
+        : { createdById: createdById! },
       orderBy: { createdAt: 'desc' },
       include: { city: true, createdBy: { select: { id: true, firstName: true, lastName: true } } },
     })

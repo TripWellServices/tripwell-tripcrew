@@ -125,8 +125,15 @@ model Traveler {
   tripCrewMemberships TripCrewMember[]    @relation("TravelerTripCrewMemberships")
   tripCrewRoles       TripCrewRole[]      @relation("TravelerTripCrewRoles")
   suggestedItineraryItems ItineraryItem[] @relation("ItineraryItemSuggestedBy")
-  experienceWishlists ExperienceWishlist[]  @relation("TravelerExperienceWishlist")
+  wishlist            Wishlist?
   authoredHikes       Hike[]              @relation("HikeAuthor")
+  savedHikes          Hike[]              @relation("HikeSavedBy")
+  authoredConcerts    Concert[]           @relation("ConcertAuthor")
+  savedConcerts       Concert[]           @relation("ConcertSavedBy")
+  authoredDining      Dining[]            @relation("DiningAuthor")
+  savedDining         Dining[]            @relation("DiningSavedBy")
+  authoredAttractions Attraction[]        @relation("AttractionAuthor")
+  savedAttractions    Attraction[]        @relation("AttractionSavedBy")
   plans               Plan[]              @relation("TravelerPlans")
 }
 
@@ -163,10 +170,31 @@ model Plan {
   traveler      Traveler     @relation("TravelerPlans", fields: [travelerId], references: [id], onDelete: Cascade)
   tripCrew      TripCrew?    @relation(fields: [tripCrewId], references: [id], onDelete: SetNull)
   trips         Trip[]
-  experienceWishlists ExperienceWishlist[]
+  savedHikes       Hike[]       @relation("PlanSavedHike")
+  savedConcerts    Concert[]    @relation("PlanSavedConcert")
+  savedDining      Dining[]     @relation("PlanSavedDining")
+  savedAttractions Attraction[] @relation("PlanSavedAttraction")
 
   @@index([travelerId])
   @@index([tripCrewId])
+}
+
+// Wishlist — one row per traveler (identity / “My list” aggregate); catalogue rows link via wishlistId.
+model Wishlist {
+  id         String   @id @default(uuid())
+  travelerId String   @unique
+  name       String
+  slug       String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  traveler    Traveler     @relation(fields: [travelerId], references: [id], onDelete: Cascade)
+  hikes       Hike[]
+  concerts    Concert[]
+  dining      Dining[]
+  attractions Attraction[]
+
+  @@map("wishlists")
 }
 
 // JoinCode Registry - Authoritative source for TripCrew invites
@@ -298,15 +326,27 @@ model Dining {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
+  createdById         String?
+  wishlistId          String?
+  savedByTravelerId   String?
+  savedPlanId         String?
+
   trip                Trip?     @relation("TripDining", fields: [tripId], references: [id], onDelete: Cascade)
   tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseDining", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
   city                City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   itineraryItems      ItineraryItem[]
-  experienceWishlists ExperienceWishlist[]
+  createdBy           Traveler? @relation("DiningAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  savedBy             Traveler? @relation("DiningSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
+  wishlist            Wishlist? @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
+  savedPlan           Plan?     @relation("PlanSavedDining", fields: [savedPlanId], references: [id], onDelete: SetNull)
 
   @@index([tripId])
   @@index([tripWellEnterpriseId])
   @@index([cityId])
+  @@index([createdById])
+  @@index([wishlistId])
+  @@index([savedByTravelerId])
+  @@index([savedPlanId])
 }
 
 model Attraction {
@@ -330,15 +370,27 @@ model Attraction {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
+  createdById          String?
+  wishlistId           String?
+  savedByTravelerId    String?
+  savedPlanId          String?
+
   trip                Trip?     @relation("TripAttractions", fields: [tripId], references: [id], onDelete: Cascade)
   tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseAttractions", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
   city                City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   itineraryItems      ItineraryItem[]
-  experienceWishlists ExperienceWishlist[]
+  createdBy           Traveler? @relation("AttractionAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  savedBy             Traveler? @relation("AttractionSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
+  wishlist            Wishlist? @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
+  savedPlan           Plan?     @relation("PlanSavedAttraction", fields: [savedPlanId], references: [id], onDelete: SetNull)
 
   @@index([tripId])
   @@index([tripWellEnterpriseId])
   @@index([cityId])
+  @@index([createdById])
+  @@index([wishlistId])
+  @@index([savedByTravelerId])
+  @@index([savedPlanId])
 }
 
 // Stuff-to-do catalogue — independent, keyed by city + season (bolt-on from itinerary)
@@ -375,12 +427,24 @@ model Concert {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  createdById        String?
+  wishlistId         String?
+  savedByTravelerId  String?
+  savedPlanId        String?
+
   city           City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
   itineraryItems ItineraryItem[]
-  experienceWishlists ExperienceWishlist[]
+  createdBy      Traveler?       @relation("ConcertAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  savedBy        Traveler?       @relation("ConcertSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
+  wishlist       Wishlist?       @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
+  savedPlan      Plan?           @relation("PlanSavedConcert", fields: [savedPlanId], references: [id], onDelete: SetNull)
 
   @@index([cityId])
   @@index([eventDate])
+  @@index([createdById])
+  @@index([wishlistId])
+  @@index([savedByTravelerId])
+  @@index([savedPlanId])
 }
 
 // Hike — first-class activity (trail/place, city, difficulty, distance); can bolt to itinerary
@@ -404,13 +468,22 @@ model Hike {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  wishlistId        String?
+  savedByTravelerId String?
+  savedPlanId       String?
+
   city           City?            @relation(fields: [cityId], references: [id], onDelete: SetNull)
   createdBy      Traveler?        @relation("HikeAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  savedBy        Traveler?        @relation("HikeSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
+  wishlist       Wishlist?        @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
+  savedPlan      Plan?            @relation("PlanSavedHike", fields: [savedPlanId], references: [id], onDelete: SetNull)
   itineraryItems ItineraryItem[]
-  experienceWishlists ExperienceWishlist[]
 
   @@index([cityId])
   @@index([createdById])
+  @@index([wishlistId])
+  @@index([savedByTravelerId])
+  @@index([savedPlanId])
 }
 
 // ItineraryItem — the one universal thing; optional refs to artifacts + catalogue
@@ -521,34 +594,3 @@ model TripCrewRole {
   @@map("trip_crew_roles")
 }
 
-// ExperienceWishlist — traveler-scoped saved experience (bookmark to hike/concert/dining/attraction).
-// Mirrors ItineraryItem FK pattern but anchored to travelerId instead of tripId.
-// Optional planId to group under a Plan.
-model ExperienceWishlist {
-  id           String   @id @default(uuid())
-  travelerId   String
-  planId       String?  // optional; can group under a Plan
-  title        String
-  notes        String?
-  concertId    String?
-  hikeId       String?
-  diningId     String?
-  attractionId String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  traveler   Traveler    @relation("TravelerExperienceWishlist", fields: [travelerId], references: [id], onDelete: Cascade)
-  plan       Plan?       @relation(fields: [planId], references: [id], onDelete: SetNull)
-  concert    Concert?    @relation(fields: [concertId], references: [id], onDelete: SetNull)
-  hike       Hike?       @relation(fields: [hikeId], references: [id], onDelete: SetNull)
-  dining     Dining?     @relation(fields: [diningId], references: [id], onDelete: SetNull)
-  attraction Attraction? @relation(fields: [attractionId], references: [id], onDelete: SetNull)
-
-  @@index([travelerId])
-  @@index([planId])
-  @@index([concertId])
-  @@index([hikeId])
-  @@index([diningId])
-  @@index([attractionId])
-  @@map("experience_wishlists")
-}

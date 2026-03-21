@@ -89,7 +89,7 @@ export default function HikePasteClient() {
     title: string
     /** Recorded as catalogue author (Hike.createdById). */
     attributed: boolean
-    /** Row in ExperienceWishlist for this hike. */
+    /** True when hike is on this traveller’s wishlist (wishlistId + savedByTravelerId). */
     onWishlist: boolean
   } | null>(null)
   const [wishlistingAfterSave, setWishlistingAfterSave] = useState(false)

@@ -87,10 +87,14 @@ export default function WishlistPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!travelerId) return
     if (!confirm('Remove this saved experience?')) return
     setDeletingId(id)
     try {
-      const res = await fetch(`/api/wishlist?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(
+        `/api/wishlist?id=${encodeURIComponent(id)}&travelerId=${encodeURIComponent(travelerId)}`,
+        { method: 'DELETE' }
+      )
       if (res.ok && travelerId) {
         loadWishlist(travelerId)
       }

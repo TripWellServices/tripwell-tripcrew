@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { listSavedExperiencesForPlan } from '@/lib/plan-saved-experiences'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,15 +27,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             status: true,
           },
         },
-        experienceWishlists: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            concert: true,
-            hike: true,
-            dining: true,
-            attraction: true,
-          },
-        },
         tripCrew: { select: { id: true, name: true } },
       },
     })
@@ -43,7 +35,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ plan })
+    const savedExperiences = await listSavedExperiencesForPlan(planId)
+
+    return NextResponse.json({
+      plan: {
+        ...plan,
+        savedExperiences,
+      },
+    })
   } catch (error) {
     console.error('Plan get error:', error)
     return NextResponse.json({ error: 'Failed to fetch plan' }, { status: 500 })

@@ -11,7 +11,7 @@ interface PlanSummary {
   name: string
   season?: string | null
   tripCrew?: { id: string; name: string | null } | null
-  _count: { trips: number; experienceWishlists: number }
+  _count: { trips: number; savedExperiences: number }
 }
 
 export default function CrewPlansPage() {
@@ -171,7 +171,7 @@ export default function CrewPlansPage() {
               {plan.season && <p className="text-xs text-gray-500 mt-0.5">{plan.season}</p>}
               <p className="text-xs text-gray-400 mt-1">
                 {plan._count.trips} trip{plan._count.trips !== 1 ? 's' : ''} ·{' '}
-                {plan._count.experienceWishlists} saved
+                {plan._count.savedExperiences} saved
               </p>
               {plan.tripCrew?.name && (
                 <p className="text-xs text-sky-600 mt-0.5">Shared with {plan.tripCrew.name}</p>

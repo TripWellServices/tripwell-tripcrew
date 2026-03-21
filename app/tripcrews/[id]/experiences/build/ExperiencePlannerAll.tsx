@@ -1,5 +1,5 @@
 /**
- * Build from saved — pick a category first, then fetch wishlist for that category only.
+ * Build from saved — pick a category, then fetch traveller-scoped saved rows for that type only.
  * Selected row is passed as initialItem to ExperienceTripCreator (no second hydrate).
  */
 
@@ -130,23 +130,96 @@ export default function ExperiencePlannerAll() {
     return () => unsubscribe()
   }, [])
 
-  async function loadWishlistForCategory(tid: string, category: CategoryKey) {
+  async function loadSavedForCategory(tid: string, category: CategoryKey) {
     setListLoading(true)
     setListError(null)
     try {
-      const res = await fetch(`/api/wishlist?travelerId=${tid}`)
-      const data = await res.json()
-      if (!res.ok) {
-        console.error('[wishlist] API error', res.status, data)
-        setListError(data.error || `API error ${res.status}`)
-        setSavedRows([])
-        return
+      let rows: ExperienceWishlistRow[] = []
+      if (category === 'hike') {
+        const res = await fetch(`/api/hikes?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const data = await res.json()
+        if (!res.ok) {
+          setListError(data.error || `API error ${res.status}`)
+          setSavedRows([])
+          return
+        }
+        const hikes = data.hikes || []
+        rows = hikes.map((h: Record<string, unknown>) => ({
+          id: String(h.id),
+          title: String(h.name ?? ''),
+          hike: {
+            id: String(h.id),
+            name: String(h.name ?? ''),
+            cityId: (h.cityId as string | null | undefined) ?? null,
+            trailOrPlace: (h.trailOrPlace as string | null | undefined) ?? null,
+            nearestTown: (h.nearestTown as string | null | undefined) ?? null,
+          },
+        }))
+      } else if (category === 'concert') {
+        const res = await fetch(`/api/concerts?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const data = await res.json()
+        if (!res.ok) {
+          setListError(data.error || `API error ${res.status}`)
+          setSavedRows([])
+          return
+        }
+        const concerts = data.concerts || []
+        rows = concerts.map((c: Record<string, unknown>) => ({
+          id: String(c.id),
+          title: String(c.name ?? ''),
+          concert: {
+            id: String(c.id),
+            name: String(c.name ?? ''),
+            cityId: (c.cityId as string | null | undefined) ?? null,
+            artist: (c.artist as string | null | undefined) ?? null,
+            venue: (c.venue as string | null | undefined) ?? null,
+          },
+        }))
+      } else if (category === 'dining') {
+        const res = await fetch(`/api/dining?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const data = await res.json()
+        if (!res.ok) {
+          setListError(data.error || `API error ${res.status}`)
+          setSavedRows([])
+          return
+        }
+        const dining = data.dining || []
+        rows = dining.map((d: Record<string, unknown>) => ({
+          id: String(d.id),
+          title: String(d.title ?? ''),
+          dining: {
+            id: String(d.id),
+            title: (d.title as string | null | undefined) ?? null,
+            cityId: (d.cityId as string | null | undefined) ?? null,
+            category: (d.category as string | null | undefined) ?? null,
+            address: (d.address as string | null | undefined) ?? null,
+          },
+        }))
+      } else {
+        const res = await fetch(`/api/attractions?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const data = await res.json()
+        if (!res.ok) {
+          setListError(data.error || `API error ${res.status}`)
+          setSavedRows([])
+          return
+        }
+        const attractions = data.attractions || []
+        rows = attractions.map((a: Record<string, unknown>) => ({
+          id: String(a.id),
+          title: String(a.title ?? ''),
+          attraction: {
+            id: String(a.id),
+            title: (a.title as string | null | undefined) ?? null,
+            cityId: (a.cityId as string | null | undefined) ?? null,
+            category: (a.category as string | null | undefined) ?? null,
+            address: (a.address as string | null | undefined) ?? null,
+          },
+        }))
       }
-      const items: ExperienceWishlistRow[] = data.items || []
-      setSavedRows(items.filter((it) => itemKind(it) === category))
+      setSavedRows(rows)
     } catch (e) {
-      console.error('[wishlist] fetch failed', e)
-      setListError('Could not reach wishlist API')
+      console.error('[saved experiences] fetch failed', e)
+      setListError('Could not load saved experiences')
       setSavedRows([])
     } finally {
       setListLoading(false)
@@ -157,7 +230,7 @@ export default function ExperiencePlannerAll() {
     if (!travelerId) return
     setActiveCategory(cat)
     setPhase('items')
-    loadWishlistForCategory(travelerId, cat)
+    loadSavedForCategory(travelerId, cat)
   }
 
   function handleBackToCategories() {

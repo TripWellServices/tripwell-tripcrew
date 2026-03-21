@@ -3,12 +3,22 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-/** List attraction artifacts (reusable). Filter by tripWellEnterpriseId or tripId. */
+/** List attraction artifacts (reusable). Filter by tripWellEnterpriseId, tripId, or savedByTravelerId. */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const tripWellEnterpriseId = searchParams.get('tripWellEnterpriseId')
     const tripId = searchParams.get('tripId')
+    const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
+
+    if (savedByTravelerId) {
+      const attractions = await prisma.attraction.findMany({
+        where: { savedByTravelerId },
+        orderBy: { createdAt: 'desc' },
+        include: { city: true },
+      })
+      return NextResponse.json({ attractions })
+    }
 
     const attractions = await prisma.attraction.findMany({
       where: {

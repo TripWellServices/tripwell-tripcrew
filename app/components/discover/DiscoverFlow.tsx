@@ -47,7 +47,7 @@ interface PlanSummary {
   id: string
   name: string
   season?: string | null
-  _count?: { trips: number; experienceWishlists: number }
+  _count?: { trips: number; savedExperiences?: number }
 }
 
 interface DiscoverFlowProps {
