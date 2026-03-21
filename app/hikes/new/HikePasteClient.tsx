@@ -8,8 +8,24 @@ import {
   HIKE_ROUTE_LABELS,
   type HikeParseResult,
 } from '@/lib/hike-model'
+import { getFirebaseAuth } from '@/lib/firebase'
+import { LocalStorageAPI } from '@/lib/localStorage'
 
 type FlowMode = 'discover' | 'paste'
+
+async function resolveTravelerId(): Promise<string | null> {
+  const stored = LocalStorageAPI.getTravelerId()
+  if (stored) return stored
+  const auth = getFirebaseAuth()
+  const user = auth.currentUser
+  if (!user?.uid) return null
+  const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+  const data = await res.json().catch(() => ({}))
+  const traveler = data.traveler
+  const tid = traveler?.id ?? null
+  if (tid && traveler) LocalStorageAPI.setFullHydrationModel(traveler)
+  return tid
+}
 
 function NumField(props: {
   label: string
@@ -166,6 +182,25 @@ export default function HikePasteClient() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
+      const hikeId = data.hike?.id as string | undefined
+      const title = draft.name.trim()
+      if (hikeId && title) {
+        const tid = await resolveTravelerId()
+        if (tid) {
+          const wl = await fetch('/api/wishlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              travelerId: tid,
+              title,
+              hikeId,
+            }),
+          })
+          if (!wl.ok) {
+            console.warn('Hike saved but wishlist bookmark failed', await wl.json().catch(() => ({})))
+          }
+        }
+      }
       router.push(backHref)
     } catch (e) {
       setError((e as Error).message)

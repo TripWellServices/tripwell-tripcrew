@@ -214,7 +214,7 @@ export default function ExperiencesPageClient({
             emoji="🥾"
             empty="No saved hikes yet."
             addHref={`/tripcrews/${tripCrewId}/hikes/new?return=${encodeURIComponent(returnPath)}`}
-            addLabel="Add a hike (AI paste)"
+            addLabel="Add a hike (discover or paste)"
             secondaryHref={`/tripcrews/${tripCrewId}/discover/add`}
             secondaryLabel="Browse hikes in catalogue"
           >
