@@ -233,12 +233,12 @@ export default function TripCrewsPage() {
           </h2>
           {firstCrewId ? (
             <Link
-              href={`/tripcrews/${firstCrewId}/plan`}
+              href={`/tripcrews/${firstCrewId}/experiences/build`}
               className="block bg-white/95 rounded-xl shadow-lg p-6 hover:shadow-xl transition border border-white/20"
             >
               <p className="text-gray-800 font-medium">Plan a trip with your crew</p>
               <p className="text-gray-500 text-sm mt-1">Get destination ideas and build an itinerary</p>
-              <p className="mt-3 text-sky-600 font-medium text-sm">Open plan wizard →</p>
+              <p className="mt-3 text-sky-600 font-medium text-sm">Open experiences →</p>
             </Link>
           ) : (
             <div className="bg-white/95 rounded-xl shadow-lg p-6 border border-white/20">

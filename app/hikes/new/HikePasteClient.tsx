@@ -317,7 +317,9 @@ export default function HikePasteClient() {
                 href={backHref}
                 className="inline-flex justify-center px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
               >
-                {returnTo.includes('/discover') ? 'Back to Experiences' : 'Done'}
+                {returnTo.includes('/discover') || returnTo.includes('/experiences/')
+                  ? 'Back to Experiences'
+                  : 'Done'}
               </Link>
               <Link
                 href={dayPlanHref(saveSuccess.hikeId)}

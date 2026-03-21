@@ -47,7 +47,7 @@ interface PlanSummary {
   id: string
   name: string
   season?: string | null
-  _count?: { trips: number; wishlistItems: number }
+  _count?: { trips: number; experienceWishlists: number }
 }
 
 interface DiscoverFlowProps {
@@ -497,7 +497,7 @@ export default function DiscoverFlow({
                   'return',
                   tripId
                     ? `/trip/${tripId}/discover`
-                    : `/tripcrews/${tripCrewId}/discover/add`
+                    : `/tripcrews/${tripCrewId}/experiences/find`
                 )
               }
               const base = tripCrewId

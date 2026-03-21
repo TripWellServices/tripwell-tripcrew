@@ -11,16 +11,21 @@ import { useParams, useRouter } from 'next/navigation'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import PlanWizardClient from '../plan/PlanWizardClient'
+import ExperienceTripCreator from '../experiences/build/ExperienceTripCreator'
 
-interface WishlistItem {
+interface ExperienceWishlistRow {
   id: string
   title: string
   notes?: string | null
-  concert?: { name: string; cityId: string | null } | null
-  hike?: { name: string; cityId: string | null } | null
-  dining?: { name: string; cityId: string | null } | null
-  attraction?: { name: string; cityId: string | null } | null
+  concert?: { id: string; name: string; cityId: string | null } | null
+  hike?: {
+    id: string
+    name: string
+    cityId: string | null
+    trailOrPlace?: string | null
+  } | null
+  dining?: { id: string; title?: string | null; cityId: string | null } | null
+  attraction?: { id: string; title?: string | null; cityId: string | null } | null
 }
 
 export default function WishlistPage() {
@@ -29,11 +34,13 @@ export default function WishlistPage() {
   const router = useRouter()
   
   const [travelerId, setTravelerId] = useState<string | null>(null)
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([])
+  const [wishlistItems, setWishlistItems] = useState<ExperienceWishlistRow[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showWizard, setShowWizard] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null)
+  const [selectedExperienceWishlistId, setSelectedExperienceWishlistId] = useState<
+    string | null
+  >(null)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -80,7 +87,7 @@ export default function WishlistPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Remove this item from your wishlist?')) return
+    if (!confirm('Remove this saved experience?')) return
     setDeletingId(id)
     try {
       const res = await fetch(`/api/wishlist?id=${id}`, { method: 'DELETE' })
@@ -94,18 +101,29 @@ export default function WishlistPage() {
     }
   }
 
-  function handlePlanFromItem(item: WishlistItem) {
-    setSelectedItem(item)
+  function handlePlanFromItem(item: ExperienceWishlistRow) {
+    setSelectedExperienceWishlistId(item.id)
     setShowWizard(true)
   }
 
-  if (showWizard && selectedItem) {
+  if (showWizard && selectedExperienceWishlistId) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-8">
-        <PlanWizardClient
+        <button
+          type="button"
+          onClick={() => {
+            setShowWizard(false)
+            setSelectedExperienceWishlistId(null)
+          }}
+          className="text-sm text-sky-600 hover:underline font-medium mb-4"
+        >
+          ← Back to saved list
+        </button>
+        <ExperienceTripCreator
           tripCrewId={tripCrewId}
           initialTripId={null}
-          initialItem={selectedItem}
+          experienceWishlistId={selectedExperienceWishlistId}
+          backHref={`/tripcrews/${tripCrewId}/wishlist`}
         />
       </div>
     )
@@ -113,23 +131,23 @@ export default function WishlistPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Wishlist</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Saved experiences</h1>
       <p className="text-gray-600 mb-8">
-        Save things you want to do and plan trips around them.
+        Same list as Experiences — plan trips around what you saved.
       </p>
 
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">Loading wishlist...</p>
+          <p className="text-gray-500">Loading…</p>
         </div>
       ) : wishlistItems.length === 0 ? (
         <div className="text-center py-12 border border-gray-200 rounded-lg bg-gray-50">
-          <p className="text-gray-600 mb-2">No wishlist items yet</p>
+          <p className="text-gray-600 mb-2">Nothing saved yet</p>
           <p className="text-sm text-gray-500 mb-4">
-            Save items from Experiences and they will show up here.
+            Add experiences from the Experiences hub or Find flow.
           </p>
           <a
-            href={`/tripcrews/${tripCrewId}/discover`}
+            href={`/tripcrews/${tripCrewId}/experiences/build`}
             className="inline-block px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition"
           >
             Go to Experiences →
@@ -141,8 +159,8 @@ export default function WishlistPage() {
             const itemName =
               item.concert?.name ||
               item.hike?.name ||
-              item.dining?.name ||
-              item.attraction?.name ||
+              item.dining?.title ||
+              item.attraction?.title ||
               item.title
             const itemType = item.concert
               ? 'concert'

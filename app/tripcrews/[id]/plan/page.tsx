@@ -1,16 +1,13 @@
-/**
- * Plan a trip — Landing page with card-based options
- */
-
-export const dynamic = 'force-dynamic'
-
-import PlanLandingClient from './PlanLandingClient'
+import { redirect } from 'next/navigation'
 
 interface PageProps {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ tripId?: string }>
+  searchParams: Promise<{ mode?: string }>
 }
 
-export default async function PlanPage({ params }: PageProps) {
-  return <PlanLandingClient />
+export default async function PlanPageRedirect({ params, searchParams }: PageProps) {
+  const { id } = await params
+  const sp = await searchParams
+  const q = sp.mode === 'city' ? '?mode=city' : ''
+  redirect(`/tripcrews/${id}/experiences/build${q}`)
 }

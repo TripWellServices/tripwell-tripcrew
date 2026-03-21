@@ -7,7 +7,7 @@ interface RouteParams { params: Promise<{ planId: string }> }
 
 /**
  * GET /api/plan/[planId]
- * Returns a single plan with trips and wishlist items.
+ * Returns a single plan with trips and saved experiences.
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             status: true,
           },
         },
-        wishlistItems: {
+        experienceWishlists: {
           orderBy: { createdAt: 'desc' },
           include: {
             concert: true,

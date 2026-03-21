@@ -39,10 +39,12 @@ function formatShareText(
 }
 
 export default function HikeDayPlanClient() {
-  const params = useParams()
+  const params = useParams() as { id?: string; hikeId?: string }
   const searchParams = useSearchParams()
-  const hikeId =
-    (params.hikeId as string) || (params.id as string)
+  /** Crew route: /tripcrews/[id]/hikes/[hikeId]/day-plan — both id (crew) and hikeId set. */
+  const isCrewHikeContext = Boolean(params.hikeId)
+  const tripCrewId = isCrewHikeContext ? params.id : undefined
+  const hikeId = params.hikeId || params.id || ''
   const returnTo = searchParams.get('return') ?? '/'
 
   const [hikeName, setHikeName] = useState('')
@@ -58,6 +60,8 @@ export default function HikeDayPlanClient() {
   const [building, setBuilding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copyOk, setCopyOk] = useState(false)
+  const [savedTripId, setSavedTripId] = useState<string | null>(null)
+  const [savingTrip, setSavingTrip] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -186,6 +190,55 @@ export default function HikeDayPlanClient() {
   }
 
   const shareText = formatShareText(metaDate || date, hikeName, steps)
+
+  async function saveAsDayTrip() {
+    if (!tripCrewId || !hikeId || !travelerId) return
+    setSavingTrip(true)
+    setError(null)
+    try {
+      const start = new Date(`${date}T12:00:00`)
+      const end = new Date(start)
+      const createRes = await fetch(`/api/tripcrew/${tripCrewId}/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          createPlanned: true,
+          tripName: hikeName || 'Hike day',
+          purpose: 'Day trip for this hike',
+          travelerId,
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+        }),
+      })
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}))
+        throw new Error(err.error || 'Could not create trip')
+      }
+      const created = await createRes.json()
+      const tid = created.trip?.id || created.id
+      if (!tid) throw new Error('No trip id')
+
+      const itemRes = await fetch(`/api/trip/${tid}/itinerary-items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: hikeName || 'Hike',
+          type: 'hike',
+          hikeId,
+          date: start.toISOString(),
+        }),
+      })
+      if (!itemRes.ok) {
+        const err = await itemRes.json().catch(() => ({}))
+        throw new Error(err.error || 'Could not add hike to trip')
+      }
+      setSavedTripId(tid)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSavingTrip(false)
+    }
+  }
 
   return (
     <div className="max-w-lg mx-auto px-6 py-10">
@@ -336,6 +389,24 @@ export default function HikeDayPlanClient() {
               >
                 {copyOk ? 'Copied!' : 'Copy to clipboard'}
               </button>
+              {isCrewHikeContext && travelerId && !savedTripId && (
+                <button
+                  type="button"
+                  onClick={saveAsDayTrip}
+                  disabled={savingTrip}
+                  className="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {savingTrip ? 'Saving…' : 'Save as a day trip'}
+                </button>
+              )}
+              {savedTripId && (
+                <Link
+                  href={`/trip/${savedTripId}/admin`}
+                  className="w-full text-center px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
+                >
+                  View trip →
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={async () => {

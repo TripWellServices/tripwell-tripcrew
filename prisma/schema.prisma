@@ -125,7 +125,7 @@ model Traveler {
   tripCrewMemberships TripCrewMember[]    @relation("TravelerTripCrewMemberships")
   tripCrewRoles       TripCrewRole[]      @relation("TravelerTripCrewRoles")
   suggestedItineraryItems ItineraryItem[] @relation("ItineraryItemSuggestedBy")
-  wishlistItems       WishlistItem[]      @relation("TravelerWishlist")
+  experienceWishlists ExperienceWishlist[]  @relation("TravelerExperienceWishlist")
   plans               Plan[]              @relation("TravelerPlans")
 }
 
@@ -162,7 +162,7 @@ model Plan {
   traveler      Traveler     @relation("TravelerPlans", fields: [travelerId], references: [id], onDelete: Cascade)
   tripCrew      TripCrew?    @relation(fields: [tripCrewId], references: [id], onDelete: SetNull)
   trips         Trip[]
-  wishlistItems WishlistItem[]
+  experienceWishlists ExperienceWishlist[]
 
   @@index([travelerId])
   @@index([tripCrewId])
@@ -301,7 +301,7 @@ model Dining {
   tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseDining", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
   city                City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   itineraryItems      ItineraryItem[]
-  wishlistItems       WishlistItem[]
+  experienceWishlists ExperienceWishlist[]
 
   @@index([tripId])
   @@index([tripWellEnterpriseId])
@@ -333,7 +333,7 @@ model Attraction {
   tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseAttractions", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
   city                City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   itineraryItems      ItineraryItem[]
-  wishlistItems       WishlistItem[]
+  experienceWishlists ExperienceWishlist[]
 
   @@index([tripId])
   @@index([tripWellEnterpriseId])
@@ -376,7 +376,7 @@ model Concert {
 
   city           City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
   itineraryItems ItineraryItem[]
-  wishlistItems  WishlistItem[]
+  experienceWishlists ExperienceWishlist[]
 
   @@index([cityId])
   @@index([eventDate])
@@ -404,7 +404,7 @@ model Hike {
 
   city           City?            @relation(fields: [cityId], references: [id], onDelete: SetNull)
   itineraryItems ItineraryItem[]
-  wishlistItems  WishlistItem[]
+  experienceWishlists ExperienceWishlist[]
 
   @@index([cityId])
 }
@@ -517,10 +517,10 @@ model TripCrewRole {
   @@map("trip_crew_roles")
 }
 
-// WishlistItem — traveler bookmark of a global city catalogue item (no trip required)
+// ExperienceWishlist — traveler-scoped saved experience (bookmark to hike/concert/dining/attraction).
 // Mirrors ItineraryItem FK pattern but anchored to travelerId instead of tripId.
 // Optional planId to group under a Plan.
-model WishlistItem {
+model ExperienceWishlist {
   id           String   @id @default(uuid())
   travelerId   String
   planId       String?  // optional; can group under a Plan
@@ -533,7 +533,7 @@ model WishlistItem {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  traveler   Traveler    @relation("TravelerWishlist", fields: [travelerId], references: [id], onDelete: Cascade)
+  traveler   Traveler    @relation("TravelerExperienceWishlist", fields: [travelerId], references: [id], onDelete: Cascade)
   plan       Plan?       @relation(fields: [planId], references: [id], onDelete: SetNull)
   concert    Concert?    @relation(fields: [concertId], references: [id], onDelete: SetNull)
   hike       Hike?       @relation(fields: [hikeId], references: [id], onDelete: SetNull)
@@ -546,4 +546,5 @@ model WishlistItem {
   @@index([hikeId])
   @@index([diningId])
   @@index([attractionId])
+  @@map("experience_wishlists")
 }

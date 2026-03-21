@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/plan?travelerId=xxx
- * Returns all plans for the traveler, with trip and wishlist counts.
+ * Returns all plans for the traveler, with trip and saved-experience counts.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: 'desc' },
       include: {
         _count: {
-          select: { trips: true, wishlistItems: true },
+          select: { trips: true, experienceWishlists: true },
         },
         tripCrew: { select: { id: true, name: true } },
       },

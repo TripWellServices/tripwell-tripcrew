@@ -85,19 +85,9 @@ export default function TripCrewLayout({
 
         <nav className="p-2 space-y-1 border-b border-gray-200">
           <Link
-            href={`/tripcrews/${tripCrewId}/plan`}
+            href={`/tripcrews/${tripCrewId}/experiences/build`}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
-              isActive(`/tripcrews/${tripCrewId}/plan`)
-                ? 'bg-sky-100 text-sky-800'
-                : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
-            }`}
-          >
-            <span>Start a Trip</span>
-          </Link>
-          <Link
-            href={`/tripcrews/${tripCrewId}/discover`}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
-              isActive(`/tripcrews/${tripCrewId}/discover`)
+              isActive(`/tripcrews/${tripCrewId}/experiences`)
                 ? 'bg-sky-100 text-sky-800'
                 : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
             }`}
@@ -112,7 +102,7 @@ export default function TripCrewLayout({
                 : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
             }`}
           >
-            <span>My Plans</span>
+            <span>Saved Lists</span>
           </Link>
           {onNavViewChange ? (
             <>

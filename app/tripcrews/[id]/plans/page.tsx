@@ -11,7 +11,7 @@ interface PlanSummary {
   name: string
   season?: string | null
   tripCrew?: { id: string; name: string | null } | null
-  _count: { trips: number; wishlistItems: number }
+  _count: { trips: number; experienceWishlists: number }
 }
 
 export default function CrewPlansPage() {
@@ -96,9 +96,19 @@ export default function CrewPlansPage() {
         Plans group your trips and saved experiences. Add experiences first, then start a trip from your list — or create a plan to organize ideas.
       </p>
       <p className="text-sm text-gray-600 mb-8">
-        <Link href={`/tripcrews/${tripCrewId}/discover`} className="text-sky-600 hover:underline">Experiences</Link>
+        <Link
+          href={`/tripcrews/${tripCrewId}/experiences/build`}
+          className="text-sky-600 hover:underline"
+        >
+          Experiences
+        </Link>
         {' · '}
-        <Link href={`/tripcrews/${tripCrewId}/plan`} className="text-sky-600 hover:underline">Start a trip</Link>
+        <Link
+          href={`/tripcrews/${tripCrewId}/experiences/find`}
+          className="text-sky-600 hover:underline"
+        >
+          Find experiences
+        </Link>
       </p>
 
       <div className="space-y-4">
@@ -160,7 +170,8 @@ export default function CrewPlansPage() {
               <h3 className="text-lg font-semibold text-gray-800">{plan.name}</h3>
               {plan.season && <p className="text-xs text-gray-500 mt-0.5">{plan.season}</p>}
               <p className="text-xs text-gray-400 mt-1">
-                {plan._count.trips} trip{plan._count.trips !== 1 ? 's' : ''} · {plan._count.wishlistItems} wishlist
+                {plan._count.trips} trip{plan._count.trips !== 1 ? 's' : ''} ·{' '}
+                {plan._count.experienceWishlists} saved
               </p>
               {plan.tripCrew?.name && (
                 <p className="text-xs text-sky-600 mt-0.5">Shared with {plan.tripCrew.name}</p>

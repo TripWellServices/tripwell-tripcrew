@@ -40,7 +40,21 @@ export async function POST(
   try {
     const { tripCrewId } = await params
     const body = await request.json().catch(() => ({}))
-    const { createPlanned, tripName, purpose, travelerId } = body
+    const {
+      createPlanned,
+      tripName,
+      purpose,
+      travelerId,
+      startDate: startDateRaw,
+      endDate: endDateRaw,
+    } = body as {
+      createPlanned?: boolean
+      tripName?: string
+      purpose?: string
+      travelerId?: string
+      startDate?: string
+      endDate?: string
+    }
 
     if (createPlanned) {
       const membership = await prisma.tripCrewMember.findFirst({
@@ -52,9 +66,28 @@ export async function POST(
           { status: 403 }
         )
       }
-      const start = new Date()
-      const end = new Date()
-      end.setDate(end.getDate() + 7)
+      let start: Date
+      let end: Date
+      if (startDateRaw && endDateRaw) {
+        start = new Date(startDateRaw)
+        end = new Date(endDateRaw)
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+          return NextResponse.json(
+            { error: 'Invalid startDate or endDate' },
+            { status: 400 }
+          )
+        }
+        if (end.getTime() < start.getTime()) {
+          return NextResponse.json(
+            { error: 'endDate must be on or after startDate' },
+            { status: 400 }
+          )
+        }
+      } else {
+        start = new Date()
+        end = new Date()
+        end.setDate(end.getDate() + 7)
+      }
       const { daysTotal, dateRange, season } = computeTripMetadata(start, end)
       const trip = await prisma.trip.create({
         data: {

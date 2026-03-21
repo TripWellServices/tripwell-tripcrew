@@ -49,10 +49,10 @@ export default function PlanDetailPage() {
         </section>
 
         <section className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Wishlist</h2>
-          {plan.wishlistItems?.length ? (
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Saved experiences</h2>
+          {plan.experienceWishlists?.length ? (
             <ul className="space-y-2">
-              {plan.wishlistItems.map((w: any) => (
+              {plan.experienceWishlists.map((w: any) => (
                 <li key={w.id} className="p-3 bg-white border border-gray-200 rounded-lg">
                   {w.title}
                   {(w.concert || w.hike || w.dining || w.attraction) && (
@@ -64,7 +64,7 @@ export default function PlanDetailPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-500">No wishlist items in this plan yet.</p>
+            <p className="text-sm text-gray-500">No saved experiences in this plan yet.</p>
           )}
         </section>
       </div>
