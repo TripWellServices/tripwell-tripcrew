@@ -125,6 +125,11 @@ export default function DiscoverFlow({
   const [discoverLoading, setDiscoverLoading] = useState(false)
   const [discoverShown, setDiscoverShown] = useState(false)
 
+  /** After AI suggests an item: rowKey → catalogue id (wishlist is a separate step). */
+  const [suggestionSavedIds, setSuggestionSavedIds] = useState<
+    Record<string, string>
+  >({})
+
   // Action feedback
   const [savingId, setSavingId] = useState<string | null>(null)
   const [wishlistingId, setWishlistingId] = useState<string | null>(null)
@@ -216,13 +221,11 @@ export default function DiscoverFlow({
 
   // ── Load catalogue for city + type ──────────────────────────────────────────
 
-  async function loadCatalogue(type: DiscoverType, city: string, state: string) {
-    setCatalogueLoading(true)
-    setCatalogueItems([])
-    setSuggestions([])
-    setDiscoverShown(false)
-    setCatalogueCity(null)
-
+  async function refreshCatalogueItemsOnly(
+    type: DiscoverType,
+    city: string,
+    state: string
+  ) {
     try {
       const params = new URLSearchParams({ city, type })
       if (state) params.set('state', state)
@@ -230,6 +233,21 @@ export default function DiscoverFlow({
       const data = await res.json()
       setCatalogueItems(data.items ?? [])
       setCatalogueCity(data.city ?? null)
+    } catch {
+      // silent — catalogue may be empty
+    }
+  }
+
+  async function loadCatalogue(type: DiscoverType, city: string, state: string) {
+    setCatalogueLoading(true)
+    setCatalogueItems([])
+    setSuggestions([])
+    setDiscoverShown(false)
+    setSuggestionSavedIds({})
+    setCatalogueCity(null)
+
+    try {
+      await refreshCatalogueItemsOnly(type, city, state)
     } catch {
       // silent — catalogue may be empty
     } finally {
@@ -261,6 +279,7 @@ export default function DiscoverFlow({
         body: JSON.stringify({ city: effectiveCity, state: effectiveState, type: activeType }),
       })
       const data = await res.json()
+      setSuggestionSavedIds({})
       setSuggestions(data.suggestions ?? [])
       setDiscoverShown(true)
     } catch {
@@ -272,8 +291,11 @@ export default function DiscoverFlow({
 
   // ── Save suggestion to city catalogue (creates first-class record) ───────────
 
-  async function saveToCatalogue(suggestion: Suggestion): Promise<string | null> {
-    const key = suggestion.name
+  async function saveToCatalogue(
+    suggestion: Suggestion,
+    savingKey?: string
+  ): Promise<string | null> {
+    const key = savingKey ?? suggestion.name
     setSavingId(key)
 
     try {
@@ -292,8 +314,8 @@ export default function DiscoverFlow({
       if (!res.ok) throw new Error(data.error)
 
       const savedId: string = data.saved?.id
-      // Refresh catalogue
-      await loadCatalogue(activeType!, effectiveCity, effectiveState)
+      await refreshCatalogueItemsOnly(activeType!, effectiveCity, effectiveState)
+      showFeedback(key, 'Added to catalogue', true)
       return savedId
     } catch {
       showFeedback(key, 'Failed to save to catalogue', false)
@@ -305,9 +327,14 @@ export default function DiscoverFlow({
 
   // ── Wishlist an item already in the catalogue ────────────────────────────────
 
-  async function addToWishlist(item: CatalogueItem, type: DiscoverType) {
+  async function addToWishlist(
+    item: CatalogueItem,
+    type: DiscoverType,
+    feedbackId?: string
+  ) {
+    const fid = feedbackId ?? item.id
     if (!travelerId) {
-      showFeedback(item.id, 'Sign in to save to wishlist', false)
+      showFeedback(fid, 'Sign in to add to Experiences', false)
       return
     }
 
@@ -328,9 +355,9 @@ export default function DiscoverFlow({
         body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error()
-      showFeedback(item.id, 'Saved to wishlist', true)
+      showFeedback(fid, 'Added to Experiences', true)
     } catch {
-      showFeedback(item.id, 'Failed to save to wishlist', false)
+      showFeedback(fid, 'Could not add to Experiences', false)
     } finally {
       setWishlistingId(null)
     }
@@ -366,16 +393,25 @@ export default function DiscoverFlow({
     }
   }
 
-  // ── Save AI suggestion then wishlist / itinerary ─────────────────────────────
+  // ── AI suggestions: catalogue first, then explicit Experiences (wishlist) ─────
 
-  async function saveAndWishlist(suggestion: Suggestion) {
-    const id = await saveToCatalogue(suggestion)
-    if (!id || !travelerId) return
-    await addToWishlist({ id, name: suggestion.name }, activeType!)
+  async function saveSuggestionToCatalogOnly(
+    suggestion: Suggestion,
+    rowKey: string
+  ) {
+    const id = await saveToCatalogue(suggestion, rowKey)
+    if (id) setSuggestionSavedIds((prev) => ({ ...prev, [rowKey]: id }))
   }
 
-  async function saveAndAddToItinerary(suggestion: Suggestion) {
-    const id = await saveToCatalogue(suggestion)
+  async function wishlistSuggestionFromRow(rowKey: string, suggestion: Suggestion) {
+    const id = suggestionSavedIds[rowKey]
+    if (!id) return
+    await addToWishlist({ id, name: suggestion.name }, activeType!, rowKey)
+  }
+
+  async function saveAndAddToItinerary(suggestion: Suggestion, rowKey: string) {
+    const id = await saveToCatalogue(suggestion, rowKey)
+    if (id) setSuggestionSavedIds((prev) => ({ ...prev, [rowKey]: id }))
     if (!id || !tripId) return
     await addToItinerary({ id, name: suggestion.name }, activeType!)
   }
@@ -559,16 +595,22 @@ export default function DiscoverFlow({
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                 Suggested by AI
               </h2>
+              <p className="text-xs text-gray-500">
+                Add to the city catalogue first, then add to your Experiences list if you want
+                it bookmarked (same as browsing the list above).
+              </p>
               {suggestions.length === 0 ? (
                 <p className="text-sm text-gray-400">No suggestions found.</p>
               ) : (
                 <ul className="space-y-2">
-                  {suggestions.map((s) => {
-                    const key = s.name
-                    const isSaving = savingId === key
+                  {suggestions.map((s, i) => {
+                    const rowKey = `ai-${i}-${s.name}`
+                    const isSaving = savingId === rowKey
+                    const savedId = suggestionSavedIds[rowKey]
+                    const canWishlist = Boolean(travelerId && savedId)
                     return (
                       <li
-                        key={key}
+                        key={rowKey}
                         className="bg-white border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3"
                       >
                         <div className="flex-1 min-w-0">
@@ -579,18 +621,41 @@ export default function DiscoverFlow({
                           {s.detail && (
                             <p className="text-xs text-gray-400 truncate">{s.detail}</p>
                           )}
+                          {feedback?.id === rowKey && (
+                            <p
+                              className={`text-xs mt-1 font-medium ${
+                                feedback.ok ? 'text-green-600' : 'text-red-500'
+                              }`}
+                            >
+                              {feedback.message}
+                            </p>
+                          )}
                         </div>
-                        <div className="flex gap-2 shrink-0">
+                        <div className="flex flex-wrap gap-2 shrink-0">
                           <button
-                            onClick={() => saveAndWishlist(s)}
+                            type="button"
+                            onClick={() => saveSuggestionToCatalogOnly(s, rowKey)}
                             disabled={isSaving}
                             className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 disabled:opacity-50"
                           >
-                            {isSaving ? 'Saving…' : '+ Wishlist'}
+                            {isSaving ? 'Saving…' : 'Add to catalogue'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => wishlistSuggestionFromRow(rowKey, s)}
+                            disabled={
+                              !canWishlist || wishlistingId === savedId || isSaving
+                            }
+                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-900 text-xs font-medium hover:bg-emerald-200 disabled:opacity-50"
+                          >
+                            {wishlistingId === savedId
+                              ? 'Adding…'
+                              : 'Add to Experiences'}
                           </button>
                           {tripId && (
                             <button
-                              onClick={() => saveAndAddToItinerary(s)}
+                              type="button"
+                              onClick={() => saveAndAddToItinerary(s, rowKey)}
                               disabled={isSaving}
                               className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-50"
                             >
@@ -745,7 +810,7 @@ function CatalogueItemRow({
             disabled={isWishlisting}
             className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 disabled:opacity-50"
           >
-            {isWishlisting ? 'Saving…' : '+ Wishlist'}
+            {isWishlisting ? 'Adding…' : 'Add to Experiences'}
           </button>
         )}
         {onBuildTrip && (

@@ -84,8 +84,61 @@ export default function HikePasteClient() {
   const [parsing, setParsing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState<{
+    hikeId: string
+    title: string
+    bookmarked: boolean
+  } | null>(null)
+  const [wishlistingAfterSave, setWishlistingAfterSave] = useState(false)
 
   const backHref = returnTo || '/'
+
+  function dayPlanHref(hikeId: string) {
+    const q = returnTo ? `?return=${encodeURIComponent(returnTo)}` : ''
+    const m = returnTo.match(/^\/tripcrews\/([^/]+)/)
+    if (m) return `/tripcrews/${m[1]}/hikes/${hikeId}/day-plan${q}`
+    return `/hikes/${hikeId}/day-plan${q}`
+  }
+
+  function resetForAnotherHike() {
+    setSaveSuccess(null)
+    setDraft(null)
+    setSuggestions(null)
+    setPastedDescription('')
+    setSourcePaste('')
+    setError(null)
+  }
+
+  async function addToExperiencesFromSuccess() {
+    if (!saveSuccess || saveSuccess.bookmarked) return
+    setWishlistingAfterSave(true)
+    setError(null)
+    try {
+      const tid = await resolveTravelerId()
+      if (!tid) {
+        setError('Sign in to add this hike to Experiences.')
+        return
+      }
+      const wl = await fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          travelerId: tid,
+          title: saveSuccess.title,
+          hikeId: saveSuccess.hikeId,
+        }),
+      })
+      if (!wl.ok) {
+        const w = await wl.json().catch(() => ({}))
+        throw new Error(w.error || 'Could not add to Experiences')
+      }
+      setSaveSuccess((s) => (s ? { ...s, bookmarked: true } : s))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setWishlistingAfterSave(false)
+    }
+  }
 
   const applyParsed = useCallback(
     (p: HikeParseResult, catalogName?: string, catalogState?: string) => {
@@ -184,6 +237,7 @@ export default function HikePasteClient() {
       if (!res.ok) throw new Error(data.error || 'Save failed')
       const hikeId = data.hike?.id as string | undefined
       const title = draft.name.trim()
+      let bookmarked = false
       if (hikeId && title) {
         const tid = await resolveTravelerId()
         if (tid) {
@@ -196,12 +250,17 @@ export default function HikePasteClient() {
               hikeId,
             }),
           })
+          bookmarked = wl.ok
           if (!wl.ok) {
             console.warn('Hike saved but wishlist bookmark failed', await wl.json().catch(() => ({})))
           }
         }
       }
-      router.push(backHref)
+      if (hikeId) {
+        setSaveSuccess({ hikeId, title, bookmarked })
+      } else {
+        throw new Error('Save succeeded but no hike id returned')
+      }
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -232,6 +291,67 @@ export default function HikePasteClient() {
         text you already have (e.g. AllTrails) to structure and save to the catalogue.
       </p>
 
+      {saveSuccess && (
+        <div className="mb-8 rounded-xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-sm space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-emerald-900">
+              Saved to the catalogue
+            </p>
+            <p className="text-base font-medium text-gray-900 mt-1">{saveSuccess.title}</p>
+            {saveSuccess.bookmarked ? (
+              <p className="text-sm text-emerald-800 mt-2">
+                Also added to your <strong>Experiences</strong> list.
+              </p>
+            ) : (
+              <p className="text-sm text-gray-700 mt-2">
+                It isn&apos;t on your Experiences list yet — add it below if you want it there.
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              What do you want to do next?
+            </p>
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+              <Link
+                href={backHref}
+                className="inline-flex justify-center px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
+              >
+                {returnTo.includes('/discover') ? 'Back to Experiences' : 'Done'}
+              </Link>
+              <Link
+                href={dayPlanHref(saveSuccess.hikeId)}
+                className="inline-flex justify-center px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+              >
+                Plan a day for this hike
+              </Link>
+              {!saveSuccess.bookmarked && (
+                <button
+                  type="button"
+                  onClick={addToExperiencesFromSuccess}
+                  disabled={wishlistingAfterSave}
+                  className="inline-flex justify-center px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {wishlistingAfterSave ? 'Adding…' : 'Add to Experiences'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={resetForAnotherHike}
+                className="inline-flex justify-center px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-white"
+              >
+                Add another hike
+              </button>
+            </div>
+          </div>
+          {error && (
+            <p className="text-sm text-red-600 font-medium">{error}</p>
+          )}
+        </div>
+      )}
+
+      {!saveSuccess && (
+        <>
       <div className="flex rounded-xl border border-gray-200 bg-gray-100 p-1 mb-8">
         <button
           type="button"
@@ -604,6 +724,8 @@ export default function HikePasteClient() {
             {saving ? 'Saving…' : 'Save to catalogue'}
           </button>
         </div>
+      )}
+        </>
       )}
     </div>
   )
