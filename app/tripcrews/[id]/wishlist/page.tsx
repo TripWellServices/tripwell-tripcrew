@@ -147,7 +147,7 @@ export default function WishlistPage() {
             Add experiences from the Experiences hub or Find flow.
           </p>
           <a
-            href={`/tripcrews/${tripCrewId}/experiences/build`}
+            href={`/tripcrews/${tripCrewId}/experiences`}
             className="inline-block px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition"
           >
             Go to Experiences →

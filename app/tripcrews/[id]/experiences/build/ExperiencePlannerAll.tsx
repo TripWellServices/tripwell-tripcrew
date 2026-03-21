@@ -5,7 +5,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { getFirebaseAuth } from '@/lib/firebase'
@@ -78,15 +78,12 @@ function itemSubtitle(item: ExperienceWishlistRow): string {
 
 export default function ExperiencePlannerAll() {
   const params = useParams()
-  const router = useRouter()
-  const searchParams = useSearchParams()
   const tripCrewId = params.id as string
 
   const [travelerId, setTravelerId] = useState<string | null>(null)
   const [savedRows, setSavedRows] = useState<ExperienceWishlistRow[]>([])
   const [listLoading, setListLoading] = useState(false)
   const [showCreator, setShowCreator] = useState(false)
-  const [cityOnlyMode, setCityOnlyMode] = useState(false)
   const [selectedExperienceWishlistId, setSelectedExperienceWishlistId] = useState<
     string | null
   >(null)
@@ -121,16 +118,6 @@ export default function ExperiencePlannerAll() {
     return () => unsubscribe()
   }, [])
 
-  useEffect(() => {
-    const mode = searchParams.get('mode')
-    if (mode === 'city') {
-      setSelectedExperienceWishlistId(null)
-      setCityOnlyMode(true)
-      setShowCreator(true)
-      router.replace(`/tripcrews/${tripCrewId}/experiences/build`, { scroll: false })
-    }
-  }, [searchParams, router, tripCrewId])
-
   async function loadSaved(tid: string) {
     setListLoading(true)
     try {
@@ -146,7 +133,6 @@ export default function ExperiencePlannerAll() {
 
   function handlePlanFromRow(row: ExperienceWishlistRow) {
     setSelectedExperienceWishlistId(row.id)
-    setCityOnlyMode(false)
     setShowCreator(true)
   }
 
@@ -160,8 +146,8 @@ export default function ExperiencePlannerAll() {
       <ExperienceTripCreator
         tripCrewId={tripCrewId}
         initialTripId={null}
-        experienceWishlistId={cityOnlyMode ? null : selectedExperienceWishlistId}
-        forceCityFlow={cityOnlyMode}
+        experienceWishlistId={selectedExperienceWishlistId}
+        backHref={`/tripcrews/${tripCrewId}/experiences/build`}
       />
     )
   }
@@ -291,18 +277,6 @@ export default function ExperiencePlannerAll() {
           Sign in to see saved experiences and build a trip.
         </p>
       )}
-
-      <div className="border-t border-gray-200 pt-6 mt-2">
-        <p className="text-sm text-gray-500 mb-2">
-          Don&apos;t have a saved experience to anchor yet?
-        </p>
-        <Link
-          href={`/tripcrews/${tripCrewId}/experiences/build?mode=city`}
-          className="text-sm text-sky-600 font-medium hover:underline"
-        >
-          Plan from a destination instead
-        </Link>
-      </div>
     </div>
   )
 }

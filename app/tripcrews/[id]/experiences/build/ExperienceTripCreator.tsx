@@ -88,7 +88,7 @@ export interface ExperienceTripCreatorProps {
   initialItem?: ExperienceAnchorItem
   /** Destination-first flow (no saved experience). */
   forceCityFlow?: boolean
-  /** Override default “back” target (default: crew experiences build). */
+  /** Override default “back” target (default: experiences hub). */
   backHref?: string
 }
 
@@ -443,7 +443,7 @@ export default function ExperienceTripCreator({
   }, [experienceItem, tripCrewId, tripStartDate, durationKind, whoGoing, vibes, router])
 
   const landingPath =
-    backHref ?? `/tripcrews/${tripCrewId}/experiences/build`
+    backHref ?? `/tripcrews/${tripCrewId}/experiences`
   const backToLanding = () => router.push(landingPath)
 
   if (isExperienceFlow && experienceWishlistId && hydrating) {

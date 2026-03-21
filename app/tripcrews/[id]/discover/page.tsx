@@ -6,5 +6,5 @@ interface PageProps {
 
 export default async function DiscoverRedirect({ params }: PageProps) {
   const { id } = await params
-  redirect(`/tripcrews/${id}/experiences/build`)
+  redirect(`/tripcrews/${id}/experiences`)
 }

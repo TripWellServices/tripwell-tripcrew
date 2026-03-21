@@ -41,7 +41,7 @@ export default function ExperiencesFindPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       <Link
-        href={`/tripcrews/${tripCrewId}/experiences/build`}
+        href={`/tripcrews/${tripCrewId}/experiences`}
         className="text-sm text-sky-600 hover:text-sky-800 font-medium mb-4 inline-block"
       >
         ← Back to Experiences

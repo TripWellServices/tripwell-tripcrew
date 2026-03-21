@@ -233,7 +233,7 @@ export default function TripCrewsPage() {
           </h2>
           {firstCrewId ? (
             <Link
-              href={`/tripcrews/${firstCrewId}/experiences/build`}
+              href={`/tripcrews/${firstCrewId}/experiences`}
               className="block bg-white/95 rounded-xl shadow-lg p-6 hover:shadow-xl transition border border-white/20"
             >
               <p className="text-gray-800 font-medium">Plan a trip with your crew</p>

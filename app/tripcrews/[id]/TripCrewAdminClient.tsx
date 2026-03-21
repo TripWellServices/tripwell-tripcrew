@@ -246,7 +246,7 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
               <h2 className="text-2xl font-bold text-gray-900">My Trips</h2>
               <div className="flex gap-2">
                 <Link
-                  href={`/tripcrews/${tripCrewId}/experiences/build`}
+                  href={`/tripcrews/${tripCrewId}/experiences`}
                   className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition text-sm"
                 >
                   Start a Trip
@@ -274,7 +274,7 @@ export default function TripCrewAdminClient({ tripCrewId }: TripCrewAdminClientP
                     <p className="text-gray-500 mb-4">No upcoming trips. Plan or create one.</p>
                     <div className="flex justify-center gap-3">
                       <Link
-                        href={`/tripcrews/${tripCrewId}/experiences/build`}
+                        href={`/tripcrews/${tripCrewId}/experiences`}
                         className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700"
                       >
                         Start a Trip

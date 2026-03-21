@@ -172,7 +172,7 @@ export default function TravelCockpitPage() {
           {navLink('/traveler/plans', 'My Plans')}
           {firstCrewId ? (
             <Link
-              href={`/tripcrews/${firstCrewId}/experiences/build`}
+              href={`/tripcrews/${firstCrewId}/experiences`}
               className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
             >
               Add experiences
@@ -260,7 +260,7 @@ export default function TravelCockpitPage() {
               </p>
               {firstCrewId ? (
                 <Link
-                  href={`/tripcrews/${firstCrewId}/experiences/build`}
+                  href={`/tripcrews/${firstCrewId}/experiences`}
                   className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition w-fit"
                 >
                   Start a trip

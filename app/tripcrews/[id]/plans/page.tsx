@@ -97,7 +97,7 @@ export default function CrewPlansPage() {
       </p>
       <p className="text-sm text-gray-600 mb-8">
         <Link
-          href={`/tripcrews/${tripCrewId}/experiences/build`}
+          href={`/tripcrews/${tripCrewId}/experiences`}
           className="text-sky-600 hover:underline"
         >
           Experiences

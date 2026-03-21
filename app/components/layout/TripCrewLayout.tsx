@@ -64,6 +64,10 @@ export default function TripCrewLayout({
     return pathname.startsWith(path)
   }
 
+  const isPlanSectionActive =
+    pathname === `/tripcrews/${tripCrewId}/plan` ||
+    pathname.startsWith(`/tripcrews/${tripCrewId}/plan/`)
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Left sidebar — persistent navigation */}
@@ -85,7 +89,7 @@ export default function TripCrewLayout({
 
         <nav className="p-2 space-y-1 border-b border-gray-200">
           <Link
-            href={`/tripcrews/${tripCrewId}/experiences/build`}
+            href={`/tripcrews/${tripCrewId}/experiences`}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
               isActive(`/tripcrews/${tripCrewId}/experiences`)
                 ? 'bg-sky-100 text-sky-800'
@@ -93,6 +97,16 @@ export default function TripCrewLayout({
             }`}
           >
             <span>Experiences</span>
+          </Link>
+          <Link
+            href={`/tripcrews/${tripCrewId}/plan/destination`}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
+              isPlanSectionActive
+                ? 'bg-sky-100 text-sky-800'
+                : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
+            }`}
+          >
+            <span>Plan a Trip</span>
           </Link>
           <Link
             href={`/tripcrews/${tripCrewId}/plans`}

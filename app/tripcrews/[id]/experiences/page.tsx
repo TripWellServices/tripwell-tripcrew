@@ -3,39 +3,41 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
-export default function ExperienceEntryHubPage() {
+export default function ExperiencesHubPage() {
   const params = useParams()
   const tripCrewId = params.id as string
-  const returnTo = `/tripcrews/${tripCrewId}/experiences`
+  const base = `/tripcrews/${tripCrewId}/experiences`
 
   const cards = [
     {
-      title: 'Hike — discover or paste',
-      desc: 'AI recommendations from a short form, or paste an AllTrails-style blurb.',
-      href: `/tripcrews/${tripCrewId}/hikes/new?return=${encodeURIComponent(returnTo)}`,
-      cta: 'Add a hike',
+      title: 'Build from saved',
+      desc: 'Pick something you already saved and plan a trip around it.',
+      href: `${base}/build`,
+      cta: 'Open saved list',
     },
     {
-      title: 'Browse catalogue',
-      desc: 'Find concerts, dining, hikes, and attractions by city.',
-      href: `/tripcrews/${tripCrewId}/experiences/find`,
-      cta: 'Open find',
+      title: 'Find experiences',
+      desc: 'Browse by city — concerts, hikes, dining, and attractions.',
+      href: `${base}/find`,
+      cta: 'Find',
+    },
+    {
+      title: 'Enter an experience',
+      desc: 'Add a hike (discover or paste) or jump to the catalogue.',
+      href: `${base}/enter`,
+      cta: 'Enter',
     },
   ]
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
-      <Link
-        href={`/tripcrews/${tripCrewId}/experiences`}
-        className="text-sm text-sky-600 hover:text-sky-800 font-medium mb-6 inline-block"
-      >
-        ← Back to Experiences
-      </Link>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Enter an experience</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Experiences</h1>
       <p className="text-gray-600 mb-8">
-        Choose how you want to add something — by type or by browsing the catalogue.
+        Start from something you saved, discover new ideas, or add your own. For city-first
+        planning, use <strong className="font-medium text-gray-800">Plan a Trip</strong> in
+        the sidebar.
       </p>
-      <ul className="grid gap-4 sm:grid-cols-2">
+      <ul className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
         {cards.map((c) => (
           <li
             key={c.title}
