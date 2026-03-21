@@ -112,14 +112,24 @@ export default function TripCrewLayout({
             <span>Experiences</span>
           </Link>
           <Link
-            href={`/tripcrews/${tripCrewId}/plan/destination`}
+            href={`/tripcrews/${tripCrewId}/plan`}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
               isPlanSectionActive
                 ? 'bg-sky-100 text-sky-800'
                 : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
             }`}
           >
-            <span>Plan a Trip</span>
+            <span>Planner</span>
+          </Link>
+          <Link
+            href={`/tripcrews/${tripCrewId}/destinations`}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
+              pathname.startsWith(`/tripcrews/${tripCrewId}/destinations`)
+                ? 'bg-sky-100 text-sky-800'
+                : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
+            }`}
+          >
+            <span>Destinations</span>
           </Link>
           <Link
             href={`/tripcrews/${tripCrewId}/plans`}

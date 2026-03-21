@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,7 +8,24 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const cityId = searchParams.get('cityId')
+    const travelerId = searchParams.get('travelerId')?.trim()
     const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
+
+    if (travelerId) {
+      const wId = await wishlistIdForTraveler(travelerId)
+      const concerts = await prisma.concert.findMany({
+        where: {
+          OR: [
+            { savedByTravelerId: travelerId },
+            { createdById: travelerId },
+            ...(wId ? [{ wishlistId: wId }] : []),
+          ],
+        },
+        orderBy: [{ eventDate: 'asc' }, { name: 'asc' }],
+        include: { city: true },
+      })
+      return NextResponse.json({ concerts })
+    }
 
     if (savedByTravelerId) {
       const concerts = await prisma.concert.findMany({

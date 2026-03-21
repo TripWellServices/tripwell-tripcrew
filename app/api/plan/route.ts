@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { PlanType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { savedExperienceCountsByPlanIds } from '@/lib/plan-saved-experiences'
 
@@ -46,15 +47,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function parsePlanType(v: unknown): PlanType {
+  if (v === 'SEASON' || v === 'season') return PlanType.SEASON
+  return PlanType.TRIP
+}
+
 /**
  * POST /api/plan
- * Body: { travelerId, name, season?, tripCrewId? }
+ * Body: { travelerId, name, season?, tripCrewId?, type?: 'TRIP' | 'SEASON' }
  * Creates a new Plan.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { travelerId, name, season, tripCrewId } = body
+    const { travelerId, name, season, tripCrewId, type } = body
 
     if (!travelerId || !name?.trim()) {
       return NextResponse.json({ error: 'travelerId and name are required' }, { status: 400 })
@@ -66,6 +72,7 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         season: season?.trim() ?? null,
         tripCrewId: tripCrewId ?? null,
+        type: parsePlanType(type),
       },
     })
 

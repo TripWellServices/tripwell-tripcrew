@@ -2,21 +2,41 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { upsertCityByName } from '@/lib/city-upsert'
 import { HIKE_ROUTE_TYPES, type HikeRouteType } from '@/lib/hike-model'
+import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/hikes?savedByTravelerId= — saved for Build / planning (traveler-scoped).
+ * GET /api/hikes?travelerId= — Build from saved: saved-by, wishlist, or authored by this traveler.
+ * GET /api/hikes?savedByTravelerId= — strict: rows with that savedByTravelerId only.
  * GET /api/hikes?createdById= — hikes authored by that traveller (catalogue author).
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const travelerId = searchParams.get('travelerId')?.trim()
     const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
     const createdById = searchParams.get('createdById')?.trim()
+
+    if (travelerId) {
+      const wId = await wishlistIdForTraveler(travelerId)
+      const hikes = await prisma.hike.findMany({
+        where: {
+          OR: [
+            { savedByTravelerId: travelerId },
+            { createdById: travelerId },
+            ...(wId ? [{ wishlistId: wId }] : []),
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        include: { city: true, createdBy: { select: { id: true, firstName: true, lastName: true } } },
+      })
+      return NextResponse.json({ hikes })
+    }
+
     if (!savedByTravelerId && !createdById) {
       return NextResponse.json(
-        { error: 'savedByTravelerId or createdById is required' },
+        { error: 'travelerId, savedByTravelerId, or createdById is required' },
         { status: 400 }
       )
     }

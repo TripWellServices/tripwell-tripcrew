@@ -16,6 +16,12 @@ export default function ExperiencesHubPage() {
       cta: 'Open saved list',
     },
     {
+      title: 'Destinations',
+      desc: 'City guides — what to do, best time to visit, and ideas you can save as attractions.',
+      href: `/tripcrews/${tripCrewId}/destinations`,
+      cta: 'Browse',
+    },
+    {
       title: 'Find experiences',
       desc: 'Browse by city — concerts, hikes, dining, and attractions.',
       href: `${base}/find`,
@@ -33,11 +39,11 @@ export default function ExperiencesHubPage() {
     <div className="max-w-3xl mx-auto px-6 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Experiences</h1>
       <p className="text-gray-600 mb-8">
-        Start from something you saved, discover new ideas, or add your own. For city-first
-        planning, use <strong className="font-medium text-gray-800">Plan a Trip</strong> in
-        the sidebar.
+        Start from something you saved, a destination guide, or discover new ideas. Use{' '}
+        <strong className="font-medium text-gray-800">Planner</strong> in the sidebar for trip vs
+        season flows.
       </p>
-      <ul className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <li
             key={c.title}

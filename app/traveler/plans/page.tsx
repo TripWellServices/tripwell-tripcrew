@@ -10,6 +10,7 @@ interface PlanSummary {
   id: string
   name: string
   season?: string | null
+  type?: 'TRIP' | 'SEASON'
   tripCrew?: { id: string; name: string | null } | null
   _count: { trips: number; savedExperiences: number }
 }
@@ -158,7 +159,14 @@ export default function TravelerPlansPage() {
               className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">{plan.name}</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-800">{plan.name}</h3>
+                  {plan.type === 'SEASON' && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                      Season
+                    </span>
+                  )}
+                </div>
                 {plan.season && <p className="text-xs text-gray-500 mt-0.5">{plan.season}</p>}
                 <p className="text-xs text-gray-400 mt-1">
                   {plan._count.trips} trip{plan._count.trips !== 1 ? 's' : ''} ·{' '}

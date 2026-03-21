@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
 export const dynamic = 'force-dynamic'
 
-/** List attraction artifacts (reusable). Filter by tripWellEnterpriseId, tripId, or savedByTravelerId. */
+/** List attraction artifacts (reusable). Filter by tripWellEnterpriseId, tripId, travelerId (build scope), or savedByTravelerId. */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const tripWellEnterpriseId = searchParams.get('tripWellEnterpriseId')
     const tripId = searchParams.get('tripId')
+    const travelerId = searchParams.get('travelerId')?.trim()
     const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
+
+    if (travelerId) {
+      const wId = await wishlistIdForTraveler(travelerId)
+      const attractions = await prisma.attraction.findMany({
+        where: {
+          OR: [
+            { savedByTravelerId: travelerId },
+            { createdById: travelerId },
+            ...(wId ? [{ wishlistId: wId }] : []),
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        include: { city: true },
+      })
+      return NextResponse.json({ attractions })
+    }
 
     if (savedByTravelerId) {
       const attractions = await prisma.attraction.findMany({
@@ -45,6 +63,7 @@ export async function POST(request: NextRequest) {
     const {
       tripId,
       tripWellEnterpriseId,
+      cityId,
       title,
       category,
       address,
@@ -71,6 +90,7 @@ export async function POST(request: NextRequest) {
       data: {
         tripId: tripId || null,
         tripWellEnterpriseId: tripWellEnterpriseId || null,
+        cityId: cityId?.trim() || null,
         title: title.trim(),
         category: category?.trim() || null,
         address: address?.trim() || null,

@@ -82,6 +82,15 @@ export function mapWishlistRowToExperienceAnchor(
   }
 }
 
+/** Pre-fill city / open planner from a saved destination guide (City row with citySlug). */
+export interface DestinationPlannerPrefill {
+  whereText: string
+  cityId?: string
+  tagline?: string | null
+  description?: string | null
+  attractionNames?: string[]
+}
+
 export interface ExperienceTripCreatorProps {
   tripCrewId: string
   initialTripId: string | null
@@ -91,6 +100,10 @@ export interface ExperienceTripCreatorProps {
   initialItem?: ExperienceAnchorItem
   /** Destination-first flow (no saved experience). */
   forceCityFlow?: boolean
+  /** When set with forceCityFlow, skip to “refine” step with city context. */
+  destinationPrefill?: DestinationPlannerPrefill
+  /** trip = create crew trip + destination/itinerary; season = top-level SEASON Plan. */
+  planScope?: 'trip' | 'season'
   /** Override default “back” target (default: experiences hub). */
   backHref?: string
 }
@@ -164,6 +177,8 @@ export default function ExperienceTripCreator({
   experienceWishlistId,
   initialItem,
   forceCityFlow = false,
+  destinationPrefill,
+  planScope = 'trip',
   backHref,
 }: ExperienceTripCreatorProps) {
   const router = useRouter()
@@ -251,6 +266,12 @@ export default function ExperienceTripCreator({
     if (!experienceItem || forceCityFlow) return
     setSomething(defaultSomethingFor(experienceItem))
   }, [experienceItem, forceCityFlow])
+
+  useEffect(() => {
+    if (!destinationPrefill?.whereText || !forceCityFlow) return
+    setWhereText(destinationPrefill.whereText)
+    setStep(2)
+  }, [destinationPrefill?.whereText, destinationPrefill?.cityId, forceCityFlow])
 
   useEffect(() => {
     if (!experienceItem || forceCityFlow) {
@@ -360,6 +381,43 @@ export default function ExperienceTripCreator({
   }
 
   const handleSelectRecommendation = async (rec: Recommendation) => {
+    if (planScope === 'season') {
+      const travelerId =
+        typeof window !== 'undefined' ? localStorage.getItem('travelerId') : null
+      if (!travelerId) {
+        setError('Sign in to create a season plan.')
+        return
+      }
+      setSaving(true)
+      setError('')
+      try {
+        const planName = `${rec.name}${rec.state ? `, ${rec.state}` : ''} — season`
+        const planRes = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            travelerId,
+            name: planName,
+            season: 'any',
+            type: 'SEASON',
+            tripCrewId,
+          }),
+        })
+        const planData = await planRes.json().catch(() => ({}))
+        if (!planRes.ok) {
+          throw new Error(planData.error || 'Failed to create season plan')
+        }
+        const pid = planData.plan?.id
+        if (!pid) throw new Error('No plan id returned')
+        router.push(`/traveler/plans/${pid}`)
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to save')
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     const tid = await ensureTrip()
     if (!tid) return
     setSaving(true)
@@ -405,9 +463,32 @@ export default function ExperienceTripCreator({
     setSaving(true)
     setError('')
     try {
+      const title = experienceTitle(experienceItem)
+
+      if (planScope === 'season') {
+        const planRes = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            travelerId,
+            name: `${title} — season`,
+            season: 'any',
+            type: 'SEASON',
+            tripCrewId,
+          }),
+        })
+        const planData = await planRes.json().catch(() => ({}))
+        if (!planRes.ok) {
+          throw new Error(planData.error || 'Failed to create season plan')
+        }
+        const pid = planData.plan?.id
+        if (!pid) throw new Error('No plan id returned')
+        router.push(`/traveler/plans/${pid}`)
+        return
+      }
+
       const start = new Date(`${tripStartDate}T12:00:00`)
       const end = endDateForDuration(start, durationKind)
-      const title = experienceTitle(experienceItem)
       const purposeParts = [`Trip built around: ${title}.`]
       if (whoGoing.trim()) purposeParts.push(`Who: ${whoGoing.trim()}.`)
       if (vibes.trim()) purposeParts.push(`Vibe: ${vibes.trim()}.`)
@@ -456,7 +537,16 @@ export default function ExperienceTripCreator({
     } finally {
       setSaving(false)
     }
-  }, [experienceItem, tripCrewId, tripStartDate, durationKind, whoGoing, vibes, router])
+  }, [
+    experienceItem,
+    tripCrewId,
+    tripStartDate,
+    durationKind,
+    whoGoing,
+    vibes,
+    router,
+    planScope,
+  ])
 
   const landingPath =
     backHref ?? `/tripcrews/${tripCrewId}/experiences`
@@ -512,6 +602,12 @@ export default function ExperienceTripCreator({
             ← Back to experiences
           </button>
         </div>
+
+        {planScope === 'season' && (
+          <p className="mb-4 text-sm font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Season plan — you&apos;ll get a top-level plan to add trips and saved experiences over time.
+          </p>
+        )}
 
         <h1 className="text-2xl font-bold text-gray-800 mb-2">
           {expStep === 1 && 'When and who?'}
@@ -650,7 +746,11 @@ export default function ExperienceTripCreator({
                 disabled={saving}
                 className="flex-1 px-4 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50"
               >
-                {saving ? 'Creating…' : 'Create trip'}
+                {saving
+                  ? 'Creating…'
+                  : planScope === 'season'
+                    ? 'Create season plan'
+                    : 'Create trip'}
               </button>
             </div>
           </div>
@@ -670,6 +770,12 @@ export default function ExperienceTripCreator({
           ← Back to experiences
         </button>
       </div>
+
+      {planScope === 'season' && (
+        <p className="mb-4 text-sm font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Season plan — pick a place; we&apos;ll open a plan bucket for multiple trips and ideas.
+        </p>
+      )}
 
       <h1 className="text-2xl font-bold text-gray-800 mb-2">
         {step === 1 && 'Where would you like to go?'}
@@ -710,6 +816,39 @@ export default function ExperienceTripCreator({
 
       {step === 2 && (
         <div className="space-y-6">
+          {destinationPrefill &&
+            (destinationPrefill.description ||
+              destinationPrefill.tagline ||
+              (destinationPrefill.attractionNames?.length ?? 0) > 0) && (
+              <div className="rounded-xl border border-sky-200 bg-sky-50/80 p-4 space-y-2">
+                {destinationPrefill.tagline ? (
+                  <p className="text-sm font-semibold text-sky-900">{destinationPrefill.tagline}</p>
+                ) : null}
+                {destinationPrefill.description ? (
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {destinationPrefill.description}
+                  </p>
+                ) : null}
+                {destinationPrefill.attractionNames &&
+                destinationPrefill.attractionNames.length > 0 ? (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                      Ideas
+                    </p>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {destinationPrefill.attractionNames.map((n) => (
+                        <li
+                          key={n}
+                          className="text-xs px-2 py-1 rounded-full bg-white border border-sky-200 text-sky-900"
+                        >
+                          {n}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Where are you thinking?
@@ -827,7 +966,11 @@ export default function ExperienceTripCreator({
                 disabled={saving}
                 className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50"
               >
-                {saving ? 'Saving…' : 'Save city & add to trip'}
+                {saving
+                  ? 'Saving…'
+                  : planScope === 'season'
+                    ? 'Create season plan'
+                    : 'Save city & add to trip'}
               </button>
             </div>
           ))}

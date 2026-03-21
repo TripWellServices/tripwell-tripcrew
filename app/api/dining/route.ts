@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
 export const dynamic = 'force-dynamic'
 
-/** List dining artifacts (reusable). Filter by tripWellEnterpriseId, tripId, or savedByTravelerId. */
+/** List dining artifacts (reusable). Filter by tripWellEnterpriseId, tripId, travelerId (build scope), or savedByTravelerId. */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const tripWellEnterpriseId = searchParams.get('tripWellEnterpriseId')
     const tripId = searchParams.get('tripId')
+    const travelerId = searchParams.get('travelerId')?.trim()
     const savedByTravelerId = searchParams.get('savedByTravelerId')?.trim()
+
+    if (travelerId) {
+      const wId = await wishlistIdForTraveler(travelerId)
+      const dining = await prisma.dining.findMany({
+        where: {
+          OR: [
+            { savedByTravelerId: travelerId },
+            { createdById: travelerId },
+            ...(wId ? [{ wishlistId: wId }] : []),
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        include: { city: true },
+      })
+      return NextResponse.json({ dining })
+    }
 
     if (savedByTravelerId) {
       const dining = await prisma.dining.findMany({

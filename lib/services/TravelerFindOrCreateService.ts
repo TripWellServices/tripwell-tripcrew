@@ -7,6 +7,7 @@
  * Pattern matches GoFast's AthleteFindOrCreateService
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ensureWishlistForTraveler } from '@/lib/ensure-wishlist'
 
@@ -58,20 +59,26 @@ export class TravelerFindOrCreateService {
     const firstName = displayName?.split(' ')[0] || null
     const lastName = displayName?.split(' ').slice(1).join(' ') || null
 
-    // Use Prisma upsert for atomic find-or-create
-    // If firebaseId exists, update with Firebase data (sync Firebase profile changes)
-    // If not, create new traveler with Firebase data
-    // ALWAYS ensure tripWellEnterpriseId is set (fixes any orphaned travelers)
+    // Update only fields we actually received (GET hydrate sends firebaseId only — do not null out profile)
+    const updatePayload: Prisma.TravelerUpdateInput = {
+      tripWellEnterprise: { connect: { id: enterpriseId } },
+    }
+    if (email !== undefined && email !== null && String(email).trim() !== '') {
+      updatePayload.email = String(email).trim()
+    }
+    if (displayName != null && String(displayName).trim() !== '') {
+      const dn = String(displayName).trim()
+      updatePayload.firstName = dn.split(' ')[0] || null
+      updatePayload.lastName = dn.split(' ').slice(1).join(' ') || null
+    }
+    if (picture !== undefined) {
+      updatePayload.photoURL =
+        picture && String(picture).trim() ? String(picture).trim() : null
+    }
+
     const traveler = await prisma.traveler.upsert({
       where: { firebaseId },
-      update: {
-        // Upsert all Firebase data - sync any changes from Firebase profile
-        email: email || undefined, // Update email if changed in Firebase
-        firstName, // Update firstName from displayName
-        lastName, // Update lastName from displayName
-        photoURL: picture || null, // Update photoURL from Firebase Google profile
-        tripWellEnterpriseId: enterpriseId, // ALWAYS ensure linked to master container
-      },
+      update: updatePayload,
       create: {
         firebaseId,
         email: email || null,

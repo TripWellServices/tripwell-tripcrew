@@ -27,7 +27,14 @@ export default function PlanDetailPage() {
         <Link href="/traveler/plans" className="text-sm text-sky-600 hover:underline font-medium mb-6 inline-block">
           &larr; Back to My Plans
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">{plan.name}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900">{plan.name}</h1>
+          {plan.type === 'SEASON' && (
+            <span className="text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-amber-100 text-amber-900">
+              Season plan
+            </span>
+          )}
+        </div>
         {plan.season && <p className="text-gray-500 text-sm mt-1">{plan.season}</p>}
         {plan.tripCrew?.name && <p className="text-sky-600 text-sm mt-0.5">Shared with {plan.tripCrew.name}</p>}
 

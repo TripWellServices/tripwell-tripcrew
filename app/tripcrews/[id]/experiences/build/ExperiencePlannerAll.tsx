@@ -108,23 +108,22 @@ export default function ExperiencePlannerAll() {
   useEffect(() => {
     const auth = getFirebaseAuth()
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const storedTravelerId = LocalStorageAPI.getTravelerId()
-        if (storedTravelerId) {
-          setTravelerId(storedTravelerId)
-        } else {
-          try {
-            const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
-            const data = await res.json()
-            const tid = data.traveler?.id ?? null
-            setTravelerId(tid)
-            if (tid) LocalStorageAPI.setFullHydrationModel(data.traveler)
-          } catch {
-            setTravelerId(null)
-          }
-        }
-      } else {
+      if (!user) {
         setTravelerId(null)
+        return
+      }
+      // Always resolve traveler from server so localStorage id matches DB (Build uses travelerId in API queries).
+      try {
+        const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+        const data = await res.json()
+        const tid = data.traveler?.id ?? null
+        setTravelerId(tid)
+        if (tid && data.traveler) {
+          LocalStorageAPI.setTravelerId(tid)
+          LocalStorageAPI.setTraveler(data.traveler)
+        }
+      } catch {
+        setTravelerId(LocalStorageAPI.getTravelerId())
       }
     })
     return () => unsubscribe()
@@ -136,7 +135,7 @@ export default function ExperiencePlannerAll() {
     try {
       let rows: ExperienceWishlistRow[] = []
       if (category === 'hike') {
-        const res = await fetch(`/api/hikes?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const res = await fetch(`/api/hikes?travelerId=${encodeURIComponent(tid)}`)
         const data = await res.json()
         if (!res.ok) {
           setListError(data.error || `API error ${res.status}`)
@@ -156,7 +155,7 @@ export default function ExperiencePlannerAll() {
           },
         }))
       } else if (category === 'concert') {
-        const res = await fetch(`/api/concerts?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const res = await fetch(`/api/concerts?travelerId=${encodeURIComponent(tid)}`)
         const data = await res.json()
         if (!res.ok) {
           setListError(data.error || `API error ${res.status}`)
@@ -176,7 +175,7 @@ export default function ExperiencePlannerAll() {
           },
         }))
       } else if (category === 'dining') {
-        const res = await fetch(`/api/dining?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const res = await fetch(`/api/dining?travelerId=${encodeURIComponent(tid)}`)
         const data = await res.json()
         if (!res.ok) {
           setListError(data.error || `API error ${res.status}`)
@@ -196,7 +195,7 @@ export default function ExperiencePlannerAll() {
           },
         }))
       } else {
-        const res = await fetch(`/api/attractions?savedByTravelerId=${encodeURIComponent(tid)}`)
+        const res = await fetch(`/api/attractions?travelerId=${encodeURIComponent(tid)}`)
         const data = await res.json()
         if (!res.ok) {
           setListError(data.error || `API error ${res.status}`)
