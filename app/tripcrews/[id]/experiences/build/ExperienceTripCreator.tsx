@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { experienceHubPath } from '@/lib/experience-routes'
 
 const REGIONS = [
   'Southeast',
@@ -92,7 +93,8 @@ export interface DestinationPlannerPrefill {
 }
 
 export interface ExperienceTripCreatorProps {
-  tripCrewId: string
+  /** Crew id when planning as a crew; `null` = personal (traveler) trips. */
+  tripCrewId: string | null
   initialTripId: string | null
   /** Catalogue entity id; hydrated via GET /api/wishlist?id=&travelerId=. */
   experienceWishlistId?: string | null
@@ -313,7 +315,17 @@ export default function ExperienceTripCreator({
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/tripcrew/${tripCrewId}/trips`, { method: 'GET' })
+      const travelerId =
+        typeof window !== 'undefined' ? localStorage.getItem('travelerId') : null
+      if (!travelerId) {
+        setError('Sign in to create a trip.')
+        return null
+      }
+
+      const listUrl = tripCrewId
+        ? `/api/tripcrew/${tripCrewId}/trips`
+        : `/api/traveler/trips?travelerId=${encodeURIComponent(travelerId)}`
+      const res = await fetch(listUrl, { method: 'GET' })
       const list = await res.json().catch(() => [])
       const planned = Array.isArray(list)
         ? list.find((t: { status?: string }) => t.status === 'PLANNED')
@@ -322,9 +334,9 @@ export default function ExperienceTripCreator({
         setTripId(planned.id)
         return planned.id
       }
-      const travelerId =
-        typeof window !== 'undefined' ? localStorage.getItem('travelerId') : null
-      const createRes = await fetch(`/api/tripcrew/${tripCrewId}/trips`, {
+
+      const createUrl = tripCrewId ? `/api/tripcrew/${tripCrewId}/trips` : '/api/traveler/trips'
+      const createRes = await fetch(createUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -400,7 +412,7 @@ export default function ExperienceTripCreator({
             name: planName,
             season: 'any',
             type: 'SEASON',
-            tripCrewId,
+            tripCrewId: tripCrewId ?? null,
           }),
         })
         const planData = await planRes.json().catch(() => ({}))
@@ -474,7 +486,7 @@ export default function ExperienceTripCreator({
             name: `${title} — season`,
             season: 'any',
             type: 'SEASON',
-            tripCrewId,
+            tripCrewId: tripCrewId ?? null,
           }),
         })
         const planData = await planRes.json().catch(() => ({}))
@@ -493,7 +505,8 @@ export default function ExperienceTripCreator({
       if (whoGoing.trim()) purposeParts.push(`Who: ${whoGoing.trim()}.`)
       if (vibes.trim()) purposeParts.push(`Vibe: ${vibes.trim()}.`)
 
-      const createRes = await fetch(`/api/tripcrew/${tripCrewId}/trips`, {
+      const createUrl = tripCrewId ? `/api/tripcrew/${tripCrewId}/trips` : '/api/traveler/trips'
+      const createRes = await fetch(createUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -548,8 +561,7 @@ export default function ExperienceTripCreator({
     planScope,
   ])
 
-  const landingPath =
-    backHref ?? `/tripcrews/${tripCrewId}/experiences`
+  const landingPath = backHref ?? experienceHubPath(tripCrewId)
   const backToLanding = () => router.push(landingPath)
 
   if (isExperienceFlow && experienceWishlistId && hydrating) {

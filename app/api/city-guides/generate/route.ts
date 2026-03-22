@@ -7,12 +7,13 @@ import { cityGuideInclude, cityToGuideDto } from '@/lib/city-as-guide-dto'
 
 export const dynamic = 'force-dynamic'
 
-const SYSTEM = `You are a concise travel editor. Given a city, return ONLY valid JSON with this shape:
+const SYSTEM = `You are a concise travel editor. Given a city (and optional region/country), return ONLY valid JSON with this shape:
 {
   "tagline": "one short hook line",
   "description": "2-4 sentences on what to do and why visit",
   "bestTimeToVisit": "when to go (seasons or months, one short phrase)",
-  "attractionNames": ["5-12 short names of things to see/do — no long sentences"]
+  "attractionNames": ["5-12 short names of things to see/do — no long sentences"],
+  "country": "full country name for this exact city (e.g. Italy, United States) — required when the user did not specify a country; disambiguate famous duplicates (Naples → Italy vs Naples, Florida)"
 }
 Rules: real places only; attractionNames are labels the user might save as catalogue items later. No markdown outside JSON.`
 
@@ -28,19 +29,13 @@ async function uniqueCitySlug(name: string, state: string | null, country: strin
 
 /**
  * POST /api/city-guides/generate
- * Body: { cityName, state?, country?, travelerId?, persist?: boolean }
+ * Body: { cityName, state?, country?, travelerId?, persist?: boolean } — if country omitted, AI infers country (disambiguates e.g. Naples).
  * If persist true, upserts City + sets guide fields + citySlug (409 if guide already exists for city).
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const {
-      cityName,
-      state,
-      country = 'USA',
-      travelerId,
-      persist = false,
-    } = body as Record<string, unknown>
+    const { cityName, state, country, travelerId, persist = false } = body as Record<string, unknown>
 
     if (!cityName || typeof cityName !== 'string' || !cityName.trim()) {
       return NextResponse.json({ error: 'cityName is required' }, { status: 400 })
@@ -52,9 +47,12 @@ export async function POST(request: NextRequest) {
     }
 
     const stateVal = typeof state === 'string' && state.trim() ? state.trim() : null
-    const countryStr = typeof country === 'string' && country.trim() ? country.trim() : 'USA'
+    const countryFromUser =
+      typeof country === 'string' && country.trim() ? country.trim() : null
 
-    const placeLabel = `${cityName.trim()}${stateVal ? `, ${stateVal}` : ''}, ${countryStr}`
+    const placeLabel = countryFromUser
+      ? `${cityName.trim()}${stateVal ? `, ${stateVal}` : ''}, ${countryFromUser}`
+      : `${cityName.trim()}${stateVal ? `, ${stateVal}` : ''}`
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -66,7 +64,12 @@ export async function POST(request: NextRequest) {
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: SYSTEM },
-          { role: 'user', content: `Destination: ${placeLabel}` },
+          {
+            role: 'user',
+            content: countryFromUser
+              ? `Destination: ${placeLabel}`
+              : `Destination: ${placeLabel}. The user did not specify a country — infer the correct country for this place and set the "country" field. Disambiguate cities with the same name (e.g. Naples vs Naples, Florida).`,
+          },
         ],
         temperature: 0.5,
         response_format: { type: 'json_object' },
@@ -92,6 +95,7 @@ export async function POST(request: NextRequest) {
       description?: string
       bestTimeToVisit?: string
       attractionNames?: string[]
+      country?: string
     }
     try {
       parsed = JSON.parse(content) as typeof parsed
@@ -109,6 +113,10 @@ export async function POST(request: NextRequest) {
           .map((s) => s.trim())
           .filter(Boolean)
       : []
+
+    const inferredCountry =
+      typeof parsed.country === 'string' && parsed.country.trim() ? parsed.country.trim() : null
+    const countryForDb = countryFromUser ?? inferredCountry ?? 'USA'
 
     if (!description && attractionNames.length === 0) {
       return NextResponse.json({ error: 'AI returned no usable content' }, { status: 502 })
@@ -128,7 +136,7 @@ export async function POST(request: NextRequest) {
     const city = await upsertCityByName({
       name: cityName.trim(),
       state: stateVal,
-      country: countryStr,
+      country: countryForDb,
     })
 
     if (city.citySlug) {

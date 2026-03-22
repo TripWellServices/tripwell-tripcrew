@@ -492,13 +492,13 @@ export default function DiscoverFlow({
                 ...(effectiveCity ? { city: effectiveCity } : {}),
                 ...(effectiveState ? { state: effectiveState } : {}),
               })
-              if (tripCrewId) {
-                qs.set(
-                  'return',
-                  tripId
-                    ? `/trip/${tripId}/discover`
-                    : `/tripcrews/${tripCrewId}/experiences/find`
-                )
+              const findReturn = tripCrewId
+                ? `/tripcrews/${tripCrewId}/experiences/find`
+                : '/traveler/experiences/find'
+              if (tripId) {
+                qs.set('return', `/trip/${tripId}/discover`)
+              } else {
+                qs.set('return', findReturn)
               }
               const base = tripCrewId
                 ? `/tripcrews/${tripCrewId}/hikes/new`

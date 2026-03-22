@@ -119,10 +119,8 @@ export default function TravelCockpitPage() {
     return all
   }, [tripCrews])
 
-  const firstCrewId = tripCrews.length === 1 ? tripCrews[0].id : null
-
-  const navLink = (href: string, label: string) => {
-    const active = pathname === href
+  const navLink = (href: string, label: string, prefixMatch = false) => {
+    const active = prefixMatch ? pathname === href || pathname.startsWith(`${href}/`) : pathname === href
     return (
       <Link
         href={href}
@@ -170,16 +168,13 @@ export default function TravelCockpitPage() {
         <nav className="p-2 flex-1 space-y-0.5">
           {navLink('/home', 'Dashboard')}
           {navLink('/traveler/plans', 'My Plans')}
-          {firstCrewId ? (
-            <Link
-              href={`/tripcrews/${firstCrewId}/experiences`}
-              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
-            >
-              Add experiences
-            </Link>
-          ) : (
-            navLink('/tripcrews', 'Add experiences')
-          )}
+          {navLink('/traveler/destinations', 'Destinations', true)}
+          <Link
+            href="/traveler/experiences"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
+          >
+            Experiences
+          </Link>
           {navLink('/tripcrews', 'Crews')}
         </nav>
         <div className="p-2 border-t border-gray-100">
@@ -258,21 +253,12 @@ export default function TravelCockpitPage() {
               <p className="text-gray-500 text-sm mt-1 flex-1">
                 Pick from your list or start from a city or event.
               </p>
-              {firstCrewId ? (
-                <Link
-                  href={`/tripcrews/${firstCrewId}/experiences`}
-                  className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition w-fit"
-                >
-                  Start a trip
-                </Link>
-              ) : (
-                <Link
-                  href="/tripcrews"
-                  className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition w-fit"
-                >
-                  Open a crew
-                </Link>
-              )}
+              <Link
+                href="/traveler/experiences"
+                className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition w-fit"
+              >
+                Start a trip
+              </Link>
             </section>
           </div>
         </div>

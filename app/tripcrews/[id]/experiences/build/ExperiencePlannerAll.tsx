@@ -6,8 +6,8 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { experiencePaths } from '@/lib/experience-routes'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -92,11 +92,16 @@ const CATEGORY_CARDS: {
   { key: 'attraction', label: 'Attractions', icon: '🏛️', blurb: 'Things to see and do' },
 ]
 
-export default function ExperiencePlannerAll() {
-  const params = useParams()
-  const tripCrewId = params.id as string
+export default function ExperiencePlannerAll({
+  tripCrewId,
+}: {
+  tripCrewId: string | null
+}) {
+  const paths = experiencePaths(tripCrewId)
 
   const [travelerId, setTravelerId] = useState<string | null>(null)
+  /** Avoid flashing “Sign in” while Firebase + hydrate are still resolving */
+  const [authStatus, setAuthStatus] = useState<'pending' | 'signedOut' | 'signedIn'>('pending')
   const [phase, setPhase] = useState<'categories' | 'items'>('categories')
   const [activeCategory, setActiveCategory] = useState<CategoryKey | null>(null)
   const [savedRows, setSavedRows] = useState<ExperienceWishlistRow[]>([])
@@ -109,9 +114,11 @@ export default function ExperiencePlannerAll() {
     const auth = getFirebaseAuth()
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
+        setAuthStatus('signedOut')
         setTravelerId(null)
         return
       }
+      setAuthStatus('signedIn')
       // Always resolve traveler from server so localStorage id matches DB (Build uses travelerId in API queries).
       try {
         const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
@@ -255,7 +262,7 @@ export default function ExperiencePlannerAll() {
         tripCrewId={tripCrewId}
         initialTripId={null}
         initialItem={selectedInitialItem}
-        backHref={`/tripcrews/${tripCrewId}/experiences/build`}
+        backHref={paths.build}
       />
     )
   }
@@ -267,7 +274,7 @@ export default function ExperiencePlannerAll() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Build from saved</h1>
           <p className="text-gray-600">
             Choose a category, then pick something you saved. Use{' '}
-            <Link href={`/tripcrews/${tripCrewId}/wishlist`} className="text-sky-600 font-medium hover:underline">
+            <Link href={paths.wishlist} className="text-sky-600 font-medium hover:underline">
               My Wishlist
             </Link>{' '}
             to see everything in one place.
@@ -275,13 +282,13 @@ export default function ExperiencePlannerAll() {
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Link
-            href={`/tripcrews/${tripCrewId}/experiences/find`}
+            href={paths.find}
             className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 text-sm font-medium hover:bg-gray-50"
           >
             Find experiences
           </Link>
           <Link
-            href={`/tripcrews/${tripCrewId}/experiences/enter`}
+            href={paths.enter}
             className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
           >
             Enter an experience
@@ -289,9 +296,22 @@ export default function ExperiencePlannerAll() {
         </div>
       </div>
 
-      {!travelerId && (
+      {authStatus === 'pending' && (
+        <p className="text-gray-500 text-sm mb-6">Checking sign-in…</p>
+      )}
+
+      {authStatus === 'signedOut' && (
         <p className="text-amber-800 text-sm bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
-          Sign in to build from saved experiences.
+          Sign in to build from saved experiences.{' '}
+          <Link href="/signin" className="font-medium text-amber-900 underline">
+            Sign in
+          </Link>
+        </p>
+      )}
+
+      {authStatus === 'signedIn' && !travelerId && (
+        <p className="text-gray-600 text-sm bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-6">
+          Loading your TripWell account…
         </p>
       )}
 
@@ -369,7 +389,7 @@ export default function ExperiencePlannerAll() {
             <div className="text-center py-12 border border-dashed border-gray-200 rounded-xl bg-gray-50">
               <p className="text-sm text-gray-600 mb-3">Nothing saved in this category yet.</p>
               <Link
-                href={`/tripcrews/${tripCrewId}/experiences/find`}
+                href={paths.find}
                 className="text-sm text-sky-600 font-medium hover:underline"
               >
                 Find experiences →

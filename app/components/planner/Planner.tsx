@@ -5,11 +5,10 @@ import ExperienceTripCreator, {
   type DestinationPlannerPrefill,
   type ExperienceAnchorItem,
 } from '@/app/tripcrews/[id]/experiences/build/ExperienceTripCreator'
-
 export type PlannerPlanScope = 'trip' | 'season'
 
 export interface PlannerProps {
-  tripCrewId: string
+  tripCrewId: string | null
   /** trip = crew trip + destinations; season = SEASON plan container */
   planScope: PlannerPlanScope
   backHref?: string
@@ -101,7 +100,10 @@ export default function Planner({
     return (
       <div className="max-w-lg mx-auto px-4 py-10 space-y-3">
         <p className="text-sm text-red-700">{slugError}</p>
-        <a href={backHref ?? `/tripcrews/${tripCrewId}`} className="text-sky-600 text-sm hover:underline">
+        <a
+          href={backHref ?? (tripCrewId ? `/tripcrews/${tripCrewId}` : '/home')}
+          className="text-sky-600 text-sm hover:underline"
+        >
           ← Back
         </a>
       </div>

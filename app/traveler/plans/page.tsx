@@ -20,10 +20,6 @@ export default function TravelerPlansPage() {
   const [travelerId, setTravelerId] = useState<string | null>(null)
   const [plans, setPlans] = useState<PlanSummary[]>([])
   const [loading, setLoading] = useState(true)
-  const [showNewPlan, setShowNewPlan] = useState(false)
-  const [newPlanName, setNewPlanName] = useState('')
-  const [newPlanSeason, setNewPlanSeason] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -55,32 +51,6 @@ export default function TravelerPlansPage() {
       .finally(() => setLoading(false))
   }, [travelerId])
 
-  async function createPlan() {
-    if (!travelerId || !newPlanName.trim()) return
-    setSubmitting(true)
-    try {
-      const res = await fetch('/api/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          travelerId,
-          name: newPlanName.trim(),
-          season: newPlanSeason.trim() || undefined,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setPlans((prev) => [data.plan, ...prev])
-      setShowNewPlan(false)
-      setNewPlanName('')
-      setNewPlanSeason('')
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   if (loading && !travelerId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -100,57 +70,33 @@ export default function TravelerPlansPage() {
           Plans group your trips and saved experiences. Add experiences first, then start a trip from your list — or create a plan to organize ideas.
         </p>
         <p className="text-sm text-gray-600 mb-8">
-          For full planning nav (Add experiences, Start a trip, My Plans in one place), open a crew and use My Plans there.
+          Start trips, seasons, or scratch details from the{' '}
+          <Link href="/traveler/plan" className="text-sky-600 font-medium hover:underline">
+            Planner
+          </Link>
+          . Browse{' '}
+          <Link href="/traveler/destinations" className="text-sky-600 font-medium hover:underline">
+            Destinations
+          </Link>{' '}
+          or{' '}
+          <Link href="/traveler/experiences" className="text-sky-600 font-medium hover:underline">
+            Experiences
+          </Link>{' '}
+          for ideas. Open a crew when you want shared planning.
         </p>
 
         <div className="space-y-4">
-          {showNewPlan ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">New plan</h2>
-              <input
-                type="text"
-                placeholder="Plan name"
-                value={newPlanName}
-                onChange={(e) => setNewPlanName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-sky-400"
-              />
-              <input
-                type="text"
-                placeholder="Season (optional)"
-                value={newPlanSeason}
-                onChange={(e) => setNewPlanSeason(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-sky-400"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowNewPlan(false); setNewPlanName(''); setNewPlanSeason('') }}
-                  className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={createPlan}
-                  disabled={submitting || !newPlanName.trim()}
-                  className="px-3 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Creating…' : 'Create'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowNewPlan(true)}
-              className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-sky-400 hover:text-sky-600 text-sm font-medium"
-            >
-              + New plan
-            </button>
-          )}
+          <Link
+            href="/traveler/plan"
+            className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-sky-400 hover:text-sky-600 text-sm font-medium"
+          >
+            + Start from Planner
+          </Link>
 
-          {plans.length === 0 && !showNewPlan && (
-            <p className="text-sm text-gray-500 text-center py-8">No plans yet. Create one to get started.</p>
+          {plans.length === 0 && (
+            <p className="text-sm text-gray-500 text-center py-8">
+              No saved plans yet. Use the Planner to create a trip or season bucket.
+            </p>
           )}
 
           {plans.map((plan) => (
