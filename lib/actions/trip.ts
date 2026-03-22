@@ -1,7 +1,5 @@
 /**
  * Trip Server Actions
- * 
- * Server actions for Trip operations
  */
 
 'use server'
@@ -9,106 +7,136 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { computeTripMetadata } from '@/lib/trip/computeTripMetadata'
-import { TripCategory, TripStatus, TripType } from '@prisma/client'
+import { seedTripDays } from '@/lib/trip/seedTripDays'
+import { TripType } from '@prisma/client'
 
-/**
- * Upsert Trip (Create or Update)
- * Creates or updates a trip with computed metadata
- * Only members can create/update trips
- */
 export async function upsertTrip(data: {
   id?: string
   crewId: string
-  tripName: string
+  /** @deprecated use purpose — kept for form compatibility */
+  tripName?: string
   purpose?: string
-  categories?: TripCategory[]
   city?: string
   state?: string
   country?: string
   startDate: Date
   endDate?: Date
-  travelerId: string // For security check
-  status?: TripStatus
+  travelerId: string
   tripType?: TripType
-  suggestedStops?: string
+  whoWith?: import('@prisma/client').WhoWith
+  transportMode?: import('@prisma/client').TransportMode
+  startingLocation?: string
 }) {
   try {
-    const { id, crewId, tripName, purpose, categories, city, state, country, startDate, travelerId, status, tripType, suggestedStops } = data
+    const {
+      id,
+      crewId,
+      tripName,
+      purpose,
+      city,
+      state,
+      country,
+      startDate,
+      travelerId,
+      tripType,
+      whoWith,
+      transportMode,
+      startingLocation,
+    } = data
 
-    const resolvedTripType = tripType ?? TripType.VACATION
-    // Day trips use the same date for start and end
-    const endDate = resolvedTripType === TripType.DAY_TRIP ? startDate : data.endDate
+    const resolvedTripType = tripType ?? TripType.MULTI_DAY
+    const endDate = resolvedTripType === TripType.SINGLE_DAY ? startDate : data.endDate
 
-    // Validation
-    if (!tripName.trim()) {
-      throw new Error('Trip name is required')
-    }
-    if (resolvedTripType === TripType.VACATION) {
-      if (!purpose?.trim()) {
-        throw new Error('Purpose is required')
-      }
+    const resolvedPurpose =
+      purpose?.trim() || tripName?.trim() || 'Trip'
+
+    if (resolvedTripType === TripType.MULTI_DAY) {
       if (!city?.trim()) {
         throw new Error('City is required')
       }
       if (!country?.trim()) {
         throw new Error('Country is required')
       }
-      if (!endDate || startDate >= endDate) {
-        throw new Error('End date must be after start date')
+      if (!endDate || startDate > endDate) {
+        throw new Error('End date must be on or after start date')
       }
     }
 
-    // Verify traveler is a member
     const membership = await prisma.tripCrewMember.findFirst({
-      where: {
-        tripCrewId: crewId,
-        travelerId,
-      },
+      where: { tripCrewId: crewId, travelerId },
     })
-
     if (!membership) {
       throw new Error('Not a member of this TripCrew')
     }
 
-    // Compute metadata
-    const { daysTotal, dateRange, season } = computeTripMetadata(startDate, endDate ?? startDate)
+    const { daysTotal, season } = computeTripMetadata(startDate, endDate ?? startDate)
 
-    // Upsert trip (city/state/country optional for lean + Destination flow)
-    const trip = await prisma.trip.upsert({
-      where: { id: id ?? 'none' },
-      create: {
-        crewId,
-        tripName: tripName.trim(),
-        purpose: purpose?.trim() || tripName.trim(),
-        categories: categories || [],
-        city: city?.trim() || '',
-        state: state?.trim() || null,
-        country: country?.trim() || '',
+    const traveler = await prisma.traveler.findUnique({ where: { id: travelerId } })
+
+    if (id) {
+      const trip = await prisma.$transaction(async (tx) => {
+        const updated = await tx.trip.update({
+          where: { id },
+          data: {
+            purpose: resolvedPurpose,
+            city: city?.trim() || null,
+            state: state?.trim() || null,
+            country: country?.trim() || null,
+            startDate,
+            endDate: endDate ?? startDate,
+            daysTotal,
+            season,
+            tripType: resolvedTripType,
+            whoWith: whoWith ?? undefined,
+            transportMode: transportMode ?? undefined,
+            startingLocation: startingLocation?.trim() || traveler?.homeAddress || null,
+            travelerId,
+          },
+        })
+        await tx.tripDay.deleteMany({ where: { tripId: id } })
+        await seedTripDays(tx, {
+          tripId: id,
+          startDate,
+          endDate: endDate ?? startDate,
+          dayStartTime: traveler?.defaultDayStartTime,
+          dayEndTime: traveler?.defaultDayEndTime,
+        })
+        return updated
+      })
+
+      revalidatePath(`/tripcrews/${crewId}`)
+      revalidatePath(`/trip/${trip.id}`)
+      revalidatePath(`/trip/${trip.id}/admin`)
+      return { success: true, trip }
+    }
+
+    const trip = await prisma.$transaction(async (tx) => {
+      const created = await tx.trip.create({
+        data: {
+          crewId,
+          travelerId,
+          purpose: resolvedPurpose,
+          city: city?.trim() || null,
+          state: state?.trim() || null,
+          country: country?.trim() || null,
+          startDate,
+          endDate: endDate ?? startDate,
+          daysTotal,
+          season,
+          tripType: resolvedTripType,
+          whoWith: whoWith ?? null,
+          transportMode: transportMode ?? null,
+          startingLocation: startingLocation?.trim() || traveler?.homeAddress || null,
+        },
+      })
+      await seedTripDays(tx, {
+        tripId: created.id,
         startDate,
         endDate: endDate ?? startDate,
-        daysTotal,
-        dateRange,
-        season,
-        tripType: resolvedTripType,
-        status: status ?? TripStatus.CONFIRMED,
-        suggestedStops: suggestedStops?.trim() || null,
-      },
-      update: {
-        tripName: tripName.trim(),
-        purpose: purpose?.trim() || tripName.trim(),
-        categories: categories || [],
-        city: city?.trim() || '',
-        state: state?.trim() || null,
-        country: country?.trim() || '',
-        startDate,
-        endDate: endDate ?? startDate,
-        daysTotal,
-        dateRange,
-        season,
-        tripType: resolvedTripType,
-        ...(status !== undefined && { status }),
-        ...(suggestedStops !== undefined && { suggestedStops: suggestedStops?.trim() || null }),
-      },
+        dayStartTime: traveler?.defaultDayStartTime,
+        dayEndTime: traveler?.defaultDayEndTime,
+      })
+      return created
     })
 
     revalidatePath(`/tripcrews/${crewId}`)
@@ -116,17 +144,13 @@ export async function upsertTrip(data: {
     revalidatePath(`/trip/${trip.id}/admin`)
 
     return { success: true, trip }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Upsert Trip error:', error)
-    return { success: false, error: error.message || 'Failed to upsert trip' }
+    const message = error instanceof Error ? error.message : 'Failed to upsert trip'
+    return { success: false, error: message }
   }
 }
 
-/**
- * Get Trip by ID (standard, safe, parent-aware hydration)
- * Standard Prisma query with explicit tripId filtering
- * No travelerId required - access control handled at page level
- */
 export async function getTrip(tripId: string) {
   try {
     const trip = await prisma.trip.findUnique({
@@ -152,22 +176,18 @@ export async function getTrip(tripId: string) {
           orderBy: { order: 'asc' },
           include: { city: true },
         },
-        itineraryItems: {
-          orderBy: [{ date: 'asc' }, { day: 'asc' }, { createdAt: 'asc' }],
+        tripDays: {
+          orderBy: { dayNumber: 'asc' },
           include: {
-            destination: { include: { city: true } },
-            lodging: true,
-            dining: true,
-            attraction: true,
-            concert: true,
-            hike: true,
-            stuffToDo: true,
-            suggestedBy: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                photoURL: true,
+            experiences: {
+              orderBy: { orderIndex: 'asc' },
+              include: {
+                hike: true,
+                dining: true,
+                attraction: true,
+                concert: true,
+                sport: true,
+                adventure: true,
               },
             },
           },
@@ -197,9 +217,9 @@ export async function getTrip(tripId: string) {
     }
 
     return { success: true, trip }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get Trip error:', error)
-    return { success: false, error: error.message || 'Failed to get trip' }
+    const message = error instanceof Error ? error.message : 'Failed to get trip'
+    return { success: false, error: message }
   }
 }
-

@@ -1,38 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PlanType, TripStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { computeTripMetadata } from '@/lib/trip/computeTripMetadata'
+import {
+  computeTripMetadata,
+  tripDateRangeLabel,
+  tripDisplayTitle,
+} from '@/lib/trip/computeTripMetadata'
+import { seedTripDays } from '@/lib/trip/seedTripDays'
+import { TripType } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
-const PERSONAL_PLANNING_NAME = 'Personal planning'
-
-async function getOrCreatePersonalPlanningPlan(travelerId: string) {
-  let plan = await prisma.plan.findFirst({
-    where: {
-      travelerId,
-      tripCrewId: null,
-      type: PlanType.TRIP,
-      name: PERSONAL_PLANNING_NAME,
-    },
-  })
-  if (!plan) {
-    plan = await prisma.plan.create({
-      data: {
-        travelerId,
-        name: PERSONAL_PLANNING_NAME,
-        tripCrewId: null,
-        type: PlanType.TRIP,
-      },
-    })
-  }
-  return plan
-}
+type AnchorType = 'concert' | 'hike' | 'dining' | 'attraction'
 
 /**
  * GET /api/traveler/trips?travelerId=
- * - Default: personal trips (no crew) under “Personal planning” plan.
- * - scope=all: all trips the traveler can see (own plans + crews they belong to), ordered by startDate.
+ * - Default: trips owned by traveler (travelerId) with no crew.
+ * - scope=all: trips where traveler owns OR is member of trip's crew.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -55,8 +38,8 @@ export async function GET(request: NextRequest) {
       })
       const crewIds = memberships.map((m) => m.tripCrewId)
 
-      const orFilters: Array<{ plan: { travelerId: string } } | { crewId: { in: string[] } }> = [
-        { plan: { travelerId } },
+      const orFilters: Array<{ travelerId: string } | { crewId: { in: string[] } }> = [
+        { travelerId },
       ]
       if (crewIds.length > 0) {
         orFilters.push({ crewId: { in: crewIds } })
@@ -67,40 +50,37 @@ export async function GET(request: NextRequest) {
         orderBy: { startDate: 'asc' },
         include: {
           crew: { select: { id: true, name: true } },
-          plan: { select: { id: true, name: true, tripCrewId: true } },
           _count: {
-            select: { destinations: true, itineraryItems: true },
+            select: { destinations: true, tripDays: true },
           },
         },
       })
 
-      return NextResponse.json(trips)
-    }
-
-    const plans = await prisma.plan.findMany({
-      where: {
-        travelerId,
-        tripCrewId: null,
-        type: PlanType.TRIP,
-        name: PERSONAL_PLANNING_NAME,
-      },
-      select: { id: true },
-    })
-    const planIds = plans.map((p) => p.id)
-    if (planIds.length === 0) {
-      return NextResponse.json([])
+      return NextResponse.json(
+        trips.map((t) => ({
+          ...t,
+          tripName: tripDisplayTitle(t.purpose),
+          dateRange: tripDateRangeLabel(t.startDate, t.endDate),
+        }))
+      )
     }
 
     const trips = await prisma.trip.findMany({
-      where: { crewId: null, planId: { in: planIds } },
+      where: { crewId: null, travelerId },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
-          select: { destinations: true, itineraryItems: true },
+          select: { destinations: true, tripDays: true },
         },
       },
     })
-    return NextResponse.json(trips)
+    return NextResponse.json(
+      trips.map((t) => ({
+        ...t,
+        tripName: tripDisplayTitle(t.purpose),
+        dateRange: tripDateRangeLabel(t.startDate, t.endDate),
+      }))
+    )
   } catch (error) {
     console.error('Traveler trips list error:', error)
     return NextResponse.json({ error: 'Failed to list trips' }, { status: 500 })
@@ -109,8 +89,11 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/traveler/trips
- * Body matches crew trips: createPlanned, tripName?, purpose?, travelerId, startDate?, endDate?
- * Creates Trip with crewId null, linked to Personal planning plan.
+ * Body:
+ * - createPlanned: true — minimal planning trip (optional dates default +7d)
+ * - travelerId (required)
+ * - tripName?, purpose?, startDate?, endDate?
+ * - OR anchor fork: concertId | hikeId | diningId | attractionId (exactly one) + optional crewId
  */
 export async function POST(request: NextRequest) {
   try {
@@ -122,6 +105,11 @@ export async function POST(request: NextRequest) {
       travelerId,
       startDate: startDateRaw,
       endDate: endDateRaw,
+      crewId: bodyCrewId,
+      concertId,
+      hikeId,
+      diningId,
+      attractionId,
     } = body as {
       createPlanned?: boolean
       tripName?: string
@@ -129,14 +117,13 @@ export async function POST(request: NextRequest) {
       travelerId?: string
       startDate?: string
       endDate?: string
+      crewId?: string | null
+      concertId?: string
+      hikeId?: string
+      diningId?: string
+      attractionId?: string
     }
 
-    if (!createPlanned) {
-      return NextResponse.json(
-        { error: 'Use createPlanned: true for planning wizard trips.' },
-        { status: 400 }
-      )
-    }
     if (!travelerId) {
       return NextResponse.json({ error: 'travelerId is required' }, { status: 400 })
     }
@@ -146,7 +133,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Traveler not found' }, { status: 404 })
     }
 
-    const plan = await getOrCreatePersonalPlanningPlan(travelerId)
+    const anchorId = concertId || hikeId || diningId || attractionId
+    let anchorType: AnchorType | null = null
+    if (concertId) anchorType = 'concert'
+    else if (hikeId) anchorType = 'hike'
+    else if (diningId) anchorType = 'dining'
+    else if (attractionId) anchorType = 'attraction'
 
     let start: Date
     let end: Date
@@ -164,23 +156,107 @@ export async function POST(request: NextRequest) {
       end = new Date()
       end.setDate(end.getDate() + 7)
     }
-    const { daysTotal, dateRange, season } = computeTripMetadata(start, end)
 
-    const trip = await prisma.trip.create({
-      data: {
-        crewId: null,
-        planId: plan.id,
-        tripName: (tripName || 'Planning').trim(),
-        purpose: (purpose || 'Planning our trip').trim(),
-        status: TripStatus.PLANNED,
+    const { daysTotal, season } = computeTripMetadata(start, end)
+    const sameCalendarDay =
+      start.getFullYear() === end.getFullYear() &&
+      start.getMonth() === end.getMonth() &&
+      start.getDate() === end.getDate()
+    const tripType = sameCalendarDay ? TripType.SINGLE_DAY : TripType.MULTI_DAY
+
+    let anchorTitle = (tripName?.trim() || 'Trip') as string
+    if (anchorType && anchorId) {
+      if (anchorType === 'concert') {
+        const c = await prisma.concert.findUnique({ where: { id: anchorId } })
+        if (c) anchorTitle = c.name
+      } else if (anchorType === 'hike') {
+        const h = await prisma.hike.findUnique({ where: { id: anchorId } })
+        if (h) anchorTitle = h.name
+      } else if (anchorType === 'dining') {
+        const d = await prisma.dining.findUnique({ where: { id: anchorId } })
+        if (d) anchorTitle = d.title
+      } else if (anchorType === 'attraction') {
+        const a = await prisma.attraction.findUnique({ where: { id: anchorId } })
+        if (a) anchorTitle = a.title
+      }
+    }
+
+    const tn = tripName?.trim()
+    const pr = purpose?.trim()
+    let purposeFinal = ''
+    if (tn && pr) purposeFinal = `${tn}. ${pr}`
+    else purposeFinal = pr || tn || ''
+    if (!purposeFinal) {
+      purposeFinal = createPlanned ? 'Planning our trip' : `Built around ${anchorTitle}`
+    }
+
+    const crewId = bodyCrewId ?? null
+    if (crewId) {
+      const m = await prisma.tripCrewMember.findFirst({
+        where: { tripCrewId: crewId, travelerId },
+      })
+      if (!m) {
+        return NextResponse.json({ error: 'Not a member of this TripCrew' }, { status: 403 })
+      }
+    }
+
+    const trip = await prisma.$transaction(async (tx) => {
+      const t = await tx.trip.create({
+        data: {
+          crewId,
+          travelerId,
+          purpose: purposeFinal,
+          startDate: start,
+          endDate: end,
+          daysTotal,
+          season,
+          tripType,
+          startingLocation: traveler.homeAddress,
+        },
+      })
+      await seedTripDays(tx, {
+        tripId: t.id,
         startDate: start,
         endDate: end,
-        daysTotal,
-        dateRange,
-        season,
+        dayStartTime: traveler.defaultDayStartTime,
+        dayEndTime: traveler.defaultDayEndTime,
+      })
+
+      if (anchorType && anchorId) {
+        const firstDay = await tx.tripDay.findFirst({
+          where: { tripId: t.id, dayNumber: 1 },
+        })
+        if (firstDay) {
+          await tx.tripDayExperience.create({
+            data: {
+              tripDayId: firstDay.id,
+              orderIndex: 0,
+              concertId: concertId || null,
+              hikeId: hikeId || null,
+              diningId: diningId || null,
+              attractionId: attractionId || null,
+            },
+          })
+        }
+      }
+      return t
+    })
+
+    const created = await prisma.trip.findUnique({
+      where: { id: trip.id },
+      include: {
+        tripDays: {
+          orderBy: { dayNumber: 'asc' },
+          include: {
+            experiences: {
+              include: { concert: true, hike: true, dining: true, attraction: true },
+            },
+          },
+        },
       },
     })
-    return NextResponse.json({ trip, id: trip.id })
+
+    return NextResponse.json({ trip: created, id: trip.id }, { status: 201 })
   } catch (error) {
     console.error('Traveler trip create error:', error)
     return NextResponse.json({ error: 'Failed to create trip' }, { status: 500 })

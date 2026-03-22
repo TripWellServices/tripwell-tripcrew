@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTrip } from '@/lib/actions/trip'
+import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 import TripNav from '@/app/components/trip/TripNav'
 
 export const dynamic = 'force-dynamic'
@@ -21,12 +22,13 @@ export default async function TripLayout({ children, params }: LayoutProps) {
   const crewId = trip.crew?.id ?? ''
   const crewName = trip.crew?.name ?? 'Crew'
   const hasCrew = Boolean(crewId)
+  const tripTitle = tripDisplayTitle(trip.purpose)
   const destinationLine =
     trip.city && trip.country
       ? trip.state
         ? `${trip.city}, ${trip.state}, ${trip.country}`
         : `${trip.city}, ${trip.country}`
-      : trip.dateRange ?? ''
+      : tripDateRangeLabel(trip.startDate, trip.endDate)
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -44,8 +46,8 @@ export default async function TripLayout({ children, params }: LayoutProps) {
               ← Calendar
             </Link>
           )}
-          <h1 className="text-lg font-bold text-gray-900 mt-2 truncate" title={trip.tripName}>
-            {trip.tripName}
+          <h1 className="text-lg font-bold text-gray-900 mt-2 truncate" title={tripTitle}>
+            {tripTitle}
           </h1>
           {destinationLine && (
             <p className="text-xs text-gray-500 mt-0.5 truncate" title={destinationLine}>

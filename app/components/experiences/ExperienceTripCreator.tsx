@@ -102,7 +102,7 @@ export interface ExperienceTripCreatorProps {
   forceCityFlow?: boolean
   /** When set with forceCityFlow, skip to “refine” step with city context. */
   destinationPrefill?: DestinationPlannerPrefill
-  /** trip = create crew trip + destination/itinerary; season = top-level SEASON Plan. */
+  /** trip = anchored trip + destination; season = open-ended trip with season-style purpose (no anchor). */
   planScope?: 'trip' | 'season'
   /** Override default “back” target (default: experiences hub). */
   backHref?: string
@@ -319,17 +319,6 @@ export default function ExperienceTripCreator({
         return null
       }
 
-      const listUrl = `/api/traveler/trips?travelerId=${encodeURIComponent(travelerId)}`
-      const res = await fetch(listUrl, { method: 'GET' })
-      const list = await res.json().catch(() => [])
-      const planned = Array.isArray(list)
-        ? list.find((t: { status?: string }) => t.status === 'PLANNED')
-        : null
-      if (planned?.id) {
-        setTripId(planned.id)
-        return planned.id
-      }
-
       const createRes = await fetch('/api/traveler/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -391,31 +380,29 @@ export default function ExperienceTripCreator({
       const travelerId =
         typeof window !== 'undefined' ? localStorage.getItem('travelerId') : null
       if (!travelerId) {
-        setError('Sign in to create a season plan.')
+        setError('Sign in to create a season trip.')
         return
       }
       setSaving(true)
       setError('')
       try {
-        const planName = `${rec.name}${rec.state ? `, ${rec.state}` : ''} — season`
-        const planRes = await fetch('/api/plan', {
+        const placeLabel = `${rec.name}${rec.state ? `, ${rec.state}` : ''} — ${rec.country}`
+        const tripRes = await fetch('/api/traveler/trips', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            createPlanned: true,
             travelerId,
-            name: planName,
-            season: 'any',
-            type: 'SEASON',
-            tripCrewId: null,
+            purpose: `Season exploration: ${placeLabel}.`,
           }),
         })
-        const planData = await planRes.json().catch(() => ({}))
-        if (!planRes.ok) {
-          throw new Error(planData.error || 'Failed to create season plan')
+        const tripData = await tripRes.json().catch(() => ({}))
+        if (!tripRes.ok) {
+          throw new Error(tripData.error || 'Failed to create trip')
         }
-        const pid = planData.plan?.id
-        if (!pid) throw new Error('No plan id returned')
-        router.push(`/calendar/${pid}`)
+        const tid = tripData.trip?.id || tripData.id
+        if (!tid) throw new Error('No trip id returned')
+        router.push(`/trip/${tid}`)
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to save')
       } finally {
@@ -472,24 +459,29 @@ export default function ExperienceTripCreator({
       const title = experienceTitle(experienceItem)
 
       if (planScope === 'season') {
-        const planRes = await fetch('/api/plan', {
+        const start = new Date(`${tripStartDate}T12:00:00`)
+        const end = endDateForDuration(start, durationKind)
+        const purposeParts = [`Season exploration around: ${title}.`]
+        if (whoGoing.trim()) purposeParts.push(`Who: ${whoGoing.trim()}.`)
+        if (vibes.trim()) purposeParts.push(`Vibe: ${vibes.trim()}.`)
+        const seasonRes = await fetch('/api/traveler/trips', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            createPlanned: true,
             travelerId,
-            name: `${title} — season`,
-            season: 'any',
-            type: 'SEASON',
-            tripCrewId: null,
+            purpose: purposeParts.join(' '),
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
           }),
         })
-        const planData = await planRes.json().catch(() => ({}))
-        if (!planRes.ok) {
-          throw new Error(planData.error || 'Failed to create season plan')
+        const seasonData = await seasonRes.json().catch(() => ({}))
+        if (!seasonRes.ok) {
+          throw new Error(seasonData.error || 'Failed to create trip')
         }
-        const pid = planData.plan?.id
-        if (!pid) throw new Error('No plan id returned')
-        router.push(`/calendar/${pid}`)
+        const sid = seasonData.trip?.id || seasonData.id
+        if (!sid) throw new Error('No trip id returned')
+        router.push(`/trip/${sid}`)
         return
       }
 
@@ -609,7 +601,7 @@ export default function ExperienceTripCreator({
 
         {planScope === 'season' && (
           <p className="mb-4 text-sm font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Season plan — you&apos;ll get a top-level plan to add trips and saved experiences over time.
+            Season-style trip — we&apos;ll create a dated trip you can fill with destinations and experiences over time.
           </p>
         )}
 
@@ -753,7 +745,7 @@ export default function ExperienceTripCreator({
                 {saving
                   ? 'Creating…'
                   : planScope === 'season'
-                    ? 'Create season plan'
+                    ? 'Create season trip'
                     : 'Create trip'}
               </button>
             </div>
@@ -777,7 +769,7 @@ export default function ExperienceTripCreator({
 
       {planScope === 'season' && (
         <p className="mb-4 text-sm font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Season plan — pick a place; we&apos;ll open a plan bucket for multiple trips and ideas.
+          Season-style trip — pick a place; we&apos;ll start a trip you can extend with more destinations and ideas.
         </p>
       )}
 
@@ -973,7 +965,7 @@ export default function ExperienceTripCreator({
                 {saving
                   ? 'Saving…'
                   : planScope === 'season'
-                    ? 'Create season plan'
+                    ? 'Create season trip'
                     : 'Save city & add to trip'}
               </button>
             </div>

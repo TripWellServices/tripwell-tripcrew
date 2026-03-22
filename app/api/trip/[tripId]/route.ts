@@ -17,21 +17,18 @@ export async function GET(
           orderBy: { order: 'asc' },
           include: { city: true },
         },
-        itineraryItems: {
-          orderBy: [{ date: 'asc' }, { day: 'asc' }, { createdAt: 'asc' }],
+        tripDays: {
+          orderBy: { dayNumber: 'asc' },
           include: {
-            destination: { include: { city: true } },
-            lodging: true,
-            dining: true,
-            attraction: true,
-            stuffToDo: true,
-            concert: true,
-            suggestedBy: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                photoURL: true,
+            experiences: {
+              orderBy: { orderIndex: 'asc' },
+              include: {
+                dining: true,
+                attraction: true,
+                concert: true,
+                hike: true,
+                sport: true,
+                adventure: true,
               },
             },
           },
@@ -63,17 +60,12 @@ export async function GET(
     return NextResponse.json(trip)
   } catch (error) {
     console.error('Trip fetch error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch trip' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch trip' }, { status: 500 })
   }
 }
 
 /**
- * PATCH /api/trip/[tripId]
- * Body: { travelerId: string, crewId: string | null }
- * Assign trip to a TripCrew (or clear to personal) when the traveler is allowed to edit the trip.
+ * PATCH: assign trip to crew or clear. traveler must own trip or belong to crew.
  */
 export async function PATCH(
   request: NextRequest,
@@ -90,16 +82,13 @@ export async function PATCH(
 
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
-      include: {
-        plan: { select: { travelerId: true } },
-      },
     })
 
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
     }
 
-    const ownsViaPlan = trip.plan?.travelerId === travelerId
+    const ownsTrip = trip.travelerId === travelerId
     let memberOfTripCrew = false
     if (trip.crewId) {
       const m = await prisma.tripCrewMember.findFirst({
@@ -108,7 +97,7 @@ export async function PATCH(
       memberOfTripCrew = Boolean(m)
     }
 
-    if (!ownsViaPlan && !memberOfTripCrew) {
+    if (!ownsTrip && !memberOfTripCrew) {
       return NextResponse.json({ error: 'Not allowed to update this trip' }, { status: 403 })
     }
 
@@ -138,4 +127,3 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update trip' }, { status: 500 })
   }
 }
-

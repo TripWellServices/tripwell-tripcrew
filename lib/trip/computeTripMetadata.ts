@@ -30,3 +30,18 @@ export function computeTripMetadata(startDate: Date, endDate: Date) {
   return { daysTotal, dateRange, season }
 }
 
+/** Trip model persists daysTotal + season only; dateRange is optional for UI. */
+export function tripPersistedMetadata(startDate: Date, endDate: Date) {
+  const { daysTotal, season } = computeTripMetadata(startDate, endDate)
+  return { daysTotal, season }
+}
+
+export function tripDisplayTitle(purpose: string | null | undefined) {
+  const t = purpose?.trim()
+  return t || 'Trip'
+}
+
+export function tripDateRangeLabel(startDate: Date | string, endDate: Date | string) {
+  return computeTripMetadata(new Date(startDate), new Date(endDate)).dateRange
+}
+

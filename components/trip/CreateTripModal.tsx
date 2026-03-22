@@ -11,7 +11,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { upsertTrip } from '@/lib/actions/trip'
-import { TripCategory, TripType } from '@prisma/client'
+import { TripType } from '@prisma/client'
 
 interface CreateTripModalProps {
   tripCrew: {
@@ -22,19 +22,6 @@ interface CreateTripModalProps {
 }
 
 type Step = 'picker' | 'daytrip' | 'vacation'
-
-const TRIP_CATEGORIES: { value: TripCategory; label: string }[] = [
-  { value: 'FAMILY', label: 'Family' },
-  { value: 'RELAXATION', label: 'Relaxation' },
-  { value: 'BEACH', label: 'Beach' },
-  { value: 'HOLIDAY', label: 'Holiday' },
-  { value: 'ROMANTIC', label: 'Romantic' },
-  { value: 'ADVENTURE', label: 'Adventure' },
-  { value: 'EVENT', label: 'Event' },
-  { value: 'CITY', label: 'City' },
-  { value: 'KIDS', label: 'Kids' },
-  { value: 'FOOD', label: 'Food' },
-]
 
 const COUNTRIES = [
   'United States', 'Canada', 'Mexico', 'United Kingdom', 'France', 'Italy', 'Spain',
@@ -50,8 +37,6 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
   const [step, setStep] = useState<Step>('picker')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showVibes, setShowVibes] = useState(false)
-
   // Day Trip form state
   const [dayTripData, setDayTripData] = useState({
     tripName: '',
@@ -63,21 +48,11 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
   const [vacationData, setVacationData] = useState({
     tripName: '',
     purpose: '',
-    categories: [] as TripCategory[],
     city: '',
     country: '',
     startDate: '',
     endDate: '',
   })
-
-  const toggleCategory = (category: TripCategory) => {
-    setVacationData((prev) => ({
-      ...prev,
-      categories: prev.categories.includes(category)
-        ? prev.categories.filter((c) => c !== category)
-        : [...prev.categories, category],
-    }))
-  }
 
   const handleDayTripSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,7 +76,7 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
         tripName: dayTripData.tripName.trim(),
         city: dayTripData.where.trim() || undefined,
         startDate: new Date(dayTripData.date),
-        tripType: TripType.DAY_TRIP,
+        tripType: TripType.SINGLE_DAY,
         travelerId,
       })
 
@@ -160,16 +135,17 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
     }
 
     try {
+      const purposeCombined = [vacationData.tripName.trim(), vacationData.purpose.trim()]
+        .filter(Boolean)
+        .join(' — ')
       const result = await upsertTrip({
         crewId: tripCrew.id,
-        tripName: vacationData.tripName.trim(),
-        purpose: vacationData.purpose.trim(),
-        categories: vacationData.categories.length > 0 ? vacationData.categories : undefined,
+        purpose: purposeCombined,
         city: vacationData.city.trim(),
         country: vacationData.country.trim(),
         startDate: new Date(vacationData.startDate),
         endDate: new Date(vacationData.endDate),
-        tripType: TripType.VACATION,
+        tripType: TripType.MULTI_DAY,
         travelerId,
       })
 
@@ -399,49 +375,6 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 />
               </div>
-            </div>
-
-            {/* Vibe Tags — collapsed by default */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowVibes((v) => !v)}
-                className="flex items-center gap-1.5 text-sm text-sky-600 hover:text-sky-800 font-medium transition"
-              >
-                <svg
-                  className={`w-4 h-4 transition-transform ${showVibes ? 'rotate-90' : ''}`}
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                {showVibes ? 'Hide vibe tags' : 'Add vibe tags'}
-                {vacationData.categories.length > 0 && (
-                  <span className="ml-1 bg-sky-100 text-sky-700 text-xs px-2 py-0.5 rounded-full">
-                    {vacationData.categories.length}
-                  </span>
-                )}
-              </button>
-              {showVibes && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {TRIP_CATEGORIES.map((cat) => {
-                    const isSelected = vacationData.categories.includes(cat.value)
-                    return (
-                      <button
-                        key={cat.value}
-                        type="button"
-                        onClick={() => toggleCategory(cat.value)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                          isSelected
-                            ? 'bg-sky-600 text-white hover:bg-sky-700'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {cat.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-2 border-t">

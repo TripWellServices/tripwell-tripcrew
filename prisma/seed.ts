@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, TripType } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -47,7 +47,7 @@ async function main() {
   // Check if trip already exists
   const existingTrip = await prisma.trip.findFirst({
     where: {
-      tripName: 'Cole Family Thanksgiving',
+      purpose: 'Cole Family Thanksgiving',
       crewId: tripCrew.id,
     },
   })
@@ -59,25 +59,27 @@ async function main() {
   const { computeTripMetadata } = await import('../lib/trip/computeTripMetadata')
   const metadata = computeTripMetadata(startDate, endDate)
 
-  const trip = existingTrip || await prisma.trip.create({
-    data: {
-      tripName: 'Cole Family Thanksgiving',
-      purpose: 'Thanksgiving',
-      city: 'Richlands',
-      state: 'VA',
-      country: 'USA',
-      crewId: tripCrew.id,
-      startDate,
-      endDate,
-      daysTotal: metadata.daysTotal,
-      dateRange: metadata.dateRange,
-      season: metadata.season,
-    },
-  })
+  const trip =
+    existingTrip ||
+    (await prisma.trip.create({
+      data: {
+        travelerId: owner.id,
+        purpose: 'Cole Family Thanksgiving',
+        tripType: TripType.MULTI_DAY,
+        city: 'Richlands',
+        state: 'VA',
+        country: 'USA',
+        crewId: tripCrew.id,
+        startDate,
+        endDate,
+        daysTotal: metadata.daysTotal,
+        season: metadata.season,
+      },
+    }))
 
   console.log('✅ Seeded TripCrew:', tripCrew.id)
   console.log('✅ Seeded trip:', trip.id)
-  console.log('📍 Trip name:', trip.tripName)
+  console.log('📍 Trip purpose:', trip.purpose)
   console.log('👤 Owner:', owner.firstName, owner.lastName)
   console.log('\n🌐 View TripCrew at:')
   console.log(`   http://localhost:3000/tripcrew/${tripCrew.id}`)

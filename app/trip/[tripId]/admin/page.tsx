@@ -8,6 +8,7 @@ import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
 import ItineraryCard from '@/app/components/trip/ItineraryCard'
 import { getTrip } from '@/lib/actions/trip'
+import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,9 @@ export default async function AdminPage({ params }: PageProps) {
     redirect('/')
   }
 
+  const title = tripDisplayTitle(trip.purpose)
+  const dateRangeLabel = tripDateRangeLabel(trip.startDate, trip.endDate)
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded-lg">
@@ -45,7 +49,7 @@ export default async function AdminPage({ params }: PageProps) {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
-              <h1 className="text-4xl font-bold text-gray-800 mb-2">{trip.tripName}</h1>
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">{title}</h1>
               <p className="text-xl text-gray-600 mb-4">
                 📍 {trip.city}{trip.state ? `, ${trip.state}` : ''}, {trip.country}
               </p>
@@ -55,20 +59,6 @@ export default async function AdminPage({ params }: PageProps) {
                 <p className="text-lg text-gray-700 mb-4">
                   <span className="font-semibold">Purpose:</span> {trip.purpose}
                 </p>
-              )}
-
-              {/* Categories */}
-              {trip.categories && trip.categories.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {trip.categories.map((category) => (
-                    <span
-                      key={category}
-                      className="px-3 py-1 bg-sky-100 text-sky-800 rounded-full text-sm font-medium"
-                    >
-                      {category}
-                    </span>
-                  ))}
-                </div>
               )}
 
               {/* Computed Metadata */}
@@ -85,12 +75,7 @@ export default async function AdminPage({ params }: PageProps) {
                 )}
               </div>
 
-              {/* Date Range (computed) */}
-              {trip.dateRange && (
-                <p className="text-gray-600 mb-4">
-                  📅 {trip.dateRange}
-                </p>
-              )}
+              <p className="text-gray-600 mb-4">📅 {dateRangeLabel}</p>
             </div>
           </div>
         </div>

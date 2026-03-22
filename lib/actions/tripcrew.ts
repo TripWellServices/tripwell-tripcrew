@@ -8,6 +8,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 import { revalidatePath } from 'next/cache'
 import { appConfig } from '@/config/appConfig'
 
@@ -214,7 +215,16 @@ export async function getTripCrew(tripCrewId: string, travelerId: string) {
       throw new Error('TripCrew not found')
     }
 
-    return { success: true, tripCrew }
+    const withUiTrips = {
+      ...tripCrew,
+      trips: tripCrew.trips.map((t) => ({
+        ...t,
+        tripName: tripDisplayTitle(t.purpose),
+        dateRange: tripDateRangeLabel(t.startDate, t.endDate),
+      })),
+    }
+
+    return { success: true, tripCrew: withUiTrips }
   } catch (error: any) {
     console.error('Get TripCrew error:', error)
     return { success: false, error: error.message || 'Failed to get TripCrew' }
@@ -236,11 +246,10 @@ export async function getTravelerTripCrews(travelerId: string) {
               take: 3, // Latest 3 trips
               select: {
                 id: true,
-                tripName: true,
+                purpose: true,
                 city: true,
                 state: true,
                 country: true,
-                dateRange: true,
                 startDate: true,
                 endDate: true,
               },
@@ -259,7 +268,17 @@ export async function getTravelerTripCrews(travelerId: string) {
 
     return {
       success: true,
-      tripCrews: memberships.map((m) => m.tripCrew),
+      tripCrews: memberships.map((m) => {
+        const crew = m.tripCrew
+        return {
+          ...crew,
+          trips: crew.trips.map((t) => ({
+            ...t,
+            tripName: tripDisplayTitle(t.purpose),
+            dateRange: tripDateRangeLabel(t.startDate, t.endDate),
+          })),
+        }
+      }),
     }
   } catch (error: any) {
     console.error('Get Traveler TripCrews error:', error)

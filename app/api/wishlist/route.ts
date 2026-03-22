@@ -207,12 +207,12 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/wishlist
- * Body: { travelerId, title (ignored for display; entities carry names), concertId? | hikeId? | diningId? | attractionId?, notes?, planId? }
+ * Body: { travelerId, title (ignored for display; entities carry names), concertId? | hikeId? | diningId? | attractionId?, notes? }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { travelerId, concertId, hikeId, diningId, attractionId, planId } = body as Record<
+    const { travelerId, concertId, hikeId, diningId, attractionId } = body as Record<
       string,
       string | undefined
     >
@@ -231,20 +231,10 @@ export async function POST(request: NextRequest) {
     }
 
     const wishlist = await ensureWishlistForTraveler(tid)
-    const planIdVal = planId?.trim() || null
-    if (planIdVal) {
-      const plan = await prisma.plan.findFirst({
-        where: { id: planIdVal, travelerId: tid },
-      })
-      if (!plan) {
-        return NextResponse.json({ error: 'planId not found for this traveler' }, { status: 400 })
-      }
-    }
 
     const patch = {
       wishlistId: wishlist.id,
       savedByTravelerId: tid,
-      savedPlanId: planIdVal,
     }
 
     if (hikeId) {
@@ -266,7 +256,6 @@ export async function POST(request: NextRequest) {
       const data: {
         wishlistId: string
         savedByTravelerId: string
-        savedPlanId: string | null
         createdById?: string
       } = { ...patch }
       if (!existing.createdById) {
@@ -307,7 +296,6 @@ export async function POST(request: NextRequest) {
       const data: {
         wishlistId: string
         savedByTravelerId: string
-        savedPlanId: string | null
         createdById?: string
       } = { ...patch }
       if (!existing.createdById) {
@@ -348,7 +336,6 @@ export async function POST(request: NextRequest) {
       const data: {
         wishlistId: string
         savedByTravelerId: string
-        savedPlanId: string | null
         createdById?: string
       } = { ...patch }
       if (!existing.createdById) {
@@ -389,7 +376,6 @@ export async function POST(request: NextRequest) {
     const data: {
       wishlistId: string
       savedByTravelerId: string
-      savedPlanId: string | null
       createdById?: string
     } = { ...patch }
     if (!existing.createdById) {
@@ -441,7 +427,6 @@ export async function DELETE(request: NextRequest) {
     const clear = {
       wishlistId: null,
       savedByTravelerId: null,
-      savedPlanId: null,
     }
 
     const wId = wishlist.id

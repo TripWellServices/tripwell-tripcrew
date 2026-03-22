@@ -8,6 +8,7 @@ import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
 import ItineraryCard from '@/app/components/trip/ItineraryCard'
 import { getTrip } from '@/lib/actions/trip'
+import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +31,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
         <TripHeader
-          name={trip.tripName}
+          name={tripDisplayTitle(trip.purpose)}
           destination={trip.state ? `${trip.city}, ${trip.state}, ${trip.country}` : `${trip.city}, ${trip.country}`}
           startDate={trip.startDate}
           endDate={trip.endDate}

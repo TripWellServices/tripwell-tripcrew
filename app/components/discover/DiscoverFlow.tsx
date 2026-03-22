@@ -43,13 +43,6 @@ interface Suggestion {
   durationMin?: number
 }
 
-interface PlanSummary {
-  id: string
-  name: string
-  season?: string | null
-  _count?: { trips: number; savedExperiences?: number }
-}
-
 interface DiscoverFlowProps {
   /** Pre-set city (in-trip mode). If omitted, user types city in React state. */
   defaultCity?: string
@@ -133,15 +126,8 @@ export default function DiscoverFlow({
   const [itineraryingId, setItineraryingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ id: string; message: string; ok: boolean } | null>(null)
 
-  // Build a trip (anchor fork)
   const [buildTripItem, setBuildTripItem] = useState<{ item: CatalogueItem; type: DiscoverType } | null>(null)
-  const [plans, setPlans] = useState<PlanSummary[]>([])
-  const [plansLoading, setPlansLoading] = useState(false)
-  const [buildTripPlanId, setBuildTripPlanId] = useState<string>('')
-  const [buildTripNewPlanName, setBuildTripNewPlanName] = useState('')
-  const [buildTripScope, setBuildTripScope] = useState<'local' | 'travel'>('travel')
   const [buildTripSubmitting, setBuildTripSubmitting] = useState(false)
-  const [buildTripCreatedTripId, setBuildTripCreatedTripId] = useState<string | null>(null)
 
   const inTripMode = Boolean(defaultCity)
   const effectiveCity = inTripMode ? defaultCity! : committedCity
@@ -154,59 +140,22 @@ export default function DiscoverFlow({
     setTimeout(() => setFeedback(null), 3000)
   }
 
-  // ── Build a trip: when modal opens, fetch plans and pre-fill tripScope ───────
-  useEffect(() => {
-    if (!buildTripItem || !travelerId) return
-    setPlansLoading(true)
-    fetch(`/api/plan?travelerId=${travelerId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setPlans(data.plans ?? [])
-        const first = data.plans?.[0]
-        if (first) setBuildTripPlanId(first.id)
-        else setBuildTripPlanId('')
-      })
-      .finally(() => setPlansLoading(false))
-    const itemCity = effectiveCity?.toLowerCase() ?? ''
-    const home = [hometownCity, homeState].filter(Boolean).join(', ').toLowerCase()
-    const isLocal = home && itemCity && (itemCity.includes(home) || home.includes(itemCity))
-    setBuildTripScope(isLocal ? 'local' : 'travel')
-  }, [buildTripItem, travelerId, effectiveCity, hometownCity, homeState])
-
   async function submitBuildTrip() {
     if (!buildTripItem || !travelerId || !activeType) return
     setBuildTripSubmitting(true)
     try {
-      let planId = buildTripPlanId
-      if (buildTripNewPlanName.trim()) {
-        const createRes = await fetch('/api/plan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            travelerId,
-            name: buildTripNewPlanName.trim(),
-          }),
-        })
-        const createData = await createRes.json()
-        if (!createRes.ok) throw new Error(createData.error)
-        planId = createData.plan.id
-      }
-      if (!planId) throw new Error('Pick or create a plan')
-      const body: Record<string, string> = {
-        tripScope: buildTripScope,
-      }
+      const body: Record<string, string> = { travelerId }
       if (activeType === 'concert') body.concertId = buildTripItem.item.id
       else if (activeType === 'hike') body.hikeId = buildTripItem.item.id
       else if (activeType === 'dining') body.diningId = buildTripItem.item.id
       else if (activeType === 'attraction') body.attractionId = buildTripItem.item.id
-      const res = await fetch(`/api/plan/${planId}/trips`, {
+      const res = await fetch('/api/traveler/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setBuildTripCreatedTripId(data.trip?.id)
       setBuildTripItem(null)
       if (data.trip?.id) router.push(`/trip/${data.trip.id}/admin`)
     } catch (e) {
@@ -672,68 +621,9 @@ export default function DiscoverFlow({
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900">Build a trip around this</h3>
             <p className="text-sm text-gray-600">{itemDisplayName(buildTripItem.item)}</p>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Plan</label>
-              {plansLoading ? (
-                <p className="text-sm text-gray-400">Loading plans…</p>
-              ) : (
-                <>
-                  <select
-                    value={buildTripNewPlanName ? '' : buildTripPlanId}
-                    onChange={(e) => {
-                      setBuildTripPlanId(e.target.value)
-                      setBuildTripNewPlanName('')
-                    }}
-                    disabled={!!buildTripNewPlanName.trim()}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  >
-                    <option value="">New plan…</option>
-                    {plans.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} {p._count ? `(${p._count.trips} trips)` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {(!buildTripPlanId || buildTripNewPlanName) && (
-                    <input
-                      type="text"
-                      placeholder="New plan name"
-                      value={buildTripNewPlanName}
-                      onChange={(e) => {
-                        setBuildTripNewPlanName(e.target.value)
-                        if (e.target.value.trim()) setBuildTripPlanId('')
-                      }}
-                      className="mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    />
-                  )}
-                </>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Scope</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tripScope"
-                    checked={buildTripScope === 'local'}
-                    onChange={() => setBuildTripScope('local')}
-                  />
-                  <span className="text-sm">Local</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tripScope"
-                    checked={buildTripScope === 'travel'}
-                    onChange={() => setBuildTripScope('travel')}
-                  />
-                  <span className="text-sm">Travel</span>
-                </label>
-              </div>
-            </div>
+            <p className="text-xs text-gray-500">
+              Creates a personal trip on your account with this experience on day 1. Adjust dates in the trip admin.
+            </p>
 
             <div className="flex gap-2 pt-2">
               <button
@@ -747,7 +637,7 @@ export default function DiscoverFlow({
               <button
                 type="button"
                 onClick={submitBuildTrip}
-                disabled={buildTripSubmitting || (!buildTripPlanId && !buildTripNewPlanName.trim())}
+                disabled={buildTripSubmitting}
                 className="flex-1 px-3 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50"
               >
                 {buildTripSubmitting ? 'Creating…' : 'Create trip'}

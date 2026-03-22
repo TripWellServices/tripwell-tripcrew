@@ -21,12 +21,10 @@ export default async function TripPlanPage({ params }: PageProps) {
     notFound()
   }
 
-  const itineraryConcerts = (trip.itineraryItems ?? []).filter(
-    (item: { concertId?: string | null }) => item.concertId
-  )
-  const itineraryHikes = (trip.itineraryItems ?? []).filter(
-    (item: { hikeId?: string | null }) => item.hikeId
-  )
+  const allExperiences =
+    trip.tripDays?.flatMap((d) => d.experiences ?? []) ?? []
+  const itineraryConcerts = allExperiences.filter((e) => e.concertId)
+  const itineraryHikes = allExperiences.filter((e) => e.hikeId)
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -94,7 +92,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             <ul className="space-y-2">
               {itineraryConcerts.map((item) => (
                 <li key={item.id} className="text-gray-700">
-                  {item.concert?.name ?? item.title}
+                  {item.concert?.name ?? 'Concert'}
                   {item.concert?.artist && ` · ${item.concert.artist}`}
                   {item.concert?.venue && ` @ ${item.concert.venue}`}
                 </li>
@@ -114,7 +112,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             <ul className="space-y-2">
               {itineraryHikes.map((item) => (
                 <li key={item.id} className="text-gray-700">
-                  {item.hike?.name ?? item.title}
+                  {item.hike?.name ?? 'Hike'}
                   {item.hike?.trailOrPlace && ` — ${item.hike.trailOrPlace}`}
                   {item.hike?.difficulty && ` (${item.hike.difficulty})`}
                 </li>

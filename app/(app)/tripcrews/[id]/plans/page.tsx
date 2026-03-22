@@ -6,24 +6,22 @@ import Link from 'next/link'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 
-interface PlanSummary {
+interface TripRow {
   id: string
-  name: string
-  season?: string | null
-  type?: 'TRIP' | 'SEASON'
-  tripCrew?: { id: string; name: string | null } | null
-  _count: { trips: number; savedExperiences: number }
+  purpose: string
+  startDate: string
+  endDate: string
+  _count?: { destinations: number; tripDays: number }
 }
 
-export default function CrewPlansPage() {
+export default function CrewTripsPage() {
   const params = useParams()
   const tripCrewId = params.id as string
   const [travelerId, setTravelerId] = useState<string | null>(null)
-  const [plans, setPlans] = useState<PlanSummary[]>([])
+  const [trips, setTrips] = useState<TripRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [showNewPlan, setShowNewPlan] = useState(false)
-  const [newPlanName, setNewPlanName] = useState('')
-  const [newPlanSeason, setNewPlanSeason] = useState('')
+  const [showNew, setShowNew] = useState(false)
+  const [purpose, setPurpose] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -45,36 +43,35 @@ export default function CrewPlansPage() {
   }, [])
 
   useEffect(() => {
-    if (!travelerId) {
-      setLoading(false)
-      return
-    }
+    if (!tripCrewId) return
     setLoading(true)
-    fetch(`/api/plan?travelerId=${travelerId}`)
+    fetch(`/api/tripcrew/${tripCrewId}/trips`)
       .then((r) => r.json())
-      .then((data) => setPlans(data.plans ?? []))
+      .then((data) => setTrips(Array.isArray(data) ? data : []))
+      .catch(() => setTrips([]))
       .finally(() => setLoading(false))
-  }, [travelerId])
+  }, [tripCrewId])
 
-  async function createPlan() {
-    if (!travelerId || !newPlanName.trim()) return
+  async function createTrip() {
+    if (!travelerId || !tripCrewId) return
     setSubmitting(true)
     try {
-      const res = await fetch('/api/plan', {
+      const res = await fetch(`/api/tripcrew/${tripCrewId}/trips`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          createPlanned: true,
           travelerId,
-          name: newPlanName.trim(),
-          season: newPlanSeason.trim() || undefined,
+          purpose: purpose.trim() || undefined,
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setPlans((prev) => [data.plan, ...prev])
-      setShowNewPlan(false)
-      setNewPlanName('')
-      setNewPlanSeason('')
+      if (!res.ok) throw new Error(data.error || 'Failed to create trip')
+      const listRes = await fetch(`/api/tripcrew/${tripCrewId}/trips`)
+      const list = await listRes.json().catch(() => [])
+      setTrips(Array.isArray(list) ? list : [])
+      setShowNew(false)
+      setPurpose('')
     } catch (e) {
       console.error(e)
     } finally {
@@ -82,109 +79,103 @@ export default function CrewPlansPage() {
     }
   }
 
-  if (loading && !travelerId) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <p className="text-gray-500">Loading…</p>
-      </div>
-    )
+  function formatRange(start: string, end: string) {
+    try {
+      const s = new Date(start)
+      const e = new Date(end)
+      const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+      return `${s.toLocaleDateString(undefined, opts)} – ${e.toLocaleDateString(undefined, opts)}`
+    } catch {
+      return ''
+    }
   }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">My Plans</h1>
-      <p className="text-gray-500 text-sm mb-4">
-        Plans group your trips and saved experiences. Add experiences first, then start a trip from your list — or create a plan to organize ideas.
-      </p>
-      <p className="text-sm text-gray-600 mb-8">
-        <Link href="/experiences" className="text-sky-600 hover:underline">
-          Experiences
-        </Link>
-        {' · '}
-        <Link href="/experiences/find" className="text-sky-600 hover:underline">
-          Find experiences
-        </Link>
+      <Link
+        href={`/tripcrews/${tripCrewId}`}
+        className="text-sm text-sky-600 hover:underline font-medium mb-4 inline-block"
+      >
+        ← Back to crew
+      </Link>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Crew trips</h1>
+      <p className="text-gray-500 text-sm mb-6">
+        Trips for this crew. Open one to plan days and experiences.
       </p>
 
       <div className="space-y-4">
-        {showNewPlan ? (
+        {showNew ? (
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">New plan</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">New trip</h2>
             <input
               type="text"
-              placeholder="Plan name"
-              value={newPlanName}
-              onChange={(e) => setNewPlanName(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-sky-400"
-            />
-            <input
-              type="text"
-              placeholder="Season (optional)"
-              value={newPlanSeason}
-              onChange={(e) => setNewPlanSeason(e.target.value)}
+              placeholder="What you’re planning (optional)"
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-sky-400"
             />
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => { setShowNewPlan(false); setNewPlanName(''); setNewPlanSeason('') }}
+                onClick={() => {
+                  setShowNew(false)
+                  setPurpose('')
+                }}
                 className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={createPlan}
-                disabled={submitting || !newPlanName.trim()}
+                onClick={createTrip}
+                disabled={submitting || !travelerId}
                 className="px-3 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50"
               >
                 {submitting ? 'Creating…' : 'Create'}
               </button>
             </div>
+            {!travelerId && (
+              <p className="text-xs text-amber-700 mt-2">Sign in to create a trip.</p>
+            )}
           </div>
         ) : (
           <button
             type="button"
-            onClick={() => setShowNewPlan(true)}
+            onClick={() => setShowNew(true)}
             className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-sky-400 hover:text-sky-600 text-sm font-medium"
           >
-            + New plan
+            + New trip
           </button>
         )}
 
-        {plans.length === 0 && !showNewPlan && (
-          <p className="text-sm text-gray-500 text-center py-8">No plans yet. Create one to get started.</p>
+        {loading && <p className="text-sm text-gray-500 text-center py-8">Loading…</p>}
+        {!loading && trips.length === 0 && !showNew && (
+          <p className="text-sm text-gray-500 text-center py-8">No trips yet. Create one to get started.</p>
         )}
 
-        {plans.map((plan) => (
+        {trips.map((trip) => (
           <div
-            key={plan.id}
+            key={trip.id}
             className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
           >
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-lg font-semibold text-gray-800">{plan.name}</h3>
-                {plan.type === 'SEASON' && (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                    Season
-                  </span>
-                )}
-              </div>
-              {plan.season && <p className="text-xs text-gray-500 mt-0.5">{plan.season}</p>}
-              <p className="text-xs text-gray-400 mt-1">
-                {plan._count.trips} trip{plan._count.trips !== 1 ? 's' : ''} ·{' '}
-                {plan._count.savedExperiences} saved
-              </p>
-              {plan.tripCrew?.name && (
-                <p className="text-xs text-sky-600 mt-0.5">Shared with {plan.tripCrew.name}</p>
+              <h3 className="text-lg font-semibold text-gray-800">
+                {trip.purpose?.trim() || 'Trip'}
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">{formatRange(trip.startDate, trip.endDate)}</p>
+              {trip._count && (
+                <p className="text-xs text-gray-400 mt-1">
+                  {trip._count.tripDays} day{trip._count.tripDays !== 1 ? 's' : ''} ·{' '}
+                  {trip._count.destinations} destination{trip._count.destinations !== 1 ? 's' : ''}
+                </p>
               )}
             </div>
             <div className="flex gap-2 shrink-0">
               <Link
-                href={`/calendar/${plan.id}`}
+                href={`/trip/${trip.id}`}
                 className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
               >
-                View
+                Open
               </Link>
             </div>
           </div>
