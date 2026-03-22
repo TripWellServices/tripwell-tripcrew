@@ -8,8 +8,8 @@ import { LocalStorageAPI } from '@/lib/localStorage'
 import DiscoverFlow from '@/app/components/discover/DiscoverFlow'
 import { experiencePaths } from '@/lib/experience-routes'
 
-export default function ExperiencesFindClient({ tripCrewId }: { tripCrewId: string | null }) {
-  const paths = experiencePaths(tripCrewId)
+export default function ExperiencesFindClient() {
+  const paths = experiencePaths()
   const [travelerId, setTravelerId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function ExperiencesFindClient({ tripCrewId }: { tripCrewId: stri
       <p className="text-gray-500 text-sm mb-8">
         Pick a city, then explore concerts, hikes, dining, and attractions to save.
       </p>
-      <DiscoverFlow travelerId={travelerId} tripCrewId={tripCrewId} />
+      <DiscoverFlow travelerId={travelerId} />
     </div>
   )
 }

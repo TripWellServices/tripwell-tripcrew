@@ -8,18 +8,20 @@ import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
 import ItineraryCard from '@/app/components/trip/ItineraryCard'
 import { getTrip } from '@/lib/actions/trip'
+import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
 
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  params: { tripId: string }
+  params: Promise<{ tripId: string }>
 }
 
 export default async function AdminPage({ params }: PageProps) {
+  const { tripId } = await params
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
 
   // Use server action for safe hydration
-  const { success, trip, error } = await getTrip(params.tripId)
+  const { success, trip, error } = await getTrip(tripId)
 
   if (!success || !trip) {
     redirect('/')
@@ -29,6 +31,14 @@ export default async function AdminPage({ params }: PageProps) {
     <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded-lg">
           <p className="text-yellow-800 font-semibold">🔧 Admin Mode Active</p>
+        </div>
+
+        <div className="mb-6">
+          <SendToTripCrew
+            tripId={trip.id}
+            currentCrewId={trip.crewId ?? null}
+            currentCrewName={trip.crew?.name ?? null}
+          />
         </div>
 
         {/* Trip Header with Full Metadata */}

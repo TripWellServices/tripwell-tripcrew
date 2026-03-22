@@ -34,17 +34,14 @@ export default async function TripLayout({ children, params }: LayoutProps) {
         <div className="p-4 border-b border-gray-200">
           {hasCrew ? (
             <Link
-              href={`/tripcrews/${crewId}/plans`}
+              href={`/tripcrews/${crewId}`}
               className="text-sm text-sky-600 hover:underline font-medium"
             >
-              ← Back to My Plans
+              ← {crewName}
             </Link>
           ) : (
-            <Link
-              href="/traveler/plans"
-              className="text-sm text-sky-600 hover:underline font-medium"
-            >
-              ← Back to My Plans
+            <Link href="/calendar" className="text-sm text-sky-600 hover:underline font-medium">
+              ← Calendar
             </Link>
           )}
           <h1 className="text-lg font-bold text-gray-900 mt-2 truncate" title={trip.tripName}>

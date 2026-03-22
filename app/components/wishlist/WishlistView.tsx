@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import ExperienceTripCreator from '@/app/tripcrews/[id]/experiences/build/ExperienceTripCreator'
+import ExperienceTripCreator from '@/app/components/experiences/ExperienceTripCreator'
 import { experiencePaths } from '@/lib/experience-routes'
 
 interface ExperienceWishlistRow {
@@ -26,8 +26,8 @@ interface ExperienceWishlistRow {
   attraction?: { id: string; title?: string | null; cityId: string | null } | null
 }
 
-export default function WishlistView({ tripCrewId }: { tripCrewId: string | null }) {
-  const paths = experiencePaths(tripCrewId)
+export default function WishlistView({ wishlistBackHref = '/wishlist' }: { wishlistBackHref?: string }) {
+  const paths = experiencePaths()
 
   const [travelerId, setTravelerId] = useState<string | null>(null)
   const [wishlistItems, setWishlistItems] = useState<ExperienceWishlistRow[]>([])
@@ -120,10 +120,9 @@ export default function WishlistView({ tripCrewId }: { tripCrewId: string | null
           ← Back to saved list
         </button>
         <ExperienceTripCreator
-          tripCrewId={tripCrewId}
           initialTripId={null}
           experienceWishlistId={selectedExperienceWishlistId}
-          backHref={paths.wishlist}
+          backHref={wishlistBackHref}
         />
       </div>
     )

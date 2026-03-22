@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { LocalStorageAPI } from '@/lib/localStorage'
-import { experiencePaths, withPromoteToCrew } from '@/lib/experience-routes'
+import { experiencePaths } from '@/lib/experience-routes'
 
 type GuideDetail = {
   id: string
@@ -18,15 +17,8 @@ type GuideDetail = {
   city: { id: string; name: string; state: string | null; country: string | null }
 }
 
-export default function DestinationGuideClient({
-  tripCrewId,
-  citySlug,
-}: {
-  tripCrewId: string | null
-  citySlug: string
-}) {
-  const paths = experiencePaths(tripCrewId)
-  const promote = useSearchParams().get('promoteToCrewId')
+export default function DestinationGuideClient({ citySlug }: { citySlug: string }) {
+  const paths = experiencePaths()
 
   const [guide, setGuide] = useState<GuideDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -107,7 +99,7 @@ export default function DestinationGuideClient({
       <div className="max-w-2xl mx-auto px-6 py-10 space-y-3">
         <p className="text-sm text-red-700">{error || 'Not found'}</p>
         <Link
-          href={withPromoteToCrew(paths.destinations, promote)}
+          href={paths.destinations}
           className="text-sky-600 text-sm hover:underline"
         >
           ← All destinations
@@ -121,7 +113,7 @@ export default function DestinationGuideClient({
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
       <Link
-        href={withPromoteToCrew(paths.destinations, promote)}
+        href={paths.destinations}
         className="text-sm text-sky-600 hover:underline font-medium mb-6 inline-block"
       >
         ← Destinations
@@ -132,13 +124,13 @@ export default function DestinationGuideClient({
 
       <div className="flex flex-wrap gap-2 mb-6">
         <Link
-          href={withPromoteToCrew(paths.planDestination('trip', guide.citySlug), promote)}
+          href={paths.planDestination('trip', guide.citySlug)}
           className="inline-flex px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
         >
           Plan a trip
         </Link>
         <Link
-          href={withPromoteToCrew(paths.planDestination('season', guide.citySlug), promote)}
+          href={paths.planDestination('season', guide.citySlug)}
           className="inline-flex px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700"
         >
           Plan a season

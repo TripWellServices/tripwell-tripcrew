@@ -61,8 +61,6 @@ interface DiscoverFlowProps {
   /** Traveler home city/state for tripScope pre-fill (local vs travel). */
   hometownCity?: string | null
   homeState?: string | null
-  /** When set, "Add a hike with AI" uses crew layout (sidebar) at /tripcrews/:id/hikes/new */
-  tripCrewId?: string | null
 }
 
 // ─── Category cards config ────────────────────────────────────────────────────
@@ -105,7 +103,6 @@ export default function DiscoverFlow({
   travelerId,
   hometownCity,
   homeState,
-  tripCrewId,
 }: DiscoverFlowProps) {
   // City state (standalone mode only; in-trip mode is pre-set)
   const [cityInput, setCityInput] = useState(defaultCity ?? '')
@@ -492,17 +489,13 @@ export default function DiscoverFlow({
                 ...(effectiveCity ? { city: effectiveCity } : {}),
                 ...(effectiveState ? { state: effectiveState } : {}),
               })
-              const findReturn = tripCrewId
-                ? `/tripcrews/${tripCrewId}/experiences/find`
-                : '/traveler/experiences/find'
+              const findReturn = '/experiences/find'
               if (tripId) {
                 qs.set('return', `/trip/${tripId}/discover`)
               } else {
                 qs.set('return', findReturn)
               }
-              const base = tripCrewId
-                ? `/tripcrews/${tripCrewId}/hikes/new`
-                : '/hikes/new'
+              const base = '/hikes/new'
               const q = qs.toString()
               return `${base}${q ? `?${q}` : ''}`
             })()}

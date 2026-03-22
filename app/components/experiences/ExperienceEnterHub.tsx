@@ -3,13 +3,10 @@
 import Link from 'next/link'
 import { experiencePaths } from '@/lib/experience-routes'
 
-export default function ExperienceEnterHub({ tripCrewId }: { tripCrewId: string | null }) {
-  const paths = experiencePaths(tripCrewId)
+export default function ExperienceEnterHub() {
+  const paths = experiencePaths()
   const returnTo = paths.hub
-  const hikesHref =
-    tripCrewId != null
-      ? `/tripcrews/${tripCrewId}/hikes/new?return=${encodeURIComponent(returnTo)}`
-      : `/hikes/new?return=${encodeURIComponent(returnTo)}`
+  const hikesHref = `/hikes/new?return=${encodeURIComponent(returnTo)}`
 
   const cards = [
     {

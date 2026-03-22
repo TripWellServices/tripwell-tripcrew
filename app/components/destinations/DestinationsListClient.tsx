@@ -1,12 +1,12 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { LocalStorageAPI } from '@/lib/localStorage'
-import { experiencePaths, withPromoteToCrew } from '@/lib/experience-routes'
+import { experiencePaths } from '@/lib/experience-routes'
 
 type GuideRow = {
   id: string
@@ -15,10 +15,9 @@ type GuideRow = {
   city: { name: string; state: string | null; country: string | null }
 }
 
-function DestinationsListInner({ tripCrewId }: { tripCrewId: string | null }) {
+export default function DestinationsListClient() {
   const router = useRouter()
-  const paths = experiencePaths(tripCrewId)
-  const promote = useSearchParams().get('promoteToCrewId')
+  const paths = experiencePaths()
 
   const [travelerId, setTravelerId] = useState<string | null>(null)
   const [guides, setGuides] = useState<GuideRow[]>([])
@@ -88,14 +87,14 @@ function DestinationsListInner({ tripCrewId }: { tripCrewId: string | null }) {
       })
       const data = await res.json().catch(() => ({}))
       if (res.status === 409 && data.guide?.citySlug) {
-        router.push(withPromoteToCrew(`${paths.destinations}/${data.guide.citySlug}`, promote))
+        router.push(`${paths.destinations}/${data.guide.citySlug}`)
         return
       }
       if (!res.ok) {
         throw new Error(data.error || 'Generate failed')
       }
       if (persist && data.guide?.citySlug) {
-        router.push(withPromoteToCrew(`${paths.destinations}/${data.guide.citySlug}`, promote))
+        router.push(`${paths.destinations}/${data.guide.citySlug}`)
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -114,7 +113,7 @@ function DestinationsListInner({ tripCrewId }: { tripCrewId: string | null }) {
           </p>
         </div>
         <Link
-          href={withPromoteToCrew(paths.planFork, promote)}
+          href={paths.planFork}
           className="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
         >
           Open planner
@@ -177,7 +176,7 @@ function DestinationsListInner({ tripCrewId }: { tripCrewId: string | null }) {
           {guides.map((g) => (
             <li key={g.id}>
               <Link
-                href={withPromoteToCrew(`${paths.destinations}/${g.citySlug}`, promote)}
+                href={`${paths.destinations}/${g.citySlug}`}
                 className="block p-4 border border-gray-200 rounded-xl bg-white hover:border-sky-300 hover:shadow-sm transition"
               >
                 <p className="font-semibold text-gray-900">
@@ -191,19 +190,5 @@ function DestinationsListInner({ tripCrewId }: { tripCrewId: string | null }) {
         </ul>
       )}
     </div>
-  )
-}
-
-export default function DestinationsListClient({ tripCrewId }: { tripCrewId: string | null }) {
-  return (
-    <Suspense
-      fallback={
-        <div className="max-w-3xl mx-auto px-6 py-8">
-          <p className="text-sm text-gray-500">Loading…</p>
-        </div>
-      }
-    >
-      <DestinationsListInner tripCrewId={tripCrewId} />
-    </Suspense>
   )
 }

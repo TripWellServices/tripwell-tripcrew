@@ -1,31 +1,28 @@
 'use client'
 
-import { Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { experiencePaths, withPromoteToCrew } from '@/lib/experience-routes'
+import { experiencePaths } from '@/lib/experience-routes'
 
-function ExperiencesHubInner({ tripCrewId }: { tripCrewId: string | null }) {
-  const paths = experiencePaths(tripCrewId)
-  const promote = useSearchParams().get('promoteToCrewId')
+export default function ExperiencesHub() {
+  const paths = experiencePaths()
 
   const cards = [
     {
       title: 'Build from saved',
       desc: 'Pick something you already saved and plan a trip around it.',
-      href: withPromoteToCrew(paths.build, promote),
+      href: paths.build,
       cta: 'Open saved list',
     },
     {
       title: 'Find experiences',
       desc: 'Browse by city — concerts, hikes, dining, and attractions.',
-      href: withPromoteToCrew(paths.find, promote),
+      href: paths.find,
       cta: 'Find',
     },
     {
       title: 'Enter an experience',
       desc: 'Add a hike (discover or paste) or jump to the catalogue.',
-      href: withPromoteToCrew(paths.enter, promote),
+      href: paths.enter,
       cta: 'Enter',
     },
   ]
@@ -35,17 +32,11 @@ function ExperiencesHubInner({ tripCrewId }: { tripCrewId: string | null }) {
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Experiences</h1>
       <p className="text-gray-600 mb-8">
         Save, find, or add experiences. For city guides and trip building, use{' '}
-        <Link
-          href={withPromoteToCrew(paths.destinations, promote)}
-          className="text-sky-600 font-medium hover:underline"
-        >
+        <Link href={paths.destinations} className="text-sky-600 font-medium hover:underline">
           Destinations
         </Link>{' '}
         or the{' '}
-        <Link
-          href={withPromoteToCrew(paths.planFork, promote)}
-          className="text-sky-600 font-medium hover:underline"
-        >
+        <Link href={paths.planFork} className="text-sky-600 font-medium hover:underline">
           Planner
         </Link>
         .
@@ -68,19 +59,5 @@ function ExperiencesHubInner({ tripCrewId }: { tripCrewId: string | null }) {
         ))}
       </ul>
     </div>
-  )
-}
-
-export default function ExperiencesHub({ tripCrewId }: { tripCrewId: string | null }) {
-  return (
-    <Suspense
-      fallback={
-        <div className="max-w-3xl mx-auto px-6 py-8">
-          <p className="text-sm text-gray-500">Loading…</p>
-        </div>
-      }
-    >
-      <ExperiencesHubInner tripCrewId={tripCrewId} />
-    </Suspense>
   )
 }

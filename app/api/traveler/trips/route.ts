@@ -31,11 +31,14 @@ async function getOrCreatePersonalPlanningPlan(travelerId: string) {
 
 /**
  * GET /api/traveler/trips?travelerId=
- * Personal trips (no crew): under the traveler’s auto “Personal planning” plan.
+ * - Default: personal trips (no crew) under “Personal planning” plan.
+ * - scope=all: all trips the traveler can see (own plans + crews they belong to), ordered by startDate.
  */
 export async function GET(request: NextRequest) {
   try {
-    const travelerId = new URL(request.url).searchParams.get('travelerId')
+    const url = new URL(request.url)
+    const travelerId = url.searchParams.get('travelerId')
+    const scope = url.searchParams.get('scope')
     if (!travelerId) {
       return NextResponse.json({ error: 'travelerId is required' }, { status: 400 })
     }
@@ -43,6 +46,35 @@ export async function GET(request: NextRequest) {
     const traveler = await prisma.traveler.findUnique({ where: { id: travelerId } })
     if (!traveler) {
       return NextResponse.json({ error: 'Traveler not found' }, { status: 404 })
+    }
+
+    if (scope === 'all') {
+      const memberships = await prisma.tripCrewMember.findMany({
+        where: { travelerId },
+        select: { tripCrewId: true },
+      })
+      const crewIds = memberships.map((m) => m.tripCrewId)
+
+      const orFilters: Array<{ plan: { travelerId: string } } | { crewId: { in: string[] } }> = [
+        { plan: { travelerId } },
+      ]
+      if (crewIds.length > 0) {
+        orFilters.push({ crewId: { in: crewIds } })
+      }
+
+      const trips = await prisma.trip.findMany({
+        where: { OR: orFilters },
+        orderBy: { startDate: 'asc' },
+        include: {
+          crew: { select: { id: true, name: true } },
+          plan: { select: { id: true, name: true, tripCrewId: true } },
+          _count: {
+            select: { destinations: true, itineraryItems: true },
+          },
+        },
+      })
+
+      return NextResponse.json(trips)
     }
 
     const plans = await prisma.plan.findMany({
