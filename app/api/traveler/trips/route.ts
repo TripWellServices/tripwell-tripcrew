@@ -10,7 +10,7 @@ import { TripType } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
-type AnchorType = 'concert' | 'hike' | 'dining' | 'attraction'
+type AnchorType = 'concert' | 'hike' | 'dining' | 'attraction' | 'cruise'
 
 /**
  * GET /api/traveler/trips?travelerId=
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
  * - createPlanned: true — minimal planning trip (optional dates default +7d)
  * - travelerId (required)
  * - tripName?, purpose?, startDate?, endDate?
- * - OR anchor fork: concertId | hikeId | diningId | attractionId (exactly one) + optional crewId
+ * - OR anchor fork: concertId | hikeId | diningId | attractionId | cruiseId (exactly one) + optional crewId
  */
 export async function POST(request: NextRequest) {
   try {
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
       hikeId,
       diningId,
       attractionId,
+      cruiseId,
     } = body as {
       createPlanned?: boolean
       tripName?: string
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
       hikeId?: string
       diningId?: string
       attractionId?: string
+      cruiseId?: string
     }
 
     if (!travelerId) {
@@ -133,12 +135,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Traveler not found' }, { status: 404 })
     }
 
-    const anchorId = concertId || hikeId || diningId || attractionId
+    const anchorId =
+      concertId || hikeId || diningId || attractionId || cruiseId
     let anchorType: AnchorType | null = null
     if (concertId) anchorType = 'concert'
     else if (hikeId) anchorType = 'hike'
     else if (diningId) anchorType = 'dining'
     else if (attractionId) anchorType = 'attraction'
+    else if (cruiseId) anchorType = 'cruise'
 
     let start: Date
     let end: Date
@@ -150,6 +154,23 @@ export async function POST(request: NextRequest) {
       }
       if (end.getTime() < start.getTime()) {
         return NextResponse.json({ error: 'endDate must be on or after startDate' }, { status: 400 })
+      }
+    } else if (startDateRaw) {
+      start = new Date(startDateRaw)
+      if (Number.isNaN(start.getTime())) {
+        return NextResponse.json({ error: 'Invalid startDate' }, { status: 400 })
+      }
+      end = new Date(start)
+      end.setDate(end.getDate() + 7)
+    } else if (endDateRaw) {
+      end = new Date(endDateRaw)
+      if (Number.isNaN(end.getTime())) {
+        return NextResponse.json({ error: 'Invalid endDate' }, { status: 400 })
+      }
+      start = new Date(end)
+      start.setDate(start.getDate() - 7)
+      if (start.getTime() > end.getTime()) {
+        start = new Date(end)
       }
     } else {
       start = new Date()
@@ -178,6 +199,9 @@ export async function POST(request: NextRequest) {
       } else if (anchorType === 'attraction') {
         const a = await prisma.attraction.findUnique({ where: { id: anchorId } })
         if (a) anchorTitle = a.title
+      } else if (anchorType === 'cruise') {
+        const cr = await prisma.cruise.findUnique({ where: { id: anchorId } })
+        if (cr) anchorTitle = cr.name
       }
     }
 
@@ -218,8 +242,6 @@ export async function POST(request: NextRequest) {
         tripId: t.id,
         startDate: start,
         endDate: end,
-        dayStartTime: traveler.defaultDayStartTime,
-        dayEndTime: traveler.defaultDayEndTime,
       })
 
       if (anchorType && anchorId) {
@@ -235,6 +257,7 @@ export async function POST(request: NextRequest) {
               hikeId: hikeId || null,
               diningId: diningId || null,
               attractionId: attractionId || null,
+              cruiseId: cruiseId || null,
             },
           })
         }
@@ -249,7 +272,13 @@ export async function POST(request: NextRequest) {
           orderBy: { dayNumber: 'asc' },
           include: {
             experiences: {
-              include: { concert: true, hike: true, dining: true, attraction: true },
+              include: {
+                concert: true,
+                hike: true,
+                dining: true,
+                attraction: true,
+                cruise: true,
+              },
             },
           },
         },

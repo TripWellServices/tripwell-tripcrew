@@ -21,6 +21,9 @@ export async function PATCH(
       diningId,
       attractionId,
       concertId,
+      cruiseId,
+      sportId,
+      adventureId,
     } = body as {
       status?: TripDayExperienceStatus
       startTime?: string | null
@@ -31,6 +34,9 @@ export async function PATCH(
       diningId?: string | null
       attractionId?: string | null
       concertId?: string | null
+      cruiseId?: string | null
+      sportId?: string | null
+      adventureId?: string | null
     }
 
     const existing = await prisma.tripDayExperience.findFirst({
@@ -52,6 +58,9 @@ export async function PATCH(
     if (diningId !== undefined) data.diningId = diningId
     if (attractionId !== undefined) data.attractionId = attractionId
     if (concertId !== undefined) data.concertId = concertId
+    if (cruiseId !== undefined) data.cruiseId = cruiseId
+    if (sportId !== undefined) data.sportId = sportId
+    if (adventureId !== undefined) data.adventureId = adventureId
 
     const updated = await prisma.tripDayExperience.update({
       where: { id: itemId },
@@ -64,6 +73,7 @@ export async function PATCH(
         hike: true,
         sport: true,
         adventure: true,
+        cruise: true,
       },
     })
 

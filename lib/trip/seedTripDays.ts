@@ -9,8 +9,6 @@ export async function seedTripDays(
     tripId: string
     startDate: Date
     endDate: Date
-    dayStartTime?: string | null
-    dayEndTime?: string | null
   }
 ): Promise<void> {
   const start = new Date(params.startDate)
@@ -25,8 +23,6 @@ export async function seedTripDays(
         tripId: params.tripId,
         date: new Date(cursor),
         dayNumber,
-        dayStartTime: params.dayStartTime ?? null,
-        dayEndTime: params.dayEndTime ?? null,
       },
     })
     dayNumber += 1

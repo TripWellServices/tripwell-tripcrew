@@ -3,13 +3,13 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-const VALID_TYPES = ['concert', 'hike', 'dining', 'attraction'] as const
+const VALID_TYPES = ['concert', 'hike', 'dining', 'attraction', 'cruise'] as const
 type CatalogueType = (typeof VALID_TYPES)[number]
 
 /**
  * GET /api/catalogue?city=Nashville&state=TN&type=hike
  *
- * Returns first-class records (Concert | Hike | Dining | Attraction) from the
+ * Returns first-class records (Concert | Hike | Dining | Attraction | Cruise) from the
  * global city catalogue. City is matched by name (case-insensitive); state is
  * optional but helps disambiguate (e.g. Nashville, TN vs Nashville, AR).
  */
@@ -65,6 +65,11 @@ export async function GET(request: NextRequest) {
       items = await prisma.attraction.findMany({
         where: { cityId: city.id },
         orderBy: { title: 'asc' },
+      })
+    } else if (type === 'cruise') {
+      items = await prisma.cruise.findMany({
+        where: { cityId: city.id },
+        orderBy: { name: 'asc' },
       })
     }
 

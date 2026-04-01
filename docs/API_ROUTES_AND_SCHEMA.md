@@ -7,7 +7,7 @@
 - **Trip** — Lean: `status` (PLANNED | CONFIRMED), `suggestedStops?`; legacy `city?`, `state?`, `country?`. Has many **destinations**, many **itineraryItems**.
 - **ItineraryItem** — One universal item: `tripId`, `status` (CONSIDERING | CONFIRMED | DROPPED), `title`, `date?`, `day?`, `destinationId?`, `lodgingId?`, `diningId?`, `attractionId?`, **`stuffToDoId?`** (catalogue bolt-on), `type?`, `notes?`, `suggestedById?`.
 - **StuffToDoItem** — Catalogue (independent). `cityId`, `season`, `type` (POI | RESTAURANT | NEAT_THING), `name`, `description?`. (POI = point of interest; avoids collision with Attraction model.)
-- **Lodging, Dining, Attraction** — Artifacts (reusable). `tripId?` (legacy), `tripWellEnterpriseId?`; no required trip. ItineraryItem can reference via `lodgingId`, `diningId`, `attractionId`.
+- **Lodging, Dining, Attraction** — Artifacts (reusable). `tripId?` optional. On **create**, `tripWellEnterpriseId` is set automatically from `TRIPWELL_ENTERPRISE_ID` (see [`config/tripWellEnterpriseConfig.ts`](../config/tripWellEnterpriseConfig.ts)) when the client omits it. ItineraryItem can reference via `lodgingId`, `diningId`, `attractionId`.
 
 ## API routes
 
@@ -48,17 +48,17 @@
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/lodging?tripId=&tripWellEnterpriseId=` | List (optional filters). |
-| POST | `/api/lodging` | Create. Body: `tripId?`, `tripWellEnterpriseId?`, `title`, … |
+| POST | `/api/lodging` | Create. **Requires** `title` or `name`. **Requires** `tripWellEnterpriseId` in the body only if overriding the default; otherwise the server uses `TRIPWELL_ENTERPRISE_ID` from env / config. `tripId` optional. Optional fields: `chain`, `lodgingType` (enum: `HOTEL` \| `RESORT` \| `EXTENDED_STAY` \| `VACATION_RENTAL` \| `HOSTEL` \| `BED_AND_BREAKFAST` \| `OTHER`), `amenities` (JSON object), `nightlyRate`, `currency` (ISO 2–3 letters), `address`, `streetAddress`, `city`, `state`, `postalCode`, `countryCode`, `defaultCheckInTime`, `defaultCheckOutTime`, `website`, `phone`, `googlePlaceId`, `imageUrl`, `rating`, `lat`, `lng`. |
 | GET | `/api/lodging/[id]` | Get one. |
-| PATCH | `/api/lodging/[id]` | Update. |
+| PATCH | `/api/lodging/[id]` | Partial update: same optional fields as POST; `title` or `name` for rename. |
 | DELETE | `/api/lodging/[id]` | Delete. |
 | GET | `/api/dining?tripId=&tripWellEnterpriseId=` | List. |
-| POST | `/api/dining` | Create. |
+| POST | `/api/dining` | Create. `tripWellEnterpriseId` defaults from config when omitted (same as lodging). |
 | GET | `/api/dining/[id]` | Get one. |
 | PATCH | `/api/dining/[id]` | Update. |
 | DELETE | `/api/dining/[id]` | Delete. |
 | GET | `/api/attractions?tripId=&tripWellEnterpriseId=` | List. |
-| POST | `/api/attractions` | Create. |
+| POST | `/api/attractions` | Create. `tripWellEnterpriseId` defaults from config when omitted. |
 | GET | `/api/attractions/[id]` | Get one. |
 | PATCH | `/api/attractions/[id]` | Update. |
 | DELETE | `/api/attractions/[id]` | Delete. |

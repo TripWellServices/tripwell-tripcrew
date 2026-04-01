@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
 import { prisma } from '@/lib/prisma'
 import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     const dining = await prisma.dining.create({
       data: {
         tripId: tripId || null,
-        tripWellEnterpriseId: tripWellEnterpriseId || null,
+        tripWellEnterpriseId: resolveTripWellEnterpriseId(tripWellEnterpriseId),
         title: title.trim(),
         category: category?.trim() || null,
         address: address?.trim() || null,

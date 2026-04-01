@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
 import { prisma } from '@/lib/prisma'
+import { parseStructuredAddressFromGoogle } from '@/lib/lodging/parseGoogleAddress'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch place details
-    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,photos,geometry&key=${apiKey}`
+    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,formatted_address,address_components,formatted_phone_number,website,rating,photos,geometry&key=${apiKey}`
     
     const detailsResponse = await fetch(detailsUrl)
     if (!detailsResponse.ok) {
@@ -39,6 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     const place = detailsData.result
+    const enterpriseId = resolveTripWellEnterpriseId()
+    const structured = parseStructuredAddressFromGoogle(place.address_components)
     const photoRef = place.photos?.[0]?.photo_reference
     const imageUrl = photoRef
       ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${apiKey}`
@@ -50,8 +54,14 @@ export async function POST(request: NextRequest) {
         tripId,
       },
       update: {
+        tripWellEnterpriseId: enterpriseId,
         title: place.name,
         address: place.formatted_address,
+        streetAddress: structured.streetAddress,
+        city: structured.city,
+        state: structured.state,
+        postalCode: structured.postalCode,
+        countryCode: structured.countryCode,
         phone: place.formatted_phone_number,
         website: place.website,
         googlePlaceId: placeId,
@@ -62,8 +72,14 @@ export async function POST(request: NextRequest) {
       },
       create: {
         tripId,
+        tripWellEnterpriseId: enterpriseId,
         title: place.name,
         address: place.formatted_address,
+        streetAddress: structured.streetAddress,
+        city: structured.city,
+        state: structured.state,
+        postalCode: structured.postalCode,
+        countryCode: structured.countryCode,
         phone: place.formatted_phone_number,
         website: place.website,
         googlePlaceId: placeId,

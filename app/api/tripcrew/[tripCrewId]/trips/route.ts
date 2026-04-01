@@ -72,6 +72,23 @@ export async function POST(
         if (end.getTime() < start.getTime()) {
           return NextResponse.json({ error: 'endDate must be on or after startDate' }, { status: 400 })
         }
+      } else if (startDateRaw) {
+        start = new Date(startDateRaw)
+        if (Number.isNaN(start.getTime())) {
+          return NextResponse.json({ error: 'Invalid startDate' }, { status: 400 })
+        }
+        end = new Date(start)
+        end.setDate(end.getDate() + 7)
+      } else if (endDateRaw) {
+        end = new Date(endDateRaw)
+        if (Number.isNaN(end.getTime())) {
+          return NextResponse.json({ error: 'Invalid endDate' }, { status: 400 })
+        }
+        start = new Date(end)
+        start.setDate(start.getDate() - 7)
+        if (start.getTime() > end.getTime()) {
+          start = new Date(end)
+        }
       } else {
         start = new Date()
         end = new Date()
@@ -106,8 +123,6 @@ export async function POST(
           tripId: t.id,
           startDate: start,
           endDate: end,
-          dayStartTime: traveler?.defaultDayStartTime,
-          dayEndTime: traveler?.defaultDayEndTime,
         })
         return t
       })

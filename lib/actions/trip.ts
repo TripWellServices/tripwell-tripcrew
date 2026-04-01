@@ -98,8 +98,6 @@ export async function upsertTrip(data: {
           tripId: id,
           startDate,
           endDate: endDate ?? startDate,
-          dayStartTime: traveler?.defaultDayStartTime,
-          dayEndTime: traveler?.defaultDayEndTime,
         })
         return updated
       })
@@ -133,8 +131,6 @@ export async function upsertTrip(data: {
         tripId: created.id,
         startDate,
         endDate: endDate ?? startDate,
-        dayStartTime: traveler?.defaultDayStartTime,
-        dayEndTime: traveler?.defaultDayEndTime,
       })
       return created
     })
@@ -188,6 +184,7 @@ export async function getTrip(tripId: string) {
                 concert: true,
                 sport: true,
                 adventure: true,
+                cruise: true,
               },
             },
           },

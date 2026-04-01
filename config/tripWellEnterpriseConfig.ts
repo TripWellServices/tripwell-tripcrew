@@ -1,24 +1,34 @@
 /**
- * TripWell Enterprise Config
- * 
- * Single-tenant configuration for TripWell Enterprise.
- * Since there's only ONE TripWell Enterprise, we hardcode the ID.
- * 
- * This ID is set once when the enterprise is first created and lives forever.
+ * TripWell Enterprise — single-tenant default for this app.
+ *
+ * Set `TRIPWELL_ENTERPRISE_ID` in the environment to match the `TripWellEnterprise.id`
+ * row in your database (see migrations / seed). If unset, the fallback below is used
+ * so local and historic DBs keep working.
  */
 
+/** Matches legacy migration default [`001_fix_tripwell_enterprises`](prisma/migrations/001_fix_tripwell_enterprises.ts). */
 export const TRIPWELL_ENTERPRISE_ID = 'tripwell-enterprises-master-container'
 
-/**
- * Get TripWell Enterprise ID (single tenant - hardcoded)
- * @returns {string} The TripWell Enterprise ID
- */
-export const getTripWellEnterpriseId = () => {
+export const getTripWellEnterpriseId = (): string => {
+  const fromEnv = process.env.TRIPWELL_ENTERPRISE_ID?.trim()
+  if (fromEnv) return fromEnv
   return TRIPWELL_ENTERPRISE_ID
+}
+
+/**
+ * Artifact creates: use explicit ID from the client when provided (e.g. tests);
+ * otherwise the configured default enterprise.
+ */
+export function resolveTripWellEnterpriseId(
+  explicit?: string | null
+): string {
+  const t = typeof explicit === 'string' ? explicit.trim() : ''
+  if (t) return t
+  return getTripWellEnterpriseId()
 }
 
 export default {
   TRIPWELL_ENTERPRISE_ID,
   getTripWellEnterpriseId,
+  resolveTripWellEnterpriseId,
 }
-

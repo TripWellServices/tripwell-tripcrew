@@ -42,6 +42,17 @@ enum StuffToDoType {
   NEAT_THING
 }
 
+// Lodging property / stay category (hotel name stays on `title`).
+enum LodgingType {
+  HOTEL
+  RESORT
+  EXTENDED_STAY
+  VACATION_RENTAL
+  HOSTEL
+  BED_AND_BREAKFAST
+  OTHER
+}
+
 // TripWell Enterprises - Master Container (like GoFastCompany)
 model TripWellEnterprise {
   id          String   @id @default(uuid())
@@ -85,6 +96,7 @@ model City {
   attractions    Attraction[]
   sports         Sport[]
   adventures     Adventure[]
+  cruises        Cruise[]
 
   @@unique([name, state, country])
   @@index([name])
@@ -107,9 +119,6 @@ model Traveler {
   planningStyle    String? // "Spontaneous", "Mix of spontaneous and planned", "Set a plan and stick to it!"
   dreamDestination String?
 
-  defaultDayStartTime String? // e.g. "08:00" — seeds TripDay day window
-  defaultDayEndTime   String? // e.g. "21:00"
-
   tripWellEnterpriseId String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -131,6 +140,8 @@ model Traveler {
   savedSports         Sport[]             @relation("SportSavedBy")
   authoredAdventures  Adventure[]         @relation("AdventureAuthor")
   savedAdventures     Adventure[]         @relation("AdventureSavedBy")
+  authoredCruises     Cruise[]            @relation("CruiseAuthor")
+  savedCruises        Cruise[]            @relation("CruiseSavedBy")
   authoredCities      City[]              @relation("CityGuideAuthor")
 }
 
@@ -169,6 +180,7 @@ model Wishlist {
   attractions Attraction[]
   sports      Sport[]
   adventures  Adventure[]
+  cruises     Cruise[]
 
   @@map("wishlists")
 }
@@ -231,8 +243,6 @@ model TripDay {
   tripId       String
   date         DateTime
   dayNumber    Int
-  dayStartTime String?
-  dayEndTime   String?
   notes        String?
 
   createdAt DateTime @default(now())
@@ -254,6 +264,7 @@ model TripDayExperience {
   concertId     String?
   sportId       String?
   adventureId   String?
+  cruiseId      String?
   orderIndex    Int                      @default(0)
   startTime     String?
   endTime       String?
@@ -270,6 +281,7 @@ model TripDayExperience {
   concert    Concert?    @relation(fields: [concertId], references: [id], onDelete: SetNull)
   sport      Sport?      @relation(fields: [sportId], references: [id], onDelete: SetNull)
   adventure  Adventure?  @relation(fields: [adventureId], references: [id], onDelete: SetNull)
+  cruise     Cruise?     @relation(fields: [cruiseId], references: [id], onDelete: SetNull)
 
   @@index([tripDayId])
   @@index([hikeId])
@@ -278,6 +290,7 @@ model TripDayExperience {
   @@index([concertId])
   @@index([sportId])
   @@index([adventureId])
+  @@index([cruiseId])
 }
 
 model Sport {
@@ -360,11 +373,23 @@ model Destination {
 }
 
 model Lodging {
-  id                   String   @id @default(uuid())
-  tripId               String?  @unique // legacy; prefer ItineraryItem.lodgingId
-  tripWellEnterpriseId String?  // optional scope for reusable artifact
-  title                String
-  address              String?
+  id                   String    @id @default(uuid())
+  tripId               String?   @unique // legacy; prefer day-level lodging on TripDayExperience
+  tripWellEnterpriseId String?   // optional scope for reusable artifact
+  title                String    // hotel / property display name
+  chain                String?   // hotel chain affiliation
+  lodgingType          LodgingType?
+  amenities            Json?     // flexible map, e.g. { "pool": true, "gym": true }
+  nightlyRate          Decimal?  @db.Decimal(10, 2)
+  currency             String?   // ISO 4217, e.g. USD
+  address              String?   // full formatted line(s) for display
+  streetAddress        String?
+  city                 String?
+  state                String?
+  postalCode           String?
+  countryCode          String?   // ISO 3166-1 alpha-2
+  defaultCheckInTime   String?   // e.g. "15:00" local convention
+  defaultCheckOutTime  String?
   website              String?
   phone                String?
   googlePlaceId        String?
@@ -372,14 +397,15 @@ model Lodging {
   rating               Float?
   lat                  Float?
   lng                  Float?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   trip            Trip?             @relation("TripLodging", fields: [tripId], references: [id], onDelete: Cascade)
   tripWellEnterprise TripWellEnterprise? @relation("EnterpriseLodging", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
 
   @@index([tripId])
   @@index([tripWellEnterpriseId])
+  @@index([city, state])
 }
 
 model Dining {
@@ -541,6 +567,41 @@ model Hike {
   city               City?               @relation(fields: [cityId], references: [id], onDelete: SetNull)
   createdBy          Traveler?           @relation("HikeAuthor", fields: [createdById], references: [id], onDelete: SetNull)
   savedBy            Traveler?           @relation("HikeSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
+  wishlist           Wishlist?           @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
+  tripDayExperiences TripDayExperience[]
+
+  @@index([cityId])
+  @@index([createdById])
+  @@index([wishlistId])
+  @@index([savedByTravelerId])
+}
+
+// Cruise — reusable catalogue sailing (ship, line, departure); trip-specific dates live on TripDay / TripDayExperience.
+model Cruise {
+  id                          String   @id @default(uuid())
+  name                        String
+  shipName                    String?
+  cruiseLine                  String?
+  departingFrom               String?
+  cityId                      String?
+  baseCostPerRoom             Float?
+  baseCostPerGuest            Float?
+  currency                    String?  @default("USD")
+  amenities                   String?  @db.Text
+  onboardEntertainmentSummary String?  @db.Text
+  url                         String?
+  notes                       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById       String?
+  wishlistId        String?
+  savedByTravelerId String?
+
+  city               City?               @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  createdBy          Traveler?           @relation("CruiseAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  savedBy            Traveler?           @relation("CruiseSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
   wishlist           Wishlist?           @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
   tripDayExperiences TripDayExperience[]
 

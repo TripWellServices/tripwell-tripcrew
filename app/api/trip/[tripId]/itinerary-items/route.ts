@@ -31,6 +31,7 @@ export async function GET(
         hike: true,
         sport: true,
         adventure: true,
+        cruise: true,
       },
     })
 
@@ -42,7 +43,7 @@ export async function GET(
 }
 
 /**
- * Add an experience to a trip day. Body: { title?, date?, hikeId?, diningId?, attractionId?, concertId?, notes? }
+ * Add an experience to a trip day. Body: { title?, date?, hikeId?, diningId?, attractionId?, concertId?, cruiseId?, sportId?, adventureId?, notes? }
  * Resolves trip day by `date` (calendar day) or defaults to day 1.
  */
 export async function POST(
@@ -59,6 +60,9 @@ export async function POST(
       attractionId,
       concertId,
       hikeId,
+      cruiseId,
+      sportId,
+      adventureId,
       notes,
     } = body as {
       title?: string
@@ -67,6 +71,9 @@ export async function POST(
       attractionId?: string
       concertId?: string
       hikeId?: string
+      cruiseId?: string
+      sportId?: string
+      adventureId?: string
       notes?: string
     }
 
@@ -75,9 +82,20 @@ export async function POST(
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
     }
 
-    if (!hikeId && !diningId && !attractionId && !concertId) {
+    if (
+      !hikeId &&
+      !diningId &&
+      !attractionId &&
+      !concertId &&
+      !cruiseId &&
+      !sportId &&
+      !adventureId
+    ) {
       return NextResponse.json(
-        { error: 'At least one of hikeId, diningId, attractionId, concertId is required' },
+        {
+          error:
+            'At least one of hikeId, diningId, attractionId, concertId, cruiseId, sportId, adventureId is required',
+        },
         { status: 400 }
       )
     }
@@ -118,6 +136,9 @@ export async function POST(
         diningId: diningId || null,
         attractionId: attractionId || null,
         concertId: concertId || null,
+        cruiseId: cruiseId || null,
+        sportId: sportId || null,
+        adventureId: adventureId || null,
         notes: notes?.trim() || title?.trim() || null,
         status: TripDayExperienceStatus.PLANNED,
       },
@@ -129,6 +150,7 @@ export async function POST(
         hike: true,
         sport: true,
         adventure: true,
+        cruise: true,
       },
     })
 

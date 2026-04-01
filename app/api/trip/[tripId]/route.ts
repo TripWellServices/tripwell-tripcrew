@@ -29,6 +29,7 @@ export async function GET(
                 hike: true,
                 sport: true,
                 adventure: true,
+                cruise: true,
               },
             },
           },
