@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import {
+  consumeGoogleRedirectResult,
+  signInWithGooglePreferred,
+} from '@/lib/googleAuthSignIn'
 import Link from 'next/link'
 
 /** Safe redirect: only allow relative paths (invite flow: back to /join?code=...) */
@@ -32,6 +36,18 @@ function SignInForm() {
 
   const postAuthPath = redirectTo ?? '/welcome'
 
+  useEffect(() => {
+    let cancelled = false
+    consumeGoogleRedirectResult().then((path) => {
+      if (!cancelled && path) {
+        router.replace(path)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -53,10 +69,11 @@ function SignInForm() {
     setLoading(true)
 
     try {
-      const provider = new GoogleAuthProvider()
-      const auth = getFirebaseAuth()
-      await signInWithPopup(auth, provider)
-      router.push(postAuthPath)
+      const outcome = await signInWithGooglePreferred(postAuthPath)
+      if (outcome === 'popup_ok') {
+        router.push(postAuthPath)
+      }
+      // redirect_started: browser navigates away; getRedirectResult handles return
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google')
     } finally {

@@ -26,8 +26,10 @@ export async function requireTravelerFromBearer(request: Request) {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     if (
+      msg.includes('Firebase Admin not configured') ||
       msg.includes('Firebase Admin env vars missing') ||
-      msg.includes('Firebase Admin initialization failed')
+      msg.includes('Firebase Admin initialization failed') ||
+      msg.includes('FIREBASE_SERVICE_ACCOUNT_JSON')
     ) {
       return { error: 'Server auth not configured' as const, status: 503 as const }
     }
