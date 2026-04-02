@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import type { DayPlanStep } from '@/lib/hike-day-plan'
 
@@ -97,15 +98,10 @@ export default function HikeDayPlanClient() {
         return
       }
       try {
-        const res = await fetch('/api/auth/hydrate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firebaseId: user.uid,
-            email: user.email,
-            name: user.displayName,
-            picture: user.photoURL,
-          }),
+        const res = await postHydrateTraveler(user, {
+          email: user.email,
+          name: user.displayName,
+          picture: user.photoURL,
         })
         const data = await res.json()
         const t = data.traveler

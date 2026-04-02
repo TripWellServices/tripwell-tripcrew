@@ -51,7 +51,6 @@ export async function PATCH(
       lng,
       distanceFromLodging,
       driveTimeMinutes,
-      itineraryDay,
     } = body
 
     const existing = await prisma.attraction.findUnique({ where: { id } })
@@ -80,8 +79,6 @@ export async function PATCH(
     if (driveTimeMinutes !== undefined)
       data.driveTimeMinutes =
         typeof driveTimeMinutes === 'number' ? driveTimeMinutes : null
-    if (itineraryDay !== undefined)
-      data.itineraryDay = itineraryDay ? new Date(itineraryDay) : null
 
     const updated = await prisma.attraction.update({
       where: { id },

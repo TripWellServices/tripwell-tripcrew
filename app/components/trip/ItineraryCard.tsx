@@ -1,77 +1,97 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { format, eachDayOfInterval, isSameDay } from 'date-fns'
+import { format } from 'date-fns'
 
-interface ItineraryItem {
+/** Shape matches getTrip → tripDays → experiences include (serializable from server). */
+export type ItineraryTripDay = {
   id: string
-  title: string
-  type: 'dining' | 'attraction'
-  itineraryDay: Date | null
+  date: Date | string
+  dayNumber: number
+  experiences: ItineraryExperience[]
+}
+
+export type ItineraryExperience = {
+  id: string
+  orderIndex: number
+  startTime: string | null
+  endTime: string | null
+  status: string
+  notes: string | null
+  hike?: { id: string; name: string; trailOrPlace?: string | null } | null
+  dining?: { id: string; title: string } | null
+  attraction?: { id: string; title: string } | null
+  concert?: { id: string; name: string; artist?: string | null; venue?: string | null } | null
+  sport?: { id: string; name: string; venue?: string | null } | null
+  adventure?: { id: string; name: string } | null
+  cruise?: { id: string; name: string } | null
 }
 
 interface ItineraryCardProps {
-  dining: Array<{ id: string; title: string; itineraryDay: Date | null }>
-  attractions: Array<{ id: string; title: string; itineraryDay: Date | null }>
+  tripDays: ItineraryTripDay[]
   startDate: Date | null
   endDate: Date | null
   tripId: string
   isAdmin: boolean
 }
 
+function experienceLabel(exp: ItineraryExperience): { emoji: string; title: string; sub?: string } {
+  if (exp.dining) {
+    return { emoji: '🍽', title: exp.dining.title }
+  }
+  if (exp.attraction) {
+    return { emoji: '🎯', title: exp.attraction.title }
+  }
+  if (exp.hike) {
+    const sub = exp.hike.trailOrPlace ? String(exp.hike.trailOrPlace) : undefined
+    return { emoji: '🥾', title: exp.hike.name, sub }
+  }
+  if (exp.concert) {
+    const parts = [exp.concert.artist, exp.concert.venue].filter(Boolean).join(' · ')
+    return { emoji: '🎵', title: exp.concert.name, sub: parts || undefined }
+  }
+  if (exp.sport) {
+    return { emoji: '⚽', title: exp.sport.name, sub: exp.sport.venue ?? undefined }
+  }
+  if (exp.adventure) {
+    return { emoji: '🧗', title: exp.adventure.name }
+  }
+  if (exp.cruise) {
+    return { emoji: '🚢', title: exp.cruise.name }
+  }
+  return { emoji: '📌', title: exp.notes?.trim() || 'Experience' }
+}
+
+function chipClass(emoji: string): string {
+  if (emoji === '🍽') return 'bg-green-100 text-green-800'
+  if (emoji === '🎯') return 'bg-blue-100 text-blue-800'
+  if (emoji === '🥾') return 'bg-amber-100 text-amber-900'
+  if (emoji === '🎵') return 'bg-purple-100 text-purple-900'
+  if (emoji === '⚽') return 'bg-orange-100 text-orange-900'
+  if (emoji === '🧗') return 'bg-rose-100 text-rose-900'
+  if (emoji === '🚢') return 'bg-cyan-100 text-cyan-900'
+  return 'bg-gray-100 text-gray-800'
+}
+
 export default function ItineraryCard({
-  dining,
-  attractions,
+  tripDays,
   startDate,
   endDate,
   tripId,
   isAdmin,
 }: ItineraryCardProps) {
-  const [tripDays, setTripDays] = useState<Date[]>([])
-
-  useEffect(() => {
-    if (startDate && endDate) {
-      const days = eachDayOfInterval({
-        start: new Date(startDate),
-        end: new Date(endDate),
-      })
-      setTripDays(days)
-    }
-  }, [startDate, endDate])
-
-  const allItems: ItineraryItem[] = [
-    ...dining.map((d) => ({
-      id: d.id,
-      title: d.title,
-      type: 'dining' as const,
-      itineraryDay: d.itineraryDay,
-    })),
-    ...attractions.map((a) => ({
-      id: a.id,
-      title: a.title,
-      type: 'attraction' as const,
-      itineraryDay: a.itineraryDay,
-    })),
-  ]
-
-  const handleDayChange = async (
-    itemId: string,
-    itemType: 'dining' | 'attraction',
-    day: Date | null
-  ) => {
+  const handleRemoveExperience = async (experienceId: string) => {
     try {
-      await fetch(`/api/trip/${tripId}/itinerary`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemId,
-          itemType,
-          itineraryDay: day ? day.toISOString() : null,
-        }),
+      const res = await fetch(`/api/trip/${tripId}/itinerary-items/${experienceId}`, {
+        method: 'DELETE',
       })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('Remove itinerary item failed:', err)
+        return
+      }
       window.location.reload()
     } catch (error) {
-      console.error('Error updating itinerary:', error)
+      console.error('Error removing experience:', error)
     }
   }
 
@@ -84,58 +104,69 @@ export default function ItineraryCard({
     )
   }
 
+  const sortedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber)
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Itinerary</h2>
 
-      {tripDays.length === 0 ? (
-        <p className="text-gray-500">No days in trip.</p>
+      {sortedDays.length === 0 ? (
+        <p className="text-gray-500">No trip days yet. Days are created when you set the trip dates.</p>
       ) : (
         <div className="space-y-6">
-          {tripDays.map((day, dayIndex) => {
-            const dayItems = allItems.filter(
-              (item) =>
-                item.itineraryDay &&
-                isSameDay(new Date(item.itineraryDay), day)
+          {sortedDays.map((day) => {
+            const dayDate = new Date(day.date)
+            const experiences = [...(day.experiences ?? [])].sort(
+              (a, b) => a.orderIndex - b.orderIndex
             )
 
             return (
-              <div key={dayIndex} className="border border-gray-200 rounded-lg p-4">
+              <div key={day.id} className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold text-lg mb-3">
-                  Day {dayIndex + 1} - {format(day, 'EEEE, MMM d')}
+                  Day {day.dayNumber} — {format(dayDate, 'EEEE, MMM d')}
                 </h3>
 
-                {dayItems.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No items scheduled</p>
+                {experiences.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No experiences scheduled</p>
                 ) : (
                   <div className="space-y-2">
-                    {dayItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-2 p-2 bg-gray-50 rounded"
-                      >
-                        <span
-                          className={`px-2 py-1 text-xs rounded ${
-                            item.type === 'dining'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
+                    {experiences.map((exp) => {
+                      const { emoji, title, sub } = experienceLabel(exp)
+                      const timeBits = [exp.startTime, exp.endTime].filter(Boolean)
+                      const timeLine = timeBits.length > 0 ? timeBits.join(' – ') : null
+
+                      return (
+                        <div
+                          key={exp.id}
+                          className="flex items-start gap-2 p-2 bg-gray-50 rounded"
                         >
-                          {item.type === 'dining' ? '🍽' : '🎯'}
-                        </span>
-                        <span className="flex-1">{item.title}</span>
-                        {isAdmin && (
-                          <button
-                            onClick={() =>
-                              handleDayChange(item.id, item.type, null)
-                            }
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                          <span className={`px-2 py-1 text-xs rounded shrink-0 ${chipClass(emoji)}`}>
+                            {emoji}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900">{title}</div>
+                            {sub && <div className="text-xs text-gray-600 truncate">{sub}</div>}
+                            {timeLine && (
+                              <div className="text-xs text-gray-500 mt-0.5">{timeLine}</div>
+                            )}
+                            {exp.status && exp.status !== 'PLANNED' && (
+                              <div className="text-xs text-gray-500 mt-0.5 capitalize">
+                                {exp.status.toLowerCase()}
+                              </div>
+                            )}
+                          </div>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExperience(exp.id)}
+                              className="text-red-500 hover:text-red-700 text-sm shrink-0"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -144,40 +175,10 @@ export default function ItineraryCard({
         </div>
       )}
 
-      {isAdmin && allItems.length > 0 && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="font-semibold mb-3">Assign Items to Days</h3>
-          <div className="space-y-2">
-            {allItems
-              .filter((item) => !item.itineraryDay)
-              .map((item) => (
-                <div key={item.id} className="flex items-center gap-2">
-                  <span className="flex-1">{item.title}</span>
-                  <select
-                    onChange={(e) => {
-                      const dayIndex = parseInt(e.target.value)
-                      if (dayIndex >= 0 && dayIndex < tripDays.length) {
-                        handleDayChange(item.id, item.type, tripDays[dayIndex])
-                      } else {
-                        handleDayChange(item.id, item.type, null)
-                      }
-                    }}
-                    className="px-3 py-1 border border-gray-300 rounded"
-                    defaultValue=""
-                  >
-                    <option value="">Not scheduled</option>
-                    {tripDays.map((day, idx) => (
-                      <option key={idx} value={idx}>
-                        Day {idx + 1} - {format(day, 'MMM d')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
+      <p className="mt-6 text-sm text-gray-500">
+        Add experiences to a day from Plan, Discover, or the itinerary-items API. Dining and
+        attractions are catalogue entries; scheduling lives on each day as a TripDay experience.
+      </p>
     </div>
   )
 }
-

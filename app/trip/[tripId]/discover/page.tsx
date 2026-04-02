@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getTrip } from '@/lib/actions/trip'
 import DiscoverFlow from '@/app/components/discover/DiscoverFlow'
@@ -23,7 +24,7 @@ export default function TripDiscoverPage() {
       if (user) {
         // Resolve Firebase UID to Traveler ID
         try {
-          const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+          const res = await getHydrateTraveler(user)
           const data = await res.json()
           setTravelerId(data.traveler?.id ?? null)
         } catch {

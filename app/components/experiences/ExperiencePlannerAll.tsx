@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { experiencePaths } from '@/lib/experience-routes'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import ExperienceTripCreator, {
   mapWishlistRowToExperienceAnchor,
@@ -117,7 +118,7 @@ export default function ExperiencePlannerAll() {
       setAuthStatus('signedIn')
       // Always resolve traveler from server so localStorage id matches DB (Build uses travelerId in API queries).
       try {
-        const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+        const res = await getHydrateTraveler(user)
         const data = await res.json()
         const tid = data.traveler?.id ?? null
         setTravelerId(tid)

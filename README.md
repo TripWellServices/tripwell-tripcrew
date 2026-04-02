@@ -109,7 +109,8 @@ prisma/
 - `POST /api/trip/[tripId]/pack` - Add pack item
 - `PATCH /api/trip/[tripId]/pack` - Update pack item
 - `DELETE /api/trip/[tripId]/pack` - Delete pack item
-- `PATCH /api/trip/[tripId]/itinerary` - Update itinerary assignment
+- `GET|POST /api/trip/[tripId]/itinerary-items` - List / add trip-day experiences
+- `PATCH|DELETE /api/trip/[tripId]/itinerary-items/[itemId]` - Update / remove an experience on a day
 
 ## Notes
 

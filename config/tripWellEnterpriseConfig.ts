@@ -1,9 +1,12 @@
 /**
- * TripWell Enterprise — single-tenant default for this app.
+ * TripWell Enterprise — single-tenant default for this app (same idea as GoFast `GOFAST_COMPANY_ID`
+ * in `gofastapp-mvp/lib/goFastCompanyConfig.ts`).
  *
- * Set `TRIPWELL_ENTERPRISE_ID` in the environment to match the `TripWellEnterprise.id`
- * row in your database (see migrations / seed). If unset, the fallback below is used
- * so local and historic DBs keep working.
+ * One canonical id for the deployment; `TravelerFindOrCreateService` connects travelers to
+ * this id only — it does not discover tenant by name.
+ *
+ * Set `TRIPWELL_ENTERPRISE_ID` to match the `TripWellEnterprise.id` in your DB when it differs
+ * from the default below. If unset, the fallback keeps local / historic DBs working.
  */
 
 /** Matches legacy migration default [`001_fix_tripwell_enterprises`](prisma/migrations/001_fix_tripwell_enterprises.ts). */

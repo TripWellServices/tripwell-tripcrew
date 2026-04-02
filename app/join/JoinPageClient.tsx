@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import { joinTripCrew } from '@/lib/actions/tripcrew'
 import Link from 'next/link'
@@ -51,15 +52,10 @@ export default function JoinPageClient({ slug, tripCrew }: JoinPageClientProps) 
           } else {
             // Hydrate if not in localStorage
             try {
-              const response = await fetch('/api/auth/hydrate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  firebaseId: firebaseUser.uid,
-                  email: firebaseUser.email,
-                  name: firebaseUser.displayName,
-                  picture: firebaseUser.photoURL,
-                }),
+              const response = await postHydrateTraveler(firebaseUser, {
+                email: firebaseUser.email,
+                name: firebaseUser.displayName,
+                picture: firebaseUser.photoURL,
               })
 
               if (response.ok) {

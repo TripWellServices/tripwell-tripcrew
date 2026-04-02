@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useEffect } from 'react'
 import Link from 'next/link'
@@ -27,15 +28,10 @@ export default function TripCrewSetupPage() {
 
       // Get Traveler ID
       try {
-        const response = await fetch('/api/auth/hydrate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firebaseId: firebaseUser.uid,
-            email: firebaseUser.email,
-            name: firebaseUser.displayName,
-            picture: firebaseUser.photoURL,
-          }),
+        const response = await postHydrateTraveler(firebaseUser, {
+          email: firebaseUser.email,
+          name: firebaseUser.displayName,
+          picture: firebaseUser.photoURL,
         })
 
         if (response.ok) {

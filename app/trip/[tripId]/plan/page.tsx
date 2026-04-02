@@ -132,8 +132,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             Day-by-day view. Add and assign dining, attractions, concerts, hikes, and more.
           </p>
           <ItineraryCard
-            dining={trip.dining}
-            attractions={trip.attractions}
+            tripDays={trip.tripDays}
             startDate={trip.startDate}
             endDate={trip.endDate}
             tripId={trip.id}

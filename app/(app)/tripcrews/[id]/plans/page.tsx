@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 
 interface TripRow {
@@ -29,7 +30,7 @@ export default function CrewTripsPage() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+          const res = await getHydrateTraveler(user)
           const data = await res.json()
           setTravelerId(data.traveler?.id ?? null)
         } catch {

@@ -9,6 +9,7 @@ import {
   type HikeParseResult,
 } from '@/lib/hike-model'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { LocalStorageAPI } from '@/lib/localStorage'
 
 type FlowMode = 'discover' | 'paste'
@@ -19,7 +20,7 @@ async function resolveTravelerId(): Promise<string | null> {
   const auth = getFirebaseAuth()
   const user = auth.currentUser
   if (!user?.uid) return null
-  const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+  const res = await getHydrateTraveler(user)
   const data = await res.json().catch(() => ({}))
   const traveler = data.traveler
   const tid = traveler?.id ?? null

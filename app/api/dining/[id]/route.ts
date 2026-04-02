@@ -48,7 +48,6 @@ export async function PATCH(
       lng,
       distanceFromLodging,
       driveTimeMinutes,
-      itineraryDay,
     } = body
 
     const existing = await prisma.dining.findUnique({ where: { id } })
@@ -77,8 +76,6 @@ export async function PATCH(
     if (driveTimeMinutes !== undefined)
       data.driveTimeMinutes =
         typeof driveTimeMinutes === 'number' ? driveTimeMinutes : null
-    if (itineraryDay !== undefined)
-      data.itineraryDay = itineraryDay ? new Date(itineraryDay) : null
 
     const updated = await prisma.dining.update({
       where: { id },

@@ -1,3 +1,3 @@
--- Traveler default day window (seeded onto TripDay); was in schema without a prior migration.
-ALTER TABLE "Traveler" ADD COLUMN IF NOT EXISTS "defaultDayStartTime" TEXT;
-ALTER TABLE "Traveler" ADD COLUMN IF NOT EXISTS "defaultDayEndTime" TEXT;
+-- Obsolete: `defaultDayStartTime` / `defaultDayEndTime` were removed from the schema.
+-- Keep migration id for history; do not alter database.
+SELECT 1;

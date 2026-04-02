@@ -10,6 +10,23 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ensureWishlistForTraveler } from '@/lib/ensure-wishlist'
+import { getTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
+
+/** Full traveler graph for hydrate (same shape as findOrCreate upsert `include`). */
+export const TRAVELER_HYDRATE_INCLUDE: Prisma.TravelerInclude = {
+  tripWellEnterprise: true,
+  tripCrewMemberships: {
+    include: {
+      tripCrew: {
+        include: {
+          trips: {
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      },
+    },
+  },
+}
 
 export class TravelerFindOrCreateService {
   /**
@@ -34,26 +51,20 @@ export class TravelerFindOrCreateService {
 
     console.log('🔍 TRAVELER SERVICE: Finding or creating traveler for firebaseId:', firebaseId)
 
-    // Ensure TripWell Enterprises exists (find or create by name)
-    let enterprise = await prisma.tripWellEnterprise.findFirst({
-      where: { name: 'TripWell Enterprises' },
+    // Single-tenant app: same pattern as GoFast `GOFAST_COMPANY_ID` — one canonical id from config/env,
+    // never resolve tenant by name (avoids duplicate enterprise rows with random UUIDs).
+    const enterpriseId = getTripWellEnterpriseId()
+    await prisma.tripWellEnterprise.upsert({
+      where: { id: enterpriseId },
+      create: {
+        id: enterpriseId,
+        name: 'TripWell Enterprises',
+        address: '2604 N. George Mason Dr., Arlington, VA 22207',
+        description:
+          'Helping people enjoy traveling through intentional planning and connectedness',
+      },
+      update: {},
     })
-    
-    if (!enterprise) {
-      // Create if doesn't exist (Prisma will generate UUID)
-      enterprise = await prisma.tripWellEnterprise.create({
-        data: {
-          name: 'TripWell Enterprises',
-          address: '2604 N. George Mason Dr., Arlington, VA 22207',
-          description: 'Helping people enjoy traveling through intentional planning and connectedness',
-        },
-      })
-      console.log('✅ TRAVELER SERVICE: Created TripWell Enterprises:', enterprise.id)
-    } else {
-      console.log('✅ TRAVELER SERVICE: Found TripWell Enterprises:', enterprise.id)
-    }
-    
-    const enterpriseId = enterprise.id
 
     // Parse displayName into firstName/lastName if available
     const firstName = displayName?.split(' ')[0] || null
@@ -87,20 +98,7 @@ export class TravelerFindOrCreateService {
         photoURL: picture || null, // Google profile picture from Firebase
         tripWellEnterpriseId: enterpriseId, // Link to master container
       },
-      include: {
-        tripWellEnterprise: true,
-        tripCrewMemberships: {
-          include: {
-            tripCrew: {
-              include: {
-                trips: {
-                  orderBy: { createdAt: 'desc' },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: TRAVELER_HYDRATE_INCLUDE,
     })
 
     console.log('✅ TRAVELER SERVICE: Traveler found/created:', traveler.id)
@@ -110,6 +108,14 @@ export class TravelerFindOrCreateService {
     })
 
     return traveler
+  }
+
+  /** Load traveler with hydrate includes (used by GET/POST `/api/auth/hydrate` after session header check). */
+  static async getHydratedById(travelerId: string) {
+    return prisma.traveler.findUnique({
+      where: { id: travelerId },
+      include: TRAVELER_HYDRATE_INCLUDE,
+    })
   }
 
   /**

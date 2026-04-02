@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
@@ -50,15 +51,10 @@ export default function WelcomePage() {
         console.log('🚀 WELCOME: ===== STARTING HYDRATION =====')
         console.log('🔄 WELCOME: Hydrating traveler for firebaseId:', firebaseUser.uid)
         
-        const response = await fetch('/api/auth/hydrate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firebaseId: firebaseUser.uid,
-            email: firebaseUser.email,
-            name: firebaseUser.displayName,
-            picture: firebaseUser.photoURL,
-          }),
+        const response = await postHydrateTraveler(firebaseUser, {
+          email: firebaseUser.email,
+          name: firebaseUser.displayName,
+          picture: firebaseUser.photoURL,
         })
 
         console.log('🔄 WELCOME: Response status:', response.status)

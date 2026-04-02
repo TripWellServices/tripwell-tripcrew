@@ -425,7 +425,6 @@ model Dining {
   lng                 Float?
   distanceFromLodging Float?
   driveTimeMinutes    Int?
-  itineraryDay        DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -466,7 +465,6 @@ model Attraction {
   lng                  Float?
   distanceFromLodging  Float?
   driveTimeMinutes     Int?
-  itineraryDay         DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

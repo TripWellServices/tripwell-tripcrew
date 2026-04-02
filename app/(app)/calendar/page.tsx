@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 
 interface CalendarTrip {
@@ -33,7 +34,7 @@ export default function CalendarPage() {
         return
       }
       try {
-        const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+        const res = await getHydrateTraveler(user)
         const data = await res.json()
         const tid = data.traveler?.id ?? null
         setTravelerId(tid)

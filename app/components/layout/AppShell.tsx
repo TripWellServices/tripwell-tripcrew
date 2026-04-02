@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 
 const SIDEBAR: { href: string; label: string; prefix?: boolean }[] = [
@@ -28,7 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return
     }
     try {
-      const res = await fetch(`/api/auth/hydrate?firebaseId=${firebaseUser.uid}`)
+      const res = await getHydrateTraveler(firebaseUser)
       const data = await res.json()
       const t = data.traveler
       if (t?.id && typeof window !== 'undefined') {

@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import ExperienceTripCreator from '@/app/components/experiences/ExperienceTripCreator'
 import { experiencePaths } from '@/lib/experience-routes'
@@ -48,7 +49,7 @@ export default function WishlistView({ wishlistBackHref = '/wishlist' }: { wishl
           loadWishlist(storedTravelerId)
         } else {
           try {
-            const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+            const res = await getHydrateTraveler(user)
             const data = await res.json()
             const tid = data.traveler?.id ?? null
             setTravelerId(tid)

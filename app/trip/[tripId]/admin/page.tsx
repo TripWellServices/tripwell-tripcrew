@@ -104,8 +104,7 @@ export default async function AdminPage({ params }: PageProps) {
             />
 
             <ItineraryCard
-              dining={trip.dining}
-              attractions={trip.attractions}
+              tripDays={trip.tripDays}
               startDate={trip.startDate}
               endDate={trip.endDate}
               tripId={trip.id}

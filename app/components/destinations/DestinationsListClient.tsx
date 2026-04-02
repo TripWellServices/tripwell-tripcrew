@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { getHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { onAuthStateChanged } from 'firebase/auth'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { experiencePaths } from '@/lib/experience-routes'
@@ -41,7 +42,7 @@ export default function DestinationsListClient() {
         return
       }
       try {
-        const res = await fetch(`/api/auth/hydrate?firebaseId=${user.uid}`)
+        const res = await getHydrateTraveler(user)
         const data = await res.json()
         const tid = data.traveler?.id ?? null
         setTravelerId(tid)

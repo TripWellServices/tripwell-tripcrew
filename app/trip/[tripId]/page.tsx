@@ -61,8 +61,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
             />
 
             <ItineraryCard
-              dining={trip.dining}
-              attractions={trip.attractions}
+              tripDays={trip.tripDays}
               startDate={trip.startDate}
               endDate={trip.endDate}
               tripId={trip.id}
