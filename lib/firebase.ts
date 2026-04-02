@@ -1,29 +1,23 @@
 'use client'
 
 /**
- * Client Firebase — values match Firebase Console “Add Firebase to your web app” (SDK snippet).
- * Optional env: NEXT_PUBLIC_FIREBASE_* overrides; see `config/firebaseProjectDefaults.ts` for project id default.
+ * Client Firebase — **hardcoded** from Firebase Console (“Add Firebase to your web app”).
+ * No `NEXT_PUBLIC_FIREBASE_*` env vars required. Change this object if the Console config changes.
  */
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import type { Analytics } from 'firebase/analytics'
 import { getAnalytics, isSupported } from 'firebase/analytics'
 import { getAuth, type Auth } from 'firebase/auth'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
-import { TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT } from '@/config/firebaseProjectDefaults'
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBeYbEC-ZDdPCFV6aUgw0GhDSFqhGYQFH4',
-  authDomain:
-    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ||
-    `${TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT}.firebaseapp.com`,
-  projectId:
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT,
-  storageBucket:
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    `${TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT}.firebasestorage.app`,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '841880382902',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:841880382902:web:72c9514c21d7d6c4dae517',
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-MMJEC80CNB',
+  apiKey: 'AIzaSyBeYbEC-ZDdPCFV6aUgw0GhDSFqhGYQFH4',
+  authDomain: 'tripwell-794c9.firebaseapp.com',
+  projectId: 'tripwell-794c9',
+  storageBucket: 'tripwell-794c9.firebasestorage.app',
+  messagingSenderId: '841880382902',
+  appId: '1:841880382902:web:72c9514c21d7d6c4dae517',
+  measurementId: 'G-MMJEC80CNB',
 }
 
 let app: FirebaseApp | undefined
@@ -56,18 +50,15 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Handle IndexedDB errors globally (matching TripWell OG)
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (event) => {
     if (event.error && event.error.message && event.error.message.includes('IndexedDB')) {
       console.warn('⚠️ IndexedDB error detected, this is usually harmless:', event.error.message)
-      // Prevent the error from breaking the app
       event.preventDefault()
     }
   })
 }
 
-// Export auth with type assertion for client-side usage
 export const getFirebaseAuth = (): Auth => {
   if (!auth) {
     throw new Error('Firebase Auth not initialized. This should only be called on the client side.')
@@ -77,7 +68,6 @@ export const getFirebaseAuth = (): Auth => {
 
 export { app, auth }
 
-/** Analytics when supported in this browser; may be undefined until `isSupported` resolves. */
 export const getFirebaseAnalytics = (): Analytics | undefined => analytics
 
 export const getFirebaseStorage = (): FirebaseStorage => {
@@ -88,4 +78,3 @@ export const getFirebaseStorage = (): FirebaseStorage => {
   }
   return storage
 }
-
