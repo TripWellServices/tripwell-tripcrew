@@ -10,6 +10,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
+import { LocalStorageAPI } from '@/lib/localStorage'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
@@ -45,8 +46,7 @@ export default function TravelCockpitPage() {
         return
       }
 
-      const storedTravelerId =
-        typeof window !== 'undefined' ? localStorage.getItem('travelerId') : null
+      const storedTravelerId = LocalStorageAPI.getTravelerId()
       if (storedTravelerId) {
         loadTripCrews(storedTravelerId)
       } else {
@@ -58,9 +58,10 @@ export default function TravelCockpitPage() {
           })
           if (response.ok) {
             const data = await response.json()
-            const tid = data.traveler?.id ?? null
-            if (tid) {
-              if (typeof window !== 'undefined') localStorage.setItem('travelerId', tid)
+            const hydrated = data.traveler
+            const tid = hydrated?.id ?? null
+            if (tid && hydrated) {
+              LocalStorageAPI.setFullHydrationModel(hydrated)
               loadTripCrews(tid)
             }
           } else {

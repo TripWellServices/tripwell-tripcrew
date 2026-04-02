@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
 import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
+import { LocalStorageAPI } from '@/lib/localStorage'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
@@ -68,15 +69,13 @@ export default function WelcomePage() {
           console.log('✅ WELCOME: Name:', hydratedTraveler?.firstName, hydratedTraveler?.lastName)
           console.log('✅ WELCOME: TripCrews count:', hydratedTraveler?.tripCrewMemberships?.length || 0)
 
-          // Store in localStorage (like GoFast pattern)
+          // Cache traveler + crews; `setFullHydrationModel` sets `travelerId` for /home cockpit et al.
+          LocalStorageAPI.setFullHydrationModel(hydratedTraveler)
           if (typeof window !== 'undefined') {
-            const { LocalStorageAPI } = await import('@/lib/localStorage')
-            LocalStorageAPI.setFullHydrationModel(hydratedTraveler)
             localStorage.setItem('firebaseId', firebaseUser.uid)
             localStorage.setItem('email', hydratedTraveler.email || firebaseUser.email || '')
-            
-            console.log('💾 WELCOME: Traveler and TripCrew data cached to localStorage')
           }
+          console.log('💾 WELCOME: Traveler id in localStorage:', LocalStorageAPI.getTravelerId())
 
           setTraveler(hydratedTraveler)
 
