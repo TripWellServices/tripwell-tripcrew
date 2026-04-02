@@ -7,6 +7,7 @@ import LogisticsCard from '@/app/components/trip/LogisticsCard'
 import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
 import ItineraryCard from '@/app/components/trip/ItineraryCard'
+import TripMemoriesCard from '@/app/components/trip/TripMemoriesCard'
 import { getTrip } from '@/lib/actions/trip'
 import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 
@@ -67,6 +68,8 @@ export default async function TripPage({ params, searchParams }: PageProps) {
               tripId={trip.id}
               isAdmin={isAdmin}
             />
+
+            <TripMemoriesCard tripId={trip.id} isAdmin={isAdmin} />
           </div>
 
           <div className="space-y-6">

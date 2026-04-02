@@ -2,6 +2,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
+import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 // Firebase config for TripWell (separate project from GoFast)
 const firebaseConfig = {
@@ -17,17 +18,20 @@ const firebaseConfig = {
 // Initialize Firebase with error handling (matching TripWell OG)
 let app: FirebaseApp | undefined
 let auth: Auth | undefined
+let storage: FirebaseStorage | undefined
 
 if (typeof window !== 'undefined') {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
     auth = getAuth(app)
+    storage = getStorage(app)
     console.log('✅ Firebase initialized successfully')
   } catch (error) {
     console.error('❌ Firebase initialization error:', error)
     // Fallback initialization
     app = initializeApp(firebaseConfig)
     auth = getAuth(app)
+    storage = getStorage(app)
   }
 }
 
@@ -52,4 +56,13 @@ export const getFirebaseAuth = (): Auth => {
 
 // Export typed auth for server-side usage (when available)
 export { app, auth }
+
+export const getFirebaseStorage = (): FirebaseStorage => {
+  if (!storage) {
+    throw new Error(
+      'Firebase Storage not initialized. Call only on the client after Firebase loads.'
+    )
+  }
+  return storage
+}
 

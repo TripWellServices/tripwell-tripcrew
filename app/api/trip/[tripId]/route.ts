@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getTripAccess } from '@/lib/trip/assertTripAccess'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,25 +82,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'travelerId is required' }, { status: 400 })
     }
 
-    const trip = await prisma.trip.findUnique({
-      where: { id: tripId },
-    })
-
-    if (!trip) {
-      return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
-    }
-
-    const ownsTrip = trip.travelerId === travelerId
-    let memberOfTripCrew = false
-    if (trip.crewId) {
-      const m = await prisma.tripCrewMember.findFirst({
-        where: { tripCrewId: trip.crewId, travelerId },
-      })
-      memberOfTripCrew = Boolean(m)
-    }
-
-    if (!ownsTrip && !memberOfTripCrew) {
-      return NextResponse.json({ error: 'Not allowed to update this trip' }, { status: 403 })
+    const access = await getTripAccess(tripId, travelerId)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.message },
+        { status: access.status }
+      )
     }
 
     if (crewId === null || crewId === '') {

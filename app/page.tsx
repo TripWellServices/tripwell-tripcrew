@@ -1,67 +1,85 @@
 'use client'
 
-import { useEffect } from 'react'
+/**
+ * Root splash — same idea as gofastapp-mvp `app/page.tsx`:
+ * show a loader until Firebase auth has finished restoring the session, then route.
+ * If signed in, persist `firebaseId` (uid) and go to /welcome; otherwise show marketing.
+ * No manual JWT parsing: if the user exists on our initialized Firebase app, they belong to this project.
+ */
+
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
 
 export default function HomePage() {
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
-    
-    // Check if user is from correct Firebase project
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Verify user is from TripWell project (tripwell-794c9)
-        // If token is from wrong project, sign out
         try {
-          const idToken = await user.getIdToken()
-          const decoded = JSON.parse(atob(idToken.split('.')[1]))
-          
-          // Check if token is from correct project
-          if (decoded.aud !== 'tripwell-794c9' && decoded.firebase?.project_id !== 'tripwell-794c9') {
-            console.log('🔄 Wrong Firebase project detected, signing out...')
-            await signOut(auth)
-            return
-          }
-          
-          // Valid TripWell user, redirect to welcome
-          router.push('/welcome')
-        } catch (err) {
-          console.error('Token check error:', err)
-          // On error, sign out to be safe
-          await signOut(auth)
+          localStorage.setItem('firebaseId', user.uid)
+        } catch {
+          /* ignore */
         }
       }
+      setIsAuthenticated(!!user)
+      setIsLoading(false)
     })
-
     return () => unsubscribe()
-  }, [router])
+  }, [])
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return
+    router.replace('/welcome')
+  }, [isLoading, isAuthenticated, router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-4" />
+          <p className="text-white text-lg font-medium">TripWell</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-4" />
+          <p className="text-white text-lg">Loading your trip...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-blue-200 flex flex-col items-center justify-center p-6">
       <div className="max-w-2xl w-full text-center space-y-8">
         <div className="space-y-6">
-          {/* TripWell Logo */}
           <div className="flex flex-col items-center space-y-4">
-            <svg 
-              width="140" 
-              height="140" 
-              viewBox="0 0 24 24" 
-              fill="none" 
+            <svg
+              width="140"
+              height="140"
+              viewBox="0 0 24 24"
+              fill="none"
               xmlns="http://www.w3.org/2000/svg"
               className="drop-shadow-lg"
             >
-              <path 
-                d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2S10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L12 21L16 22V20.5L14 19V13.5L22 16Z" 
+              <path
+                d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2S10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L12 21L16 22V20.5L14 19V13.5L22 16Z"
                 fill="#0ea5e9"
               />
             </svg>
-            
-            {/* TripWell Text */}
+
             <div className="text-center">
               <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
                 <span className="text-sky-100">Trip</span>
@@ -76,7 +94,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Auth Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
             <Link
               href="/signin"

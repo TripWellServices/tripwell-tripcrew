@@ -143,6 +143,8 @@ model Traveler {
   authoredCruises     Cruise[]            @relation("CruiseAuthor")
   savedCruises        Cruise[]            @relation("CruiseSavedBy")
   authoredCities      City[]              @relation("CityGuideAuthor")
+  authoredTripMemories TripMemory[]       @relation("TripMemoryAuthor")
+  memorySharesSent     TripMemoryShare[]   @relation("TripMemoryShareSender")
 }
 
 model TripCrew {
@@ -233,6 +235,7 @@ model Trip {
   lodging      Lodging?     @relation("TripLodging")
   dining       Dining[]     @relation("TripDining")
   attractions  Attraction[] @relation("TripAttractions")
+  memories     TripMemory[]
 
   @@index([crewId])
   @@index([travelerId])
@@ -250,9 +253,61 @@ model TripDay {
 
   trip         Trip                  @relation(fields: [tripId], references: [id], onDelete: Cascade)
   experiences  TripDayExperience[]
+  memories     TripMemory[]
 
   @@unique([tripId, date])
   @@index([tripId])
+}
+
+// Trip memory: photos + reflection; share log for outbound email.
+model TripMemory {
+  id               String   @id @default(uuid())
+  tripId           String
+  authorTravelerId String
+  tripDayId        String?
+  body             String   @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trip    Trip                  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author  Traveler              @relation("TripMemoryAuthor", fields: [authorTravelerId], references: [id], onDelete: Cascade)
+  tripDay TripDay?              @relation(fields: [tripDayId], references: [id], onDelete: SetNull)
+  photos  TripMemoryPhoto[]
+  shares  TripMemoryShare[]
+
+  @@index([tripId])
+  @@index([authorTravelerId])
+  @@map("trip_memories")
+}
+
+model TripMemoryPhoto {
+  id          String @id @default(uuid())
+  memoryId    String
+  storagePath String
+  publicUrl   String
+  sortOrder   Int    @default(0)
+  width       Int?
+  height      Int?
+
+  memory TripMemory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@index([memoryId])
+  @@map("trip_memory_photos")
+}
+
+model TripMemoryShare {
+  id                String   @id @default(uuid())
+  memoryId          String
+  sentByTravelerId  String
+  recipientEmail    String
+  sentAt            DateTime @default(now())
+  providerMessageId String?
+
+  memory TripMemory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  sentBy Traveler   @relation("TripMemoryShareSender", fields: [sentByTravelerId], references: [id], onDelete: Cascade)
+
+  @@index([memoryId])
+  @@map("trip_memory_shares")
 }
 
 model TripDayExperience {
