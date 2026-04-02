@@ -5,8 +5,8 @@
  * One canonical id for the deployment; `TravelerFindOrCreateService` connects travelers to
  * this id only — it does not discover tenant by name.
  *
- * Set `TRIPWELL_ENTERPRISE_ID` to match the `TripWellEnterprise.id` in your DB when it differs
- * from the default below. If unset, the fallback keeps local / historic DBs working.
+ * Env is optional: same ergonomics as GoFast’s in-code `GOFAST_COMPANY_ID` — this constant is the
+ * default. Set `TRIPWELL_ENTERPRISE_ID` only when your DB row id differs.
  */
 
 /** Matches legacy migration default [`001_fix_tripwell_enterprises`](prisma/migrations/001_fix_tripwell_enterprises.ts). */

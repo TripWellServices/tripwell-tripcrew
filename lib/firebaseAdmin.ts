@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin'
+import { getDefaultFirebaseProjectId } from '@/config/firebaseProjectDefaults'
 
 let adminAuthInstance: admin.auth.Auth | null = null
 
@@ -33,7 +34,8 @@ function parseServiceAccountJson(raw: string): AdminCredentials {
   return { projectId, clientEmail, privateKey }
 }
 
-function loadAdminCredentials(): AdminCredentials {
+/** Explicit service account (production / Vercel). */
+function tryLoadCertCredentials(): AdminCredentials | null {
   const rawJson =
     process.env.FIREBASE_SERVICE_ACCOUNT?.trim() ||
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
@@ -41,24 +43,60 @@ function loadAdminCredentials(): AdminCredentials {
     return parseServiceAccountJson(rawJson)
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim()
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim()
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim()
+  if (projectId && clientEmail && privateKey) {
+    return {
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, '\n'),
+    }
+  }
+  return null
+}
 
-  if (!projectId || !clientEmail || !privateKey) {
-    const missing: string[] = []
-    if (!projectId) missing.push('FIREBASE_PROJECT_ID')
-    if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL')
-    if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY')
-    throw new Error(
-      `Firebase Admin not configured: set FIREBASE_SERVICE_ACCOUNT (full JSON, recommended) or all of: ${missing.join(', ')}`
-    )
+function configureMissingAdminHelp(): string {
+  const pid = getDefaultFirebaseProjectId()
+  return (
+    `Firebase Admin not configured. Production: set FIREBASE_SERVICE_ACCOUNT (full JSON). ` +
+    `Local dev alternative: run "gcloud auth application-default login" with access to project "${pid}", ` +
+    `or set FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY.`
+  )
+}
+
+/** Vercel serverless has no Application Default Credentials; require JSON secret. */
+function requiresExplicitServiceAccount(): boolean {
+  return process.env.VERCEL === '1'
+}
+
+function initializeFirebaseAdminApp(): void {
+  const certCreds = tryLoadCertCredentials()
+  if (certCreds) {
+    const cleanPrivateKey = certCreds.privateKey.replace(/\\n/g, '\n')
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: certCreds.projectId,
+        clientEmail: certCreds.clientEmail,
+        privateKey: cleanPrivateKey,
+      }),
+    })
+    return
   }
 
-  return {
-    projectId,
-    clientEmail,
-    privateKey: privateKey.replace(/\\n/g, '\n'),
+  if (requiresExplicitServiceAccount()) {
+    throw new Error(configureMissingAdminHelp())
+  }
+
+  // Local dev: optional `gcloud auth application-default login` (project matches client defaults).
+  try {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: getDefaultFirebaseProjectId(),
+    })
+  } catch (err: unknown) {
+    const hint = err instanceof Error ? err.message : String(err)
+    throw new Error(`${configureMissingAdminHelp()} (${hint})`)
   }
 }
 
@@ -68,19 +106,13 @@ export function getAdminAuth(): admin.auth.Auth {
   }
 
   if (!admin.apps.length) {
-    const { projectId, clientEmail, privateKey } = loadAdminCredentials()
-    const cleanPrivateKey = privateKey.replace(/\\n/g, '\n')
-
     try {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey: cleanPrivateKey,
-        }),
-      })
+      initializeFirebaseAdminApp()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Firebase Admin not configured')) {
+        throw err
+      }
       throw new Error(`Firebase Admin initialization failed: ${msg}`)
     }
   }

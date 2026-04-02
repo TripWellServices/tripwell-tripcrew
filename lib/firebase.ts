@@ -3,13 +3,20 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
+import { TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT } from '@/config/firebaseProjectDefaults'
 
-// Firebase config for TripWell (separate project from GoFast)
+// Firebase config for TripWell (separate project from GoFast).
+// NEXT_PUBLIC_* env vars are optional; defaults match `config/firebaseProjectDefaults.ts` project id.
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBeYbEC-ZDdPCFV6aUgw0GhDSFqhGYQFH4',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'tripwell-794c9.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'tripwell-794c9',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'tripwell-794c9.firebasestorage.app',
+  authDomain:
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ||
+    `${TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT}.firebaseapp.com`,
+  projectId:
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT,
+  storageBucket:
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    `${TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT}.firebasestorage.app`,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '841880382902',
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:841880382902:web:72c9514c21d7d6c4dae517',
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-MMJEC80CNB',
