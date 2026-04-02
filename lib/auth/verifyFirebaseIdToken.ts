@@ -20,7 +20,7 @@ export async function verifyFirebaseIdTokenFromBearer(
       msg.includes('Firebase Admin not configured') ||
       msg.includes('Firebase Admin env vars missing') ||
       msg.includes('Firebase Admin initialization failed') ||
-      msg.includes('FIREBASE_SERVICE_ACCOUNT_JSON')
+      msg.includes('FIREBASE_SERVICE_ACCOUNT')
     ) {
       return { error: 'Server auth not configured', status: 503 }
     }

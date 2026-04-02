@@ -13,7 +13,7 @@ function parseServiceAccountJson(raw: string): AdminCredentials {
   try {
     parsed = JSON.parse(raw) as Record<string, unknown>
   } catch {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON')
+    throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON')
   }
   const projectId = parsed.project_id
   const clientEmail = parsed.client_email
@@ -27,14 +27,16 @@ function parseServiceAccountJson(raw: string): AdminCredentials {
     !privateKey
   ) {
     throw new Error(
-      'FIREBASE_SERVICE_ACCOUNT_JSON must include project_id, client_email, and private_key'
+      'Service account JSON must include project_id, client_email, and private_key'
     )
   }
   return { projectId, clientEmail, privateKey }
 }
 
 function loadAdminCredentials(): AdminCredentials {
-  const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
+  const rawJson =
+    process.env.FIREBASE_SERVICE_ACCOUNT?.trim() ||
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
   if (rawJson) {
     return parseServiceAccountJson(rawJson)
   }
@@ -49,7 +51,7 @@ function loadAdminCredentials(): AdminCredentials {
     if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL')
     if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY')
     throw new Error(
-      `Firebase Admin not configured: set FIREBASE_SERVICE_ACCOUNT_JSON (recommended) or all of: ${missing.join(', ')}`
+      `Firebase Admin not configured: set FIREBASE_SERVICE_ACCOUNT (full JSON, recommended) or all of: ${missing.join(', ')}`
     )
   }
 
