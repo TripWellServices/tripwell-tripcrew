@@ -1,12 +1,16 @@
 'use client'
 
+/**
+ * Client Firebase — values match Firebase Console “Add Firebase to your web app” (SDK snippet).
+ * Optional env: NEXT_PUBLIC_FIREBASE_* overrides; see `config/firebaseProjectDefaults.ts` for project id default.
+ */
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
+import type { Analytics } from 'firebase/analytics'
+import { getAnalytics, isSupported } from 'firebase/analytics'
 import { getAuth, type Auth } from 'firebase/auth'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 import { TRIPWELL_FIREBASE_PROJECT_ID_DEFAULT } from '@/config/firebaseProjectDefaults'
 
-// Firebase config for TripWell (separate project from GoFast).
-// NEXT_PUBLIC_* env vars are optional; defaults match `config/firebaseProjectDefaults.ts` project id.
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBeYbEC-ZDdPCFV6aUgw0GhDSFqhGYQFH4',
   authDomain:
@@ -22,20 +26,30 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-MMJEC80CNB',
 }
 
-// Initialize Firebase with error handling (matching TripWell OG)
 let app: FirebaseApp | undefined
 let auth: Auth | undefined
 let storage: FirebaseStorage | undefined
+let analytics: Analytics | undefined
 
 if (typeof window !== 'undefined') {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
     auth = getAuth(app)
     storage = getStorage(app)
+    if (firebaseConfig.measurementId) {
+      void isSupported().then((ok) => {
+        if (ok && app) {
+          try {
+            analytics = getAnalytics(app)
+          } catch {
+            /* Analytics unavailable (e.g. blocked) */
+          }
+        }
+      })
+    }
     console.log('✅ Firebase initialized successfully')
   } catch (error) {
     console.error('❌ Firebase initialization error:', error)
-    // Fallback initialization
     app = initializeApp(firebaseConfig)
     auth = getAuth(app)
     storage = getStorage(app)
@@ -61,8 +75,10 @@ export const getFirebaseAuth = (): Auth => {
   return auth
 }
 
-// Export typed auth for server-side usage (when available)
 export { app, auth }
+
+/** Analytics when supported in this browser; may be undefined until `isSupported` resolves. */
+export const getFirebaseAnalytics = (): Analytics | undefined => analytics
 
 export const getFirebaseStorage = (): FirebaseStorage => {
   if (!storage) {
