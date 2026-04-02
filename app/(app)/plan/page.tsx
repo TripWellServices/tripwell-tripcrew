@@ -26,7 +26,7 @@ export default function PlanForkPage() {
           >
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Got my plan</h3>
             <p className="text-sm text-gray-600">
-              Trip name, place, and dates — straight to your trip. No AI.
+              Trip name, place, and dates — optional paste to pull out flights and hotels.
             </p>
           </Link>
         </li>

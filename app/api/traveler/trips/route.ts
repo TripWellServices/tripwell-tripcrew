@@ -6,7 +6,22 @@ import {
   tripDisplayTitle,
 } from '@/lib/trip/computeTripMetadata'
 import { seedTripDays } from '@/lib/trip/seedTripDays'
-import { TripType } from '@prisma/client'
+import { TripType, TransportMode, WhoWith } from '@prisma/client'
+
+const WHO_WITH: WhoWith[] = ['SOLO', 'SPOUSE', 'FRIENDS', 'FAMILY', 'OTHER']
+const TRANSPORT: TransportMode[] = ['CAR', 'BOAT', 'PLANE']
+
+function normWhoWith(v: unknown): WhoWith | null {
+  if (typeof v !== 'string') return null
+  const u = v.toUpperCase() as WhoWith
+  return WHO_WITH.includes(u) ? u : null
+}
+
+function normTransportMode(v: unknown): TransportMode | null {
+  if (typeof v !== 'string') return null
+  const u = v.toUpperCase() as TransportMode
+  return TRANSPORT.includes(u) ? u : null
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -106,6 +121,11 @@ export async function POST(request: NextRequest) {
       startDate: startDateRaw,
       endDate: endDateRaw,
       crewId: bodyCrewId,
+      city: bodyCity,
+      state: bodyState,
+      country: bodyCountry,
+      whoWith: bodyWhoWith,
+      transportMode: bodyTransportMode,
       concertId,
       hikeId,
       diningId,
@@ -119,6 +139,11 @@ export async function POST(request: NextRequest) {
       startDate?: string
       endDate?: string
       crewId?: string | null
+      city?: string | null
+      state?: string | null
+      country?: string | null
+      whoWith?: string | null
+      transportMode?: string | null
       concertId?: string
       hikeId?: string
       diningId?: string
@@ -224,6 +249,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const city = typeof bodyCity === 'string' ? bodyCity.trim() || null : null
+    const state = typeof bodyState === 'string' ? bodyState.trim() || null : null
+    const country = typeof bodyCountry === 'string' ? bodyCountry.trim() || null : null
+    const whoWith = normWhoWith(bodyWhoWith)
+    const transportMode = normTransportMode(bodyTransportMode)
+
     const trip = await prisma.$transaction(async (tx) => {
       const t = await tx.trip.create({
         data: {
@@ -236,6 +267,11 @@ export async function POST(request: NextRequest) {
           season,
           tripType,
           startingLocation: traveler.homeAddress,
+          city,
+          state,
+          country,
+          whoWith,
+          transportMode,
         },
       })
       await seedTripDays(tx, {
