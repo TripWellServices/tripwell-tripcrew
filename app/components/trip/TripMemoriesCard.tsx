@@ -13,10 +13,14 @@ type MemoryPhoto = {
 
 type TripMemoryRow = {
   id: string
-  tripId: string
+  tripId: string | null
   authorTravelerId: string
   body: string
   createdAt: string
+  freestyleTitle: string | null
+  freestyleCity: string | null
+  freestyleState: string | null
+  freestyleCountry: string | null
   author: {
     id: string
     firstName: string | null
@@ -24,6 +28,13 @@ type TripMemoryRow = {
   }
   photos: MemoryPhoto[]
   tripDay: { id: string; dayNumber: number; date: string } | null
+  trip: {
+    id: string
+    purpose: string
+    city: string | null
+    state: string | null
+    country: string | null
+  } | null
 }
 
 interface TripMemoriesCardProps {
@@ -110,11 +121,8 @@ export default function TripMemoriesCard({ tripId, isAdmin }: TripMemoriesCardPr
       const memoryId = created.id as string
 
       for (const file of fileArr) {
-        const { storagePath, publicUrl, byteLength, contentType } = await uploadTripMemoryPhotoFile(
-          tripId,
-          memoryId,
-          file
-        )
+        const { storagePath, publicUrl, byteLength, contentType } =
+          await uploadTripMemoryPhotoFile(memoryId, file)
         const pr = await fetch(`/api/trip/${tripId}/memories/${memoryId}/photos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -282,6 +290,17 @@ export default function TripMemoriesCard({ tripId, isAdmin }: TripMemoriesCardPr
                   {format(new Date(m.createdAt), 'MMM d, yyyy · h:mm a')}
                 </time>
               </div>
+              {(m.trip || m.freestyleTitle) && (
+                <p className="mt-1 text-xs font-medium text-sky-800">
+                  {m.trip
+                    ? [m.trip.city, m.trip.state, m.trip.country].filter(Boolean).join(', ') ||
+                      m.trip.purpose ||
+                      'Trip'
+                    : [m.freestyleTitle, [m.freestyleCity, m.freestyleState, m.freestyleCountry].filter(Boolean).join(', ')]
+                        .filter(Boolean)
+                        .join(' · ')}
+                </p>
+              )}
               {m.tripDay && (
                 <p className="mt-1 text-xs text-gray-500">Day {m.tripDay.dayNumber}</p>
               )}

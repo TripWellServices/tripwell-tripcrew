@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getTripAccess } from '@/lib/trip/assertTripAccess'
 import {
   isAllowedMemoryPhotoContentType,
   isHttpsPublicUrl,
@@ -12,10 +11,10 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ tripId: string; memoryId: string }> }
+  { params }: { params: Promise<{ memoryId: string }> }
 ) {
   try {
-    const { tripId, memoryId } = await params
+    const { memoryId } = await params
     const body = await request.json().catch(() => ({}))
     const {
       travelerId,
@@ -48,31 +47,8 @@ export async function POST(
       )
     }
 
-    const access = await getTripAccess(tripId, travelerId)
-    if (!access.ok) {
-      return NextResponse.json({ error: access.message }, { status: access.status })
-    }
-
     if (!isHttpsPublicUrl(publicUrl)) {
       return NextResponse.json({ error: 'publicUrl must be https' }, { status: 400 })
-    }
-
-    const memory = await prisma.tripMemory.findFirst({
-      where: { id: memoryId, tripId },
-      include: { photos: { select: { sortOrder: true } } },
-    })
-
-    if (!memory) {
-      return NextResponse.json({ error: 'Memory not found' }, { status: 404 })
-    }
-
-    if (
-      !isValidMemoryStoragePath(memoryId, storagePath, memory.tripId ?? tripId)
-    ) {
-      return NextResponse.json(
-        { error: 'storagePath must be under memories/{memoryId}/ (or legacy trip path)' },
-        { status: 400 }
-      )
     }
 
     if (!contentType?.trim() || !isAllowedMemoryPhotoContentType(contentType)) {
@@ -92,10 +68,19 @@ export async function POST(
       )
     }
 
-    if (memory.authorTravelerId !== travelerId) {
+    const memory = await prisma.tripMemory.findFirst({
+      where: { id: memoryId, authorTravelerId: travelerId },
+      include: { photos: { select: { sortOrder: true } } },
+    })
+
+    if (!memory) {
+      return NextResponse.json({ error: 'Memory not found' }, { status: 404 })
+    }
+
+    if (!isValidMemoryStoragePath(memoryId, storagePath, memory.tripId)) {
       return NextResponse.json(
-        { error: 'Only the author can add photos to this memory' },
-        { status: 403 }
+        { error: 'storagePath must be under memories/{memoryId}/ (or legacy trip path)' },
+        { status: 400 }
       )
     }
 
@@ -116,7 +101,7 @@ export async function POST(
 
     return NextResponse.json(photo)
   } catch (error) {
-    console.error('Memory photo POST error:', error)
+    console.error('Traveler memory photo POST error:', error)
     return NextResponse.json({ error: 'Failed to add photo' }, { status: 500 })
   }
 }

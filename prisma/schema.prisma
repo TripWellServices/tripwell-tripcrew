@@ -259,19 +259,28 @@ model TripDay {
   @@index([tripId])
 }
 
-// Trip memory: photos + reflection; share log for outbound email.
+// Trip memory: photos + reflection; optional Trip for freestyle / hindsight entries.
 model TripMemory {
-  id               String   @id @default(uuid())
-  tripId           String
+  id               String    @id @default(uuid())
+  tripId           String?
   authorTravelerId String
   tripDayId        String?
-  body             String   @db.Text
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  body             String    @db.Text
 
-  trip    Trip                  @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  author  Traveler              @relation("TripMemoryAuthor", fields: [authorTravelerId], references: [id], onDelete: Cascade)
-  tripDay TripDay?              @relation(fields: [tripDayId], references: [id], onDelete: SetNull)
+  /// When tripId is null — label this memory (e.g. "Portugal 2024"); hindsight stub.
+  freestyleTitle    String?
+  freestyleCity     String?
+  freestyleState    String?
+  freestyleCountry  String?
+  freestyleStartDate DateTime?
+  freestyleEndDate   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip    Trip?      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author  Traveler   @relation("TripMemoryAuthor", fields: [authorTravelerId], references: [id], onDelete: Cascade)
+  tripDay TripDay?   @relation(fields: [tripDayId], references: [id], onDelete: SetNull)
   photos  TripMemoryPhoto[]
   shares  TripMemoryShare[]
 

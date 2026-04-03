@@ -1,16 +1,25 @@
-/** Client uploads to Firebase Storage under this prefix (see storage.rules). */
-export function expectedMemoryPhotoPrefix(tripId: string, memoryId: string): string {
+/** Modern uploads: one folder per memory (works with or without a Trip). */
+export function expectedMemoryPhotoPrefix(memoryId: string): string {
+  return `memories/${memoryId}/`
+}
+
+/** Legacy path from trip-scoped v1. */
+export function legacyTripMemoryPhotoPrefix(tripId: string, memoryId: string): string {
   return `trip-memories/${tripId}/${memoryId}/`
 }
 
 export function isValidMemoryStoragePath(
-  tripId: string,
   memoryId: string,
-  storagePath: string
+  storagePath: string,
+  tripIdForLegacy?: string | null
 ): boolean {
   if (!storagePath || storagePath.includes('..')) return false
-  const prefix = expectedMemoryPhotoPrefix(tripId, memoryId)
-  return storagePath.startsWith(prefix)
+  if (storagePath.startsWith(expectedMemoryPhotoPrefix(memoryId))) return true
+  if (tripIdForLegacy) {
+    if (storagePath.startsWith(legacyTripMemoryPhotoPrefix(tripIdForLegacy, memoryId)))
+      return true
+  }
+  return false
 }
 
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])

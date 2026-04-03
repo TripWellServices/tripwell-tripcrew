@@ -2,16 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTripAccess } from '@/lib/trip/assertTripAccess'
 import { getSuggestedCrewEmails } from '@/lib/trip/suggestedCrewEmails'
+import { tripMemoryApiInclude } from '@/lib/trip/memoryIncludePrisma'
 
 export const dynamic = 'force-dynamic'
-
-const memoryInclude = {
-  author: {
-    select: { id: true, firstName: true, lastName: true, email: true },
-  },
-  photos: { orderBy: { sortOrder: 'asc' as const } },
-  tripDay: { select: { id: true, dayNumber: true, date: true } },
-} as const
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +26,7 @@ export async function GET(
       prisma.tripMemory.findMany({
         where: { tripId },
         orderBy: { createdAt: 'desc' },
-        include: memoryInclude,
+        include: tripMemoryApiInclude,
       }),
       getSuggestedCrewEmails(tripId, travelerId),
     ])
@@ -88,8 +81,14 @@ export async function POST(
         authorTravelerId: travelerId,
         tripDayId: tripDayId || null,
         body: text,
+        freestyleTitle: null,
+        freestyleCity: null,
+        freestyleState: null,
+        freestyleCountry: null,
+        freestyleStartDate: null,
+        freestyleEndDate: null,
       },
-      include: memoryInclude,
+      include: tripMemoryApiInclude,
     })
 
     return NextResponse.json(memory)

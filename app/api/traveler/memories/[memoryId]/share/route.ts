@@ -5,10 +5,10 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ tripId: string; memoryId: string }> }
+  { params }: { params: Promise<{ memoryId: string }> }
 ) {
   try {
-    const { tripId, memoryId } = await params
+    const { memoryId } = await params
     const body = await request.json().catch(() => ({}))
     const { travelerId, recipientEmails } = body as {
       travelerId?: string
@@ -23,7 +23,6 @@ export async function POST(
       memoryId,
       travelerId,
       recipientEmails,
-      tripIdScope: tripId,
     })
 
     if (!result.ok) {
@@ -39,7 +38,7 @@ export async function POST(
 
     return NextResponse.json({ ok: true, results: result.results })
   } catch (error) {
-    console.error('Memory share POST error:', error)
+    console.error('Traveler memory share error:', error)
     return NextResponse.json({ error: 'Failed to share memory' }, { status: 500 })
   }
 }

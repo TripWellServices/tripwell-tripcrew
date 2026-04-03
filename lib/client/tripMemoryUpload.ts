@@ -17,7 +17,6 @@ function extForMime(mime: string): string {
 }
 
 export async function uploadTripMemoryPhotoFile(
-  tripId: string,
   memoryId: string,
   file: File
 ): Promise<{
@@ -36,7 +35,7 @@ export async function uploadTripMemoryPhotoFile(
 
   const ext = extForMime(contentType)
   const name = `${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}.${ext}`
-  const storagePath = `${expectedMemoryPhotoPrefix(tripId, memoryId)}${name}`
+  const storagePath = `${expectedMemoryPhotoPrefix(memoryId)}${name}`
   const storageRef = ref(getFirebaseStorage(), storagePath)
 
   await uploadBytes(storageRef, file, { contentType })

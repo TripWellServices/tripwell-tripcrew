@@ -1,5 +1,5 @@
 /**
- * Universal app chrome: top nav (home + profile + settings) + fixed 5-link sidebar.
+ * Universal app chrome: top nav (home + profile + settings) + fixed sidebar.
  */
 
 'use client'
@@ -16,6 +16,7 @@ const SIDEBAR: { href: string; label: string; prefix?: boolean }[] = [
   { href: '/destinations', label: 'Destinations', prefix: true },
   { href: '/experiences', label: 'Experiences', prefix: true },
   { href: '/calendar', label: 'Calendar', prefix: true },
+  { href: '/memories', label: 'Memories', prefix: true },
   { href: '/tripcrews', label: 'TripCrews', prefix: true },
 ]
 

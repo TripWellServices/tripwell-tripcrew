@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTripAccess } from '@/lib/trip/assertTripAccess'
+import { tripMemoryApiInclude } from '@/lib/trip/memoryIncludePrisma'
 
 export const dynamic = 'force-dynamic'
-
-const memoryInclude = {
-  author: {
-    select: { id: true, firstName: true, lastName: true, email: true },
-  },
-  photos: { orderBy: { sortOrder: 'asc' as const } },
-  tripDay: { select: { id: true, dayNumber: true, date: true } },
-} as const
 
 export async function GET(
   request: NextRequest,
@@ -30,7 +23,7 @@ export async function GET(
 
     const memory = await prisma.tripMemory.findFirst({
       where: { id: memoryId, tripId },
-      include: memoryInclude,
+      include: tripMemoryApiInclude,
     })
 
     if (!memory) {
@@ -115,7 +108,7 @@ export async function PATCH(
           ? { tripDayId: tripDayId === '' ? null : tripDayId }
           : {}),
       },
-      include: memoryInclude,
+      include: tripMemoryApiInclude,
     })
 
     return NextResponse.json(memory)
