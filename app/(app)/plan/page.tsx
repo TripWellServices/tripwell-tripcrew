@@ -21,12 +21,13 @@ export default function PlanForkPage() {
       <ul className="grid gap-4 sm:grid-cols-2">
         <li>
           <Link
-            href="/plan/scratch"
+            href="/plan/got-plan"
             className="block h-full p-6 border border-gray-200 rounded-xl bg-white hover:border-sky-300 hover:shadow-sm transition"
           >
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Got my plan</h3>
             <p className="text-sm text-gray-600">
-              Trip name, place, and dates — optional paste to pull out flights and hotels.
+              Already have dates or confirmations? Enter details or paste an itinerary to extract flights
+              and hotels.
             </p>
           </Link>
         </li>
@@ -37,8 +38,8 @@ export default function PlanForkPage() {
           >
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Discover</h3>
             <p className="text-sm text-gray-600">
-              Describe where you&apos;re thinking — AI suggests cities, then you pick one and add it to a
-              trip.
+              Explore where to go — describe what you&apos;re thinking; AI suggests cities, then you pick
+              one and add it to a trip.
             </p>
           </Link>
         </li>

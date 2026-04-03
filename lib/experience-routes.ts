@@ -16,7 +16,7 @@ export function experiencePaths() {
     wishlist: '/wishlist',
     destinations: '/destinations',
     planFork: '/plan',
-    planScratch: '/plan/scratch',
+    planGotPlan: '/plan/got-plan',
     planDestination: (mode: 'trip' | 'season', citySlug?: string) => {
       const base = '/plan/destination'
       const q = new URLSearchParams({ mode })
