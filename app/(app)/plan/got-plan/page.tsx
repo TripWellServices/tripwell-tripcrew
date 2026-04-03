@@ -7,6 +7,8 @@ import { experiencePaths } from '@/lib/experience-routes'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import type { ParsedTripPlan } from '@/lib/trip-plan-model'
 
+type InputMode = 'manual' | 'parse'
+
 function todayISO() {
   const d = new Date()
   const y = d.getFullYear()
@@ -28,6 +30,8 @@ function EnterTripDetailsInner() {
   const router = useRouter()
   const paths = experiencePaths()
 
+  const [inputMode, setInputMode] = useState<InputMode>('manual')
+
   const [tripName, setTripName] = useState('')
   const [where, setWhere] = useState('')
   const [city, setCity] = useState('')
@@ -38,17 +42,18 @@ function EnterTripDetailsInner() {
   const [whoWith, setWhoWith] = useState('')
   const [transportMode, setTransportMode] = useState('')
 
-  const [pasteOpen, setPasteOpen] = useState(false)
   const [blobText, setBlobText] = useState('')
   const [parsing, setParsing] = useState(false)
   /** Legs / lodging / notes from last successful AI parse (applied on create). */
   const [importedPlan, setImportedPlan] = useState<ParsedTripPlan | null>(null)
+  const [parseSuccess, setParseSuccess] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function handleParse() {
     setError('')
+    setParseSuccess(false)
     setParsing(true)
     try {
       const res = await fetch('/api/plan/parse-blob', {
@@ -72,6 +77,8 @@ function EnterTripDetailsInner() {
       if (p.transportMode) setTransportMode(p.transportMode)
 
       setImportedPlan(p)
+      setParseSuccess(true)
+      setInputMode('manual')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Parse failed')
     } finally {
@@ -79,12 +86,11 @@ function EnterTripDetailsInner() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function persistTrip(redirectTo: 'trip' | 'admin'): Promise<void> {
     setError('')
     const tid = LocalStorageAPI.getTravelerId()
     if (!tid) {
-      setError('Sign in to create a trip.')
+      setError('Sign in to save or create a trip.')
       return
     }
     if (!tripName.trim()) {
@@ -124,15 +130,24 @@ function EnterTripDetailsInner() {
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Failed to create trip')
+      if (!res.ok) throw new Error(data.error || 'Failed to save trip')
       const id = data.trip?.id || data.id
       if (!id) throw new Error('No trip id returned')
-      router.push(`/trip/${id}`)
+      router.push(redirectTo === 'admin' ? `/trip/${id}/admin` : `/trip/${id}`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed')
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    void persistTrip('trip')
+  }
+
+  function handleSave() {
+    void persistTrip('admin')
   }
 
   const importHint =
@@ -152,9 +167,63 @@ function EnterTripDetailsInner() {
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Enter trip details</h1>
       <p className="text-gray-600 text-sm mb-6">
-        Create a trip with name, place, and dates. Optionally paste an itinerary — we&apos;ll extract
-        flights and hotels into logistics and lodging when you create the trip.
+        Choose how you want to enter your trip. You can switch tabs anytime; your draft stays in the form
+        below.
       </p>
+
+      {/* Input method — same pattern as GoFastCompany race create (Manual / Paste & Parse) */}
+      <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <span className="text-sm font-medium text-gray-700 shrink-0">Input method</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setInputMode('manual')
+                setError('')
+              }}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors inline-flex items-center gap-2 ${
+                inputMode === 'manual'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <span className="text-base leading-none" aria-hidden>
+                ≡
+              </span>
+              Manual entry
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInputMode('parse')
+                setError('')
+                setParseSuccess(false)
+              }}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors inline-flex items-center gap-2 ${
+                inputMode === 'parse'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <span className="text-base leading-none" aria-hidden>
+                ✦
+              </span>
+              Paste &amp; parse
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {parseSuccess && inputMode === 'manual' ? (
+        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <p className="text-sm text-emerald-900 font-medium">Parsed from your paste</p>
+          <p className="text-xs text-emerald-800 mt-1">
+            Review and edit the fields below, then create the trip. Open{' '}
+            <strong className="font-medium">Paste &amp; parse</strong> again if you need another paste.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="text-sm text-red-600 mb-4" role="alert">
@@ -162,38 +231,48 @@ function EnterTripDetailsInner() {
         </p>
       ) : null}
 
-      <div className="mb-6 border border-gray-200 rounded-xl bg-gray-50/80 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setPasteOpen((o) => !o)}
-          className="w-full text-left px-4 py-3 text-sm font-medium text-gray-800 flex justify-between items-center hover:bg-gray-100/80"
-        >
-          <span>Paste itinerary (AI)</span>
-          <span className="text-gray-400">{pasteOpen ? '−' : '+'}</span>
-        </button>
-        {pasteOpen ? (
-          <div className="px-4 pb-4 space-y-3 border-t border-gray-200 bg-white">
-            <p className="text-xs text-gray-500 pt-3">
-              Confirmation emails, bullet lists, or notes with dates, lodging, and flights work well.
-            </p>
-            <textarea
-              value={blobText}
-              onChange={(e) => setBlobText(e.target.value)}
-              rows={6}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
-              placeholder="Paste here…"
-            />
+      {inputMode === 'parse' ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-1 inline-flex items-center gap-2">
+            <span className="text-sky-600" aria-hidden>
+              ✦
+            </span>
+            Paste itinerary
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Copy confirmation emails, bullet lists, or notes with dates, lodging, and flights. AI fills
+            the form and adds flights or hotels when you create the trip (at least 20 characters).
+          </p>
+          <textarea
+            value={blobText}
+            onChange={(e) => setBlobText(e.target.value)}
+            rows={8}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            placeholder="Paste your itinerary here…"
+            aria-label="Itinerary text to parse"
+          />
+          <div className="mt-4 flex justify-end">
             <button
               type="button"
-              onClick={handleParse}
+              onClick={() => void handleParse()}
               disabled={parsing || blobText.trim().length < 20}
-              className="w-full px-3 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-sky-600 rounded-md hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
-              {parsing ? 'Parsing…' : 'Fill form from paste'}
+              {parsing ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-b-transparent" />
+                  Parsing…
+                </>
+              ) : (
+                <>
+                  <span aria-hidden>✦</span>
+                  Parse with AI
+                </>
+              )}
             </button>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {importHint ? (
         <p className="text-xs text-emerald-700 mb-4" role="status">
@@ -202,6 +281,7 @@ function EnterTripDetailsInner() {
       ) : null}
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Trip details</p>
         <label className="block">
           <span className="block text-sm font-medium text-gray-700 mb-1">Trip name</span>
           <input
@@ -310,13 +390,26 @@ function EnterTripDetailsInner() {
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 disabled:opacity-50"
-        >
-          {saving ? 'Creating…' : 'Create trip'}
-        </button>
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full sm:w-auto px-4 py-3 border border-gray-300 bg-white text-gray-800 font-semibold rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full sm:flex-1 px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 disabled:opacity-50"
+          >
+            {saving ? 'Working…' : 'Create trip'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 text-center sm:text-right">
+          Save creates your trip and opens trip admin to keep planning. Create trip opens your trip page.
+        </p>
       </form>
     </div>
   )
