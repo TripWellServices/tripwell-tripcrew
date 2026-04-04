@@ -38,7 +38,9 @@ export function tripPersistedMetadata(startDate: Date, endDate: Date) {
 
 export function tripDisplayTitle(purpose: string | null | undefined) {
   const t = purpose?.trim()
-  return t || 'Trip'
+  if (!t) return 'Trip'
+  const dot = t.indexOf('. ')
+  return dot > 0 ? t.slice(0, dot) : t
 }
 
 export function tripDateRangeLabel(startDate: Date | string, endDate: Date | string) {

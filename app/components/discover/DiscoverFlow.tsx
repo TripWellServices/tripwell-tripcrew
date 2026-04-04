@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type DiscoverType = 'concert' | 'hike' | 'dining' | 'attraction'
+export type DiscoverType = 'concert' | 'hike' | 'dining' | 'attraction' | 'day_trip'
 
 interface CatalogueItem {
   id: string
@@ -54,15 +54,21 @@ interface DiscoverFlowProps {
   /** Traveler home city/state for tripScope pre-fill (local vs travel). */
   hometownCity?: string | null
   homeState?: string | null
+  /** Trip context for OpenAI (in-trip discover). */
+  tripDaysTotal?: number | null
+  tripWhoWith?: string | null
+  tripSeason?: string | null
+  tripCountry?: string | null
 }
 
 // ─── Category cards config ────────────────────────────────────────────────────
 
 const CATEGORIES: { type: DiscoverType; label: string; icon: string; description: string }[] = [
-  { type: 'concert', label: 'Concerts',   icon: '🎵', description: 'Live music & events' },
-  { type: 'hike',    label: 'Hikes',      icon: '🥾', description: 'Trails & outdoor routes' },
-  { type: 'dining',  label: 'Dining',     icon: '🍽️', description: 'Restaurants & eats' },
+  { type: 'concert', label: 'Concerts', icon: '🎵', description: 'Live music & events' },
+  { type: 'hike', label: 'Hikes', icon: '🥾', description: 'Trails & outdoor routes' },
+  { type: 'dining', label: 'Dining', icon: '🍽️', description: 'Restaurants & eats' },
   { type: 'attraction', label: 'Attractions', icon: '🏛️', description: 'Things to see & do' },
+  { type: 'day_trip', label: 'Day trips', icon: '🚗', description: 'Nearby towns & excursions' },
 ]
 
 // ─── Helper: display name for a catalogue item ────────────────────────────────
@@ -83,7 +89,11 @@ function itemSubtitle(item: CatalogueItem, type: DiscoverType): string {
     ].filter(Boolean)
     return bits.join(' · ')
   }
-  if (type === 'dining')  return [item.category, item.address].filter(Boolean).join(' · ')
+  if (type === 'dining') return [item.category, item.address].filter(Boolean).join(' · ')
+  if (type === 'day_trip')
+    return [item.category === 'Day trip' ? 'Day excursion' : item.category, item.address]
+      .filter(Boolean)
+      .join(' · ')
   return [item.category, item.address].filter(Boolean).join(' · ')
 }
 
@@ -96,6 +106,10 @@ export default function DiscoverFlow({
   travelerId,
   hometownCity,
   homeState,
+  tripDaysTotal,
+  tripWhoWith,
+  tripSeason,
+  tripCountry,
 }: DiscoverFlowProps) {
   // City state (standalone mode only; in-trip mode is pre-set)
   const [cityInput, setCityInput] = useState(defaultCity ?? '')
@@ -148,7 +162,8 @@ export default function DiscoverFlow({
       if (activeType === 'concert') body.concertId = buildTripItem.item.id
       else if (activeType === 'hike') body.hikeId = buildTripItem.item.id
       else if (activeType === 'dining') body.diningId = buildTripItem.item.id
-      else if (activeType === 'attraction') body.attractionId = buildTripItem.item.id
+      else if (activeType === 'attraction' || activeType === 'day_trip')
+        body.attractionId = buildTripItem.item.id
       const res = await fetch('/api/traveler/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,7 +237,14 @@ export default function DiscoverFlow({
       const res = await fetch('/api/discover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: effectiveCity, state: effectiveState, type: activeType }),
+        body: JSON.stringify({
+          city: effectiveCity,
+          state: effectiveState,
+          type: activeType,
+          daysTotal: tripDaysTotal ?? undefined,
+          whoWith: tripWhoWith ?? undefined,
+          season: tripSeason ?? undefined,
+        }),
       })
       const data = await res.json()
       setSuggestionSavedIds({})
@@ -251,7 +273,7 @@ export default function DiscoverFlow({
         body: JSON.stringify({
           city: effectiveCity,
           state: effectiveState,
-          country: 'USA',
+          country: tripCountry?.trim() || 'USA',
           type: activeType,
           suggestion,
         }),
@@ -293,7 +315,7 @@ export default function DiscoverFlow({
       if (type === 'concert')    body.concertId    = item.id
       if (type === 'hike')       body.hikeId       = item.id
       if (type === 'dining')     body.diningId     = item.id
-      if (type === 'attraction') body.attractionId = item.id
+      if (type === 'attraction' || type === 'day_trip') body.attractionId = item.id
 
       const res = await fetch('/api/wishlist', {
         method: 'POST',
@@ -323,7 +345,7 @@ export default function DiscoverFlow({
       if (type === 'concert')    body.concertId    = item.id
       if (type === 'hike')       body.hikeId       = item.id
       if (type === 'dining')     body.diningId     = item.id
-      if (type === 'attraction') body.attractionId = item.id
+      if (type === 'attraction' || type === 'day_trip') body.attractionId = item.id
 
       const res = await fetch(`/api/trip/${tripId}/itinerary-items`, {
         method: 'POST',
@@ -349,15 +371,28 @@ export default function DiscoverFlow({
     if (id) setSuggestionSavedIds((prev) => ({ ...prev, [rowKey]: id }))
   }
 
-  async function wishlistSuggestionFromRow(rowKey: string, suggestion: Suggestion) {
-    const id = suggestionSavedIds[rowKey]
-    if (!id) return
+  async function saveAndBookmark(suggestion: Suggestion, rowKey: string) {
+    let id: string | undefined = suggestionSavedIds[rowKey]
+    if (!id) {
+      const saved = await saveToCatalogue(suggestion, rowKey)
+      if (saved) {
+        id = saved
+        setSuggestionSavedIds((prev) => ({ ...prev, [rowKey]: saved }))
+      }
+    }
+    if (!id || !travelerId) return
     await addToWishlist({ id, name: suggestion.name }, activeType!, rowKey)
   }
 
   async function saveAndAddToItinerary(suggestion: Suggestion, rowKey: string) {
-    const id = await saveToCatalogue(suggestion, rowKey)
-    if (id) setSuggestionSavedIds((prev) => ({ ...prev, [rowKey]: id }))
+    let id: string | undefined = suggestionSavedIds[rowKey]
+    if (!id) {
+      const saved = await saveToCatalogue(suggestion, rowKey)
+      if (saved) {
+        id = saved
+        setSuggestionSavedIds((prev) => ({ ...prev, [rowKey]: saved }))
+      }
+    }
     if (!id || !tripId) return
     await addToItinerary({ id, name: suggestion.name }, activeType!)
   }
@@ -462,7 +497,7 @@ export default function DiscoverFlow({
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
             What kind of thing?
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.type}
@@ -538,8 +573,9 @@ export default function DiscoverFlow({
                 Suggested by AI
               </h2>
               <p className="text-xs text-gray-500">
-                Add to the city catalogue first, then add to your Experiences list if you want
-                it bookmarked (same as browsing the list above).
+                {tripId
+                  ? 'Add straight to your trip, or bookmark to Experiences. We save to the city catalogue in the same step.'
+                  : 'Save picks to the shared city catalogue, then bookmark or build a trip from the list above.'}
               </p>
               {suggestions.length === 0 ? (
                 <p className="text-sm text-gray-400">No suggestions found.</p>
@@ -549,7 +585,6 @@ export default function DiscoverFlow({
                     const rowKey = `ai-${i}-${s.name}`
                     const isSaving = savingId === rowKey
                     const savedId = suggestionSavedIds[rowKey]
-                    const canWishlist = Boolean(travelerId && savedId)
                     return (
                       <li
                         key={rowKey}
@@ -561,7 +596,7 @@ export default function DiscoverFlow({
                             <p className="text-xs text-gray-500 truncate">{s.subtitle}</p>
                           )}
                           {s.detail && (
-                            <p className="text-xs text-gray-400 truncate">{s.detail}</p>
+                            <p className="text-xs text-gray-400 line-clamp-2">{s.detail}</p>
                           )}
                           {feedback?.id === rowKey && (
                             <p
@@ -573,37 +608,35 @@ export default function DiscoverFlow({
                             </p>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => saveSuggestionToCatalogOnly(s, rowKey)}
-                            disabled={isSaving}
-                            className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200 disabled:opacity-50"
-                          >
-                            {isSaving ? 'Saving…' : 'Add to catalogue'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => wishlistSuggestionFromRow(rowKey, s)}
-                            disabled={
-                              !canWishlist || wishlistingId === savedId || isSaving
-                            }
-                            className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-900 text-xs font-medium hover:bg-emerald-200 disabled:opacity-50"
-                          >
-                            {wishlistingId === savedId
-                              ? 'Adding…'
-                              : 'Add to Experiences'}
-                          </button>
-                          {tripId && (
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-2 shrink-0">
+                          {tripId ? (
                             <button
                               type="button"
-                              onClick={() => saveAndAddToItinerary(s, rowKey)}
+                              onClick={() => void saveAndAddToItinerary(s, rowKey)}
                               disabled={isSaving}
-                              className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-50"
+                              className="px-4 py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700 disabled:opacity-50"
                             >
-                              {isSaving ? 'Saving…' : '+ Itinerary'}
+                              {isSaving ? 'Saving…' : 'Add to trip'}
                             </button>
-                          )}
+                          ) : null}
+                          {travelerId ? (
+                            <button
+                              type="button"
+                              onClick={() => void saveAndBookmark(s, rowKey)}
+                              disabled={isSaving || wishlistingId === savedId}
+                              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              {wishlistingId === savedId ? 'Saving…' : 'Bookmark'}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => void saveSuggestionToCatalogOnly(s, rowKey)}
+                            disabled={isSaving}
+                            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {isSaving ? 'Saving…' : 'Save to catalogue only'}
+                          </button>
                         </div>
                       </li>
                     )

@@ -254,7 +254,16 @@ export default function LodgingCard({
         </div>
       ) : (
         isAdmin && (
-          <p className="text-gray-500">No lodging added yet. Search above to add one.</p>
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
+            <p className="text-gray-600 text-sm mb-3">No lodging yet — search to add a hotel or rental.</p>
+            <button
+              type="button"
+              onClick={() => setShowSearch(true)}
+              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
+            >
+              Search lodging
+            </button>
+          </div>
         )
       )}
     </div>

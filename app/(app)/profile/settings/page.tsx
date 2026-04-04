@@ -180,7 +180,9 @@ export default function ProfileSettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="font-semibold text-gray-700">City/State You Call Home</label>
+            <label className="font-semibold text-gray-700">
+              City / state you call home (default &quot;traveling from&quot; on new trips)
+            </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
                 value={formData.hometownCity}
@@ -206,7 +208,8 @@ export default function ProfileSettingsPage() {
           <div className="space-y-2">
             <label className="font-semibold text-gray-700">Home street address</label>
             <p className="text-xs text-gray-500">
-              Used for hike day plans (drive time to trailhead). Optional.
+              Used as your default trip departure if you don&apos;t set city/state above, for hike day
+              plans (drive time), and when you leave &quot;Traveling from&quot; empty on the trip form. Optional.
             </p>
             <input
               value={formData.homeAddress}

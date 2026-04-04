@@ -11,6 +11,7 @@ import {
   type ParsedTripLeg,
 } from '@/lib/trip-plan-model'
 import { TripType, TransportMode, WhoWith } from '@prisma/client'
+import { enrichCityCatalogIfNeeded } from '@/lib/city-guide-enrich'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
       lodging: lodgingRaw,
       legs: legsRaw,
       notes,
+      startingLocation: startingLocationRaw,
     } = body as {
       travelerId?: string
       tripName?: string
@@ -58,6 +60,7 @@ export async function POST(request: NextRequest) {
       lodging?: ParsedLodging | null
       legs?: ParsedTripLeg[] | null
       notes?: string | null
+      startingLocation?: string | null
     }
 
     if (!travelerId) {
@@ -130,6 +133,11 @@ export async function POST(request: NextRequest) {
       legs = norm.legs
     }
 
+    const startingLoc =
+      typeof startingLocationRaw === 'string' && startingLocationRaw.trim()
+        ? startingLocationRaw.trim()
+        : traveler.homeAddress ?? null
+
     const tripId = await prisma.$transaction(async (tx) => {
       const t = await tx.trip.create({
         data: {
@@ -141,7 +149,7 @@ export async function POST(request: NextRequest) {
           daysTotal,
           season,
           tripType,
-          startingLocation: traveler.homeAddress,
+          startingLocation: startingLoc,
           city: cityT,
           state: stateT,
           country: countryT,
@@ -199,6 +207,14 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+
+    if (cityT) {
+      void enrichCityCatalogIfNeeded({
+        cityName: cityT,
+        state: stateT,
+        country: countryT ?? 'USA',
+      }).catch((e) => console.error('enrichCityCatalogIfNeeded:', e))
+    }
 
     return NextResponse.json({ trip: created, id: tripId }, { status: 201 })
   } catch (error) {

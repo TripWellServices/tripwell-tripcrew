@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 interface WeatherForecast {
   date: string
@@ -18,6 +20,7 @@ interface WeatherCardProps {
 }
 
 export default function WeatherCard({ tripId }: WeatherCardProps) {
+  const pathname = usePathname()
   const [forecasts, setForecasts] = useState<WeatherForecast[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -57,9 +60,14 @@ export default function WeatherCard({ tripId }: WeatherCardProps) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Weather Forecast</h2>
-        <p className="text-gray-500">
-          {error || 'Weather forecast not available. Add lodging with location to see forecast.'}
-        </p>
+        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
+          <p className="text-gray-600 text-sm mb-2">
+            {error || 'Forecast needs a pinned location — usually from your lodging address.'}
+          </p>
+          <Link href={`${pathname}?admin=1`} className="text-sm font-medium text-sky-600 hover:underline">
+            Add lodging in trip admin
+          </Link>
+        </div>
       </div>
     )
   }

@@ -4,6 +4,41 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 /**
+ * GET /api/traveler/profile?travelerId=...
+ * Returns home location fields for prefilling trip forms (no auth — matches other traveler-id flows).
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const travelerId = new URL(request.url).searchParams.get('travelerId')?.trim()
+    if (!travelerId) {
+      return NextResponse.json({ error: 'travelerId is required' }, { status: 400 })
+    }
+
+    const traveler = await prisma.traveler.findUnique({
+      where: { id: travelerId },
+      select: {
+        hometownCity: true,
+        homeState: true,
+        homeAddress: true,
+      },
+    })
+
+    if (!traveler) {
+      return NextResponse.json({ error: 'Traveler not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      hometownCity: traveler.hometownCity,
+      homeState: traveler.homeState,
+      homeAddress: traveler.homeAddress,
+    })
+  } catch (error) {
+    console.error('PROFILE GET error:', error)
+    return NextResponse.json({ error: 'Failed to load profile' }, { status: 500 })
+  }
+}
+
+/**
  * PUT /api/traveler/profile
  * 
  * Upsert Traveler profile information by firebaseId

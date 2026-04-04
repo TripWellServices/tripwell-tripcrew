@@ -4,21 +4,32 @@ import { upsertCityByName } from '@/lib/city-upsert'
 
 export const dynamic = 'force-dynamic'
 
-type DiscoverType = 'concert' | 'hike' | 'dining' | 'attraction'
+export type DiscoverType =
+  | 'concert'
+  | 'hike'
+  | 'dining'
+  | 'attraction'
+  | 'day_trip'
 
 interface Suggestion {
   name: string
-  subtitle?: string   // artist, trail name, category, etc.
-  detail?: string     // venue, difficulty, address, etc.
+  subtitle?: string
+  detail?: string
   url?: string
   notes?: string
-  /** Hike-only: optional structured fields (preferred over parsing `detail`) */
   difficulty?: string
   distanceMi?: number
   durationMin?: number
 }
 
-/** Resolve hike metrics for create: explicit suggestion fields, else parse `detail` / `notes`. */
+const VALID_TYPES: DiscoverType[] = [
+  'concert',
+  'hike',
+  'dining',
+  'attraction',
+  'day_trip',
+]
+
 function resolveHikeMetrics(s: Suggestion): {
   difficulty: string | null
   distanceMi: number | null
@@ -59,41 +70,229 @@ function resolveHikeMetrics(s: Suggestion): {
   return { difficulty, distanceMi, durationMin }
 }
 
+function whoWithLabel(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw.trim()) return 'travelers'
+  const u = raw.toUpperCase()
+  const map: Record<string, string> = {
+    SOLO: 'solo',
+    SPOUSE: 'a couple',
+    FRIENDS: 'friends',
+    FAMILY: 'family (include kid-friendly ideas where relevant)',
+    OTHER: 'a group',
+  }
+  return map[u] ?? raw.trim()
+}
+
+function buildDiscoverPrompt(input: {
+  city: string
+  state: string
+  type: DiscoverType
+  daysTotal?: number | null
+  whoWith?: string | null
+  season?: string | null
+}): { system: string; user: string } {
+  const { city, state, type, daysTotal, whoWith, season } = input
+  const place = state.trim() ? `${city}, ${state}` : city
+  const days = typeof daysTotal === 'number' && daysTotal > 0 ? daysTotal : null
+  const group = whoWithLabel(whoWith)
+  const seasonLine = season?.trim() ? season.trim() : 'the trip dates'
+
+  const system = `You are Angela, a highly intuitive AI travel planner. Return ONLY valid JSON (no markdown):
+{
+  "suggestions": [
+    {
+      "name": "string — place or activity name",
+      "subtitle": "string — category, area, or how to get there",
+      "detail": "string — one concise line of practical info",
+      "notes": "string — why it fits this trip",
+      "difficulty": "optional for hikes: Easy | Moderate | Hard",
+      "distanceMi": optional number for hikes,
+      "durationMin": optional number for hikes,
+      "url": "optional real URL if you know it"
+    }
+  ]
+}
+Use real places and realistic details. Do not invent fake URLs — omit "url" if unsure.`
+
+  if (type === 'day_trip') {
+    const user = `TRIP CONTEXT:
+${days ? `${days}-day trip` : 'Multi-day trip'} based in ${place} during ${seasonLine}.
+Traveling with: ${group}.
+
+TASK: Suggest 5–7 day-trip DESTINATIONS (whole towns, islands, or regions) people can reach from ${city} in under ~2 hours one way. For each:
+- name = the destination (e.g. "Provincetown, MA")
+- subtitle = how to get there and rough travel time (e.g. "Ferry · 90 min" or "Drive · 45 min")
+- detail = 2–3 highlights once there
+- notes = why it fits ${group} on this trip
+
+Include a mix of well-known and worthwhile nearby spots. Think water, outdoors, food, and culture when appropriate for the region.`
+
+    return { system, user }
+  }
+
+  const typeGuide: Record<Exclude<DiscoverType, 'day_trip'>, string> = {
+    concert: 'live music, concerts, and notable venues hosting shows',
+    hike: 'hikes, trails, and outdoor walks (include difficulty and distance in subtitle/detail when possible)',
+    dining: 'restaurants, food halls, and memorable dining — real establishments',
+    attraction: 'museums, landmarks, parks, tours, and things to see and do in or very near the city',
+  }
+
+  const user = `TRIP CONTEXT:
+${days ? `${days}-day trip` : 'Trip'} to ${place} during ${seasonLine}.
+Traveling with: ${group}.
+
+TASK: Suggest 6–8 ${typeGuide[type as Exclude<DiscoverType, 'day_trip'>]}.
+
+Think about:
+- Spots IN and immediately around ${city}
+- Day-trip-adjacent picks when they are still ${type === 'hike' ? 'trail-focused' : 'the right category'} (note distance in subtitle)
+- ${group === 'family (include kid-friendly ideas where relevant)' ? 'Kid-friendly and practical options.' : ''}
+- Water activities, outdoor experiences, and local specialties when relevant to the region
+
+Return rich, specific suggestions — not generic placeholders.`
+
+  return { system, user }
+}
+
+async function suggestionsFromOpenAI(params: {
+  city: string
+  state: string
+  type: DiscoverType
+  daysTotal?: number | null
+  whoWith?: string | null
+  season?: string | null
+}): Promise<Suggestion[] | null> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return null
+
+  const { system, user } = buildDiscoverPrompt(params)
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      temperature: 0.7,
+      response_format: { type: 'json_object' },
+    }),
+  })
+
+  if (!res.ok) {
+    console.error('discover OpenAI error:', res.status, await res.text())
+    return null
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>
+  }
+  const content = data.choices?.[0]?.message?.content?.trim()
+  if (!content) return null
+
+  try {
+    const parsed = JSON.parse(content) as { suggestions?: unknown }
+    if (!Array.isArray(parsed.suggestions)) return null
+    return parsed.suggestions
+      .map((raw) => {
+        if (!raw || typeof raw !== 'object') return null
+        const o = raw as Record<string, unknown>
+        const name = typeof o.name === 'string' ? o.name.trim() : ''
+        if (!name) return null
+        const s: Suggestion = { name }
+        if (typeof o.subtitle === 'string') s.subtitle = o.subtitle
+        if (typeof o.detail === 'string') s.detail = o.detail
+        if (typeof o.notes === 'string') s.notes = o.notes
+        if (typeof o.url === 'string') s.url = o.url
+        if (typeof o.difficulty === 'string') s.difficulty = o.difficulty
+        if (typeof o.distanceMi === 'number') s.distanceMi = o.distanceMi
+        if (typeof o.durationMin === 'number') s.durationMin = o.durationMin
+        return s
+      })
+      .filter((x): x is Suggestion => x != null)
+  } catch {
+    return null
+  }
+}
+
+function getStubSuggestions(city: string, type: DiscoverType): Suggestion[] {
+  if (type === 'day_trip') {
+    return [
+      {
+        name: `Day trip from ${city} (stub)`,
+        subtitle: 'Enable OPENAI_API_KEY for real nearby day trips',
+        detail: 'This is fallback data when AI is unavailable.',
+        notes: 'Configure API key for Angela-quality suggestions.',
+      },
+    ]
+  }
+  return [
+    {
+      name: `${city} preview (stub)`,
+      subtitle: 'Enable OPENAI_API_KEY',
+      detail: 'Connect OpenAI for real suggestions.',
+      notes: 'Stub fallback.',
+    },
+  ]
+}
+
 /**
  * POST /api/discover
- * Body: { city: string, state?: string, type: DiscoverType }
- *
- * Returns AI-generated suggestions for things to do in the given city.
- * Stub implementation — replace the suggestion logic with a real OpenAI call
- * when ready (see "TODO: OpenAI" comment below).
- *
- * Also used to SAVE a suggestion to the global city catalogue:
- * POST /api/discover/save  (separate route, same file via Next.js segment)
+ * Body: { city, state?, type, daysTotal?, whoWith?, season? }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { city = '', state = '', type } = body as { city: string; state?: string; type: DiscoverType }
+    const {
+      city: cityRaw = '',
+      state: stateRaw = '',
+      type,
+      daysTotal: daysRaw,
+      whoWith,
+      season,
+    } = body as {
+      city?: string
+      state?: string
+      type?: DiscoverType
+      daysTotal?: number | null
+      whoWith?: string | null
+      season?: string | null
+    }
 
-    if (!city.trim()) {
+    const city = typeof cityRaw === 'string' ? cityRaw.trim() : ''
+    const state = typeof stateRaw === 'string' ? stateRaw.trim() : ''
+
+    if (!city) {
       return NextResponse.json({ error: 'city is required' }, { status: 400 })
     }
-    if (!type || !['concert', 'hike', 'dining', 'attraction'].includes(type)) {
+    if (!type || !VALID_TYPES.includes(type)) {
       return NextResponse.json(
-        { error: 'type must be concert, hike, dining, or attraction' },
+        { error: `type must be one of: ${VALID_TYPES.join(', ')}` },
         { status: 400 }
       )
     }
 
-    // TODO: OpenAI — replace stub below with:
-    //   const completion = await openai.chat.completions.create({
-    //     model: 'gpt-4o',
-    //     messages: [{ role: 'user', content: buildPrompt(city, state, type) }],
-    //     response_format: { type: 'json_object' },
-    //   })
-    //   const suggestions = JSON.parse(completion.choices[0].message.content).suggestions
+    const daysTotal =
+      typeof daysRaw === 'number' && Number.isFinite(daysRaw) ? daysRaw : null
 
-    const suggestions = getStubSuggestions(city, state, type)
+    let suggestions =
+      (await suggestionsFromOpenAI({
+        city,
+        state,
+        type,
+        daysTotal,
+        whoWith,
+        season,
+      })) ?? []
+
+    if (suggestions.length === 0) {
+      suggestions = getStubSuggestions(city, type)
+    }
 
     return NextResponse.json({ city, state, type, suggestions })
   } catch (error) {
@@ -102,143 +301,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function getStubSuggestions(city: string, _state: string, type: DiscoverType): Suggestion[] {
-  const cityLower = city.toLowerCase()
-
-  if (type === 'concert') {
-    if (cityLower.includes('nashville')) {
-      return [
-        { name: 'Live at the Ryman', subtitle: 'Various Artists', detail: 'Ryman Auditorium', url: 'https://ryman.com' },
-        { name: 'Bridgestone Arena Show', subtitle: 'Check listing', detail: 'Bridgestone Arena' },
-        { name: 'Bluebird Cafe Open Mic', subtitle: 'Songwriters in the round', detail: 'Bluebird Cafe' },
-      ]
-    }
-    if (cityLower.includes('new york') || cityLower.includes('nyc')) {
-      return [
-        { name: 'Madison Square Garden', subtitle: 'Check current shows', detail: 'MSG, Midtown Manhattan' },
-        { name: 'Brooklyn Steel', subtitle: 'Indie & alternative', detail: 'Brooklyn' },
-        { name: 'Radio City Music Hall', subtitle: 'Iconic NYC venue', detail: 'Midtown' },
-      ]
-    }
-    return [
-      { name: `${city} Summer Music Festival`, subtitle: 'Local artists', detail: 'City Amphitheater' },
-      { name: `Live at the ${city} Arena`, subtitle: 'Check listing', detail: 'Main Arena' },
-    ]
-  }
-
-  if (type === 'hike') {
-    if (cityLower.includes('los angeles') || cityLower.includes('la')) {
-      return [
-        {
-          name: 'Griffith Park Loop',
-          subtitle: 'Griffith Park',
-          detail: 'Moderate · 6.5 mi',
-          notes: 'Great views of the Hollywood Sign',
-          difficulty: 'Moderate',
-          distanceMi: 6.5,
-          durationMin: 150,
-        },
-        {
-          name: 'Runyon Canyon',
-          subtitle: 'Runyon Canyon Park',
-          detail: 'Easy · 3.3 mi',
-          difficulty: 'Easy',
-          distanceMi: 3.3,
-        },
-        {
-          name: 'Eagle Rock Loop',
-          subtitle: 'Topanga State Park',
-          detail: 'Hard · 8 mi',
-          difficulty: 'Hard',
-          distanceMi: 8,
-        },
-      ]
-    }
-    if (cityLower.includes('denver') || cityLower.includes('boulder')) {
-      return [
-        {
-          name: 'Chautauqua Trail',
-          subtitle: 'Chautauqua Park',
-          detail: 'Moderate · 3.9 mi',
-          difficulty: 'Moderate',
-          distanceMi: 3.9,
-        },
-        {
-          name: 'Royal Arch Trail',
-          subtitle: 'Boulder Open Space',
-          detail: 'Hard · 3.4 mi',
-          difficulty: 'Hard',
-          distanceMi: 3.4,
-        },
-        {
-          name: 'South Boulder Peak',
-          subtitle: 'OSMP',
-          detail: 'Hard · 9 mi',
-          difficulty: 'Hard',
-          distanceMi: 9,
-        },
-      ]
-    }
-    return [
-      {
-        name: `${city} Nature Trail`,
-        subtitle: 'Local park',
-        detail: 'Easy · 2 mi',
-        difficulty: 'Easy',
-        distanceMi: 2,
-      },
-      {
-        name: `${city} Ridge Loop`,
-        subtitle: 'State park',
-        detail: 'Moderate · 5 mi',
-        difficulty: 'Moderate',
-        distanceMi: 5,
-      },
-    ]
-  }
-
-  if (type === 'dining') {
-    if (cityLower.includes('nashville')) {
-      return [
-        { name: 'Prince\'s Hot Chicken', subtitle: 'Hot Chicken', detail: '123 Ewing Dr', notes: 'The OG Nashville hot chicken' },
-        { name: 'The Catbird Seat', subtitle: 'Fine Dining', detail: '1711 Division St' },
-        { name: 'Biscuit Love', subtitle: 'Brunch', detail: 'The Gulch' },
-      ]
-    }
-    return [
-      { name: `${city} Public Market`, subtitle: 'Local food hall', detail: 'Downtown' },
-      { name: `The ${city} Kitchen`, subtitle: 'American', detail: 'Main Street' },
-    ]
-  }
-
-  if (type === 'attraction') {
-    if (cityLower.includes('nashville')) {
-      return [
-        { name: 'Country Music Hall of Fame', subtitle: 'Museum', detail: '222 Rep. John Lewis Way S' },
-        { name: 'The Parthenon', subtitle: 'Landmark', detail: 'Centennial Park' },
-        { name: 'Broadway Honky Tonks', subtitle: 'Entertainment District', detail: 'Lower Broadway' },
-      ]
-    }
-    if (cityLower.includes('new york') || cityLower.includes('nyc')) {
-      return [
-        { name: 'Central Park', subtitle: 'Park', detail: 'Midtown Manhattan' },
-        { name: 'The High Line', subtitle: 'Urban park', detail: 'Chelsea' },
-        { name: 'Brooklyn Bridge Walk', subtitle: 'Landmark', detail: 'DUMBO, Brooklyn' },
-      ]
-    }
-    return [
-      { name: `${city} Art Museum`, subtitle: 'Museum', detail: 'Downtown' },
-      { name: `${city} Historic District`, subtitle: 'Landmark', detail: 'Old Town' },
-    ]
-  }
-
-  return []
-}
-
 /**
  * PUT /api/discover — Save a suggestion to the global city catalogue.
- * Creates City (upsert) + the first-class record.
- * Body: { city, state, country, type, suggestion: Suggestion }
  */
 export async function PUT(request: NextRequest) {
   try {
@@ -258,7 +322,14 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!cityName?.trim() || !type || !suggestion?.name) {
-      return NextResponse.json({ error: 'city, type, and suggestion.name are required' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'city, type, and suggestion.name are required' },
+        { status: 400 }
+      )
+    }
+
+    if (!VALID_TYPES.includes(type)) {
+      return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
     }
 
     const city = await upsertCityByName({
@@ -310,6 +381,19 @@ export async function PUT(request: NextRequest) {
           title: suggestion.name,
           category: suggestion.subtitle ?? null,
           address: suggestion.detail ?? null,
+          website: suggestion.url ?? null,
+          cityId: city.id,
+        },
+      })
+    } else if (type === 'day_trip') {
+      const addressParts = [suggestion.subtitle, suggestion.detail, suggestion.notes].filter(
+        (x): x is string => typeof x === 'string' && x.trim().length > 0
+      )
+      saved = await prisma.attraction.create({
+        data: {
+          title: suggestion.name,
+          category: 'Day trip',
+          address: addressParts.join(' · ').slice(0, 2000) || null,
           website: suggestion.url ?? null,
           cityId: city.id,
         },

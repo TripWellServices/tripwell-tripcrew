@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import GoogleSearchBar from './GoogleSearchBar'
 
 interface Dining {
@@ -29,6 +31,7 @@ export default function DiningCard({
   isAdmin,
   googleApiKey,
 }: DiningCardProps) {
+  const pathname = usePathname()
   const [isHydrating, setIsHydrating] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
 
@@ -80,7 +83,25 @@ export default function DiningCard({
       )}
 
       {dining.length === 0 ? (
-        <p className="text-gray-500">No dining options added yet.</p>
+        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
+          <p className="text-gray-600 text-sm mb-3">No restaurants yet — search and add places for this trip.</p>
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={() => setShowSearch(true)}
+              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
+            >
+              Add restaurant
+            </button>
+          ) : (
+            <Link
+              href={`${pathname}?admin=1`}
+              className="inline-block text-sm font-medium text-sky-600 hover:underline"
+            >
+              Enable editing (?admin=1) to add restaurants
+            </Link>
+          )}
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {dining.map((item) => (

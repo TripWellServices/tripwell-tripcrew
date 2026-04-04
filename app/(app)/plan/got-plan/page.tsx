@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { experiencePaths } from '@/lib/experience-routes'
@@ -41,6 +41,8 @@ function EnterTripDetailsInner() {
   const [endDate, setEndDate] = useState(weekAheadISO)
   const [whoWith, setWhoWith] = useState('')
   const [transportMode, setTransportMode] = useState('')
+  const [travelingFrom, setTravelingFrom] = useState('')
+  const [travelingFromIsHomeDefault, setTravelingFromIsHomeDefault] = useState(false)
 
   const [blobText, setBlobText] = useState('')
   const [parsing, setParsing] = useState(false)
@@ -50,6 +52,24 @@ function EnterTripDetailsInner() {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const tid = LocalStorageAPI.getTravelerId()
+    if (!tid) return
+    void fetch(`/api/traveler/profile?travelerId=${encodeURIComponent(tid)}`)
+      .then((r) => r.json())
+      .then((d: { hometownCity?: string; homeState?: string; homeAddress?: string; error?: string }) => {
+        if (!d || d.error) return
+        const parts = [d.hometownCity, d.homeState].filter(Boolean)
+        const line =
+          parts.length > 0 ? parts.join(', ') : (typeof d.homeAddress === 'string' ? d.homeAddress.trim() : '')
+        if (line) {
+          setTravelingFrom(line)
+          setTravelingFromIsHomeDefault(true)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   async function handleParse() {
     setError('')
@@ -127,6 +147,7 @@ function EnterTripDetailsInner() {
           lodging: importedPlan?.lodging ?? null,
           legs: importedPlan?.legs ?? [],
           notes: importedPlan?.notes?.trim() || null,
+          startingLocation: travelingFrom.trim() || null,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -158,7 +179,7 @@ function EnterTripDetailsInner() {
     }.`
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-10">
+    <div className="max-w-5xl mx-auto px-4 py-10">
       <Link
         href={paths.planFork}
         className="text-sm text-sky-600 hover:underline font-medium mb-6 inline-block"
@@ -171,8 +192,63 @@ function EnterTripDetailsInner() {
         below.
       </p>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Trip context</p>
+            <p className="text-sm text-gray-700 mb-2">
+              <span className="font-medium text-gray-900">Traveling from</span>
+              {travelingFromIsHomeDefault ? (
+                <span className="ml-1.5 text-xs font-medium text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
+                  Home default
+                </span>
+              ) : null}
+            </p>
+            <p className="text-sm text-gray-600">
+              {travelingFrom.trim() || (
+                <span className="text-amber-700">
+                  Not set — add city/state in{' '}
+                  <Link href="/profile/settings" className="underline font-medium">
+                    Profile settings
+                  </Link>{' '}
+                  or type in the form.
+                </span>
+              )}
+            </p>
+          </div>
+          {importedPlan &&
+          (importedPlan.legs.length > 0 ||
+            importedPlan.lodging?.title ||
+            importedPlan.notes?.trim()) ? (
+            <div className="bg-amber-50/90 border border-amber-200 rounded-lg p-4">
+              <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide mb-2">
+                From your paste
+              </p>
+              {importedPlan.lodging?.title ? (
+                <p className="text-sm text-amber-950 mb-2">
+                  <span className="font-medium">Stay:</span> {importedPlan.lodging.title}
+                </p>
+              ) : null}
+              {importedPlan.legs.length > 0 ? (
+                <ul className="text-xs text-amber-950 space-y-1.5">
+                  {importedPlan.legs.map((leg, i) => (
+                    <li key={i} className="border-l-2 border-amber-400 pl-2">
+                      <span className="font-medium capitalize">{leg.kind}:</span>{' '}
+                      {leg.summary || leg.origin || leg.destination || '—'}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {importedPlan.notes?.trim() ? (
+                <p className="text-xs text-amber-900 mt-2">{importedPlan.notes.trim()}</p>
+              ) : null}
+            </div>
+          ) : null}
+        </aside>
+
+        <div className="lg:col-span-2 space-y-6">
       {/* Input method — same pattern as GoFastCompany race create (Manual / Paste & Parse) */}
-      <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="mb-2 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <span className="text-sm font-medium text-gray-700 shrink-0">Input method</span>
           <div className="flex flex-wrap gap-2">
@@ -293,6 +369,24 @@ function EnterTripDetailsInner() {
           />
         </label>
 
+        <label className="block">
+          <span className="block text-sm font-medium text-gray-700 mb-1">
+            Traveling from
+          </span>
+          <input
+            type="text"
+            value={travelingFrom}
+            onChange={(e) => {
+              setTravelingFrom(e.target.value)
+              setTravelingFromIsHomeDefault(false)
+            }}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+          />
+          <span className="text-xs text-gray-500 mt-1 block">
+            Defaults from your profile; we save this as the trip departure point.
+          </span>
+        </label>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="block sm:col-span-1">
             <span className="block text-sm font-medium text-gray-700 mb-1">City</span>
@@ -411,6 +505,8 @@ function EnterTripDetailsInner() {
           Save creates your trip and opens trip admin to keep planning. Create trip opens your trip page.
         </p>
       </form>
+        </div>
+      </div>
     </div>
   )
 }
@@ -419,7 +515,7 @@ export default function TravelerPlanGotPlanPage() {
   return (
     <Suspense
       fallback={
-        <div className="max-w-lg mx-auto px-4 py-10">
+        <div className="max-w-5xl mx-auto px-4 py-10">
           <p className="text-sm text-gray-500">Loading…</p>
         </div>
       }

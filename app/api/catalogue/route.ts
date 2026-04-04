@@ -3,7 +3,14 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-const VALID_TYPES = ['concert', 'hike', 'dining', 'attraction', 'cruise'] as const
+const VALID_TYPES = [
+  'concert',
+  'hike',
+  'dining',
+  'attraction',
+  'cruise',
+  'day_trip',
+] as const
 type CatalogueType = (typeof VALID_TYPES)[number]
 
 /**
@@ -63,7 +70,15 @@ export async function GET(request: NextRequest) {
       })
     } else if (type === 'attraction') {
       items = await prisma.attraction.findMany({
-        where: { cityId: city.id },
+        where: {
+          cityId: city.id,
+          OR: [{ category: null }, { category: { not: 'Day trip' } }],
+        },
+        orderBy: { title: 'asc' },
+      })
+    } else if (type === 'day_trip') {
+      items = await prisma.attraction.findMany({
+        where: { cityId: city.id, category: 'Day trip' },
         orderBy: { title: 'asc' },
       })
     } else if (type === 'cruise') {

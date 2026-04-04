@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 interface LogisticItem {
   id: string
@@ -20,6 +22,7 @@ export default function LogisticsCard({
   tripId,
   isAdmin,
 }: LogisticsCardProps) {
+  const pathname = usePathname()
   const [newTitle, setNewTitle] = useState('')
   const [newDetail, setNewDetail] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -107,7 +110,18 @@ export default function LogisticsCard({
       )}
 
       {items.length === 0 ? (
-        <p className="text-gray-500">No logistics items yet.</p>
+        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
+          <p className="text-gray-600 text-sm mb-2">
+            Track flights, transfers, and reminders here.
+          </p>
+          {!isAdmin ? (
+            <Link href={`${pathname}?admin=1`} className="text-sm font-medium text-sky-600 hover:underline">
+              Enable editing to add logistics items
+            </Link>
+          ) : (
+            <p className="text-xs text-gray-500">Use the form above to add your first item.</p>
+          )}
+        </div>
       ) : (
         <div className="space-y-2">
           {items.map((item) => (
