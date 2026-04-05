@@ -3,13 +3,19 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import GoogleSearchBar from './GoogleSearchBar'
+import ServerPlaceSearch from './ServerPlaceSearch'
+import {
+  googleMapsUrlFromMetadata,
+  summarizeDiningMetadata,
+} from '@/lib/trip-experience-display'
 
 interface Dining {
   id: string
   title: string
   category?: string | null
   address?: string | null
+  description?: string | null
+  metadata?: unknown
   rating?: number | null
   imageUrl?: string | null
   distanceFromLodging?: number | null
@@ -22,14 +28,14 @@ interface DiningCardProps {
   dining: Dining[]
   tripId: string
   isAdmin: boolean
-  googleApiKey: string
+  searchLocationBias?: { lat: number; lng: number } | null
 }
 
 export default function DiningCard({
   dining,
   tripId,
   isAdmin,
-  googleApiKey,
+  searchLocationBias,
 }: DiningCardProps) {
   const pathname = usePathname()
   const [isHydrating, setIsHydrating] = useState(false)
@@ -74,10 +80,11 @@ export default function DiningCard({
 
       {showSearch && isAdmin && (
         <div className="mb-4">
-          <GoogleSearchBar
+          <ServerPlaceSearch
             onPlaceSelect={handlePlaceSelect}
-            placeholder="Search for restaurants..."
-            apiKey={googleApiKey}
+            placeholder="Search restaurants by name…"
+            locationBias={searchLocationBias ?? null}
+            disabled={isHydrating}
           />
         </div>
       )}
@@ -89,9 +96,10 @@ export default function DiningCard({
             <button
               type="button"
               onClick={() => setShowSearch(true)}
-              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
+              disabled={isHydrating}
+              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:opacity-50"
             >
-              Add restaurant
+              {isHydrating ? 'Adding…' : 'Add restaurant'}
             </button>
           ) : (
             <Link
@@ -104,7 +112,9 @@ export default function DiningCard({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {dining.map((item) => (
+          {dining.map((item) => {
+            const mapsUrl = googleMapsUrlFromMetadata(item.metadata)
+            return (
             <div
               key={item.id}
               className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
@@ -121,6 +131,16 @@ export default function DiningCard({
                 {item.category && (
                   <p className="text-sm text-gray-500 mb-2">{item.category}</p>
                 )}
+                {item.description?.trim() ? (
+                  <p className="text-sm text-gray-700 mt-1 line-clamp-4">
+                    {item.description.trim()}
+                  </p>
+                ) : null}
+                {summarizeDiningMetadata(item.metadata).map((line, i) => (
+                  <p key={i} className="text-xs text-gray-600 mt-1.5">
+                    {line}
+                  </p>
+                ))}
                 {item.rating && (
                   <div className="flex items-center mb-2">
                     <span className="text-yellow-500 mr-1">★</span>
@@ -137,7 +157,17 @@ export default function DiningCard({
                 {item.address && (
                   <p className="text-xs text-gray-500 mt-2">{item.address}</p>
                 )}
-                <div className="flex gap-2 mt-3">
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {mapsUrl ? (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-500 hover:underline"
+                    >
+                      Google Maps
+                    </a>
+                  ) : null}
                   {item.website && (
                     <a
                       href={item.website}
@@ -159,7 +189,8 @@ export default function DiningCard({
                 </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

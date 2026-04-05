@@ -6,7 +6,7 @@ import AttractionCard from '@/app/components/trip/AttractionCard'
 import LogisticsCard from '@/app/components/trip/LogisticsCard'
 import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
-import ItineraryCard from '@/app/components/trip/ItineraryCard'
+import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import TripMemoriesCard from '@/app/components/trip/TripMemoriesCard'
 import { getTrip } from '@/lib/actions/trip'
 import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
@@ -28,6 +28,11 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   if (!success || !trip) {
     notFound()
   }
+
+  const searchLocationBias =
+    trip.lodging?.lat != null && trip.lodging?.lng != null
+      ? { lat: trip.lodging.lat, lng: trip.lodging.lng }
+      : null
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -51,17 +56,17 @@ export default async function TripPage({ params, searchParams }: PageProps) {
               dining={trip.dining}
               tripId={trip.id}
               isAdmin={isAdmin}
-              googleApiKey={googleApiKey}
+              searchLocationBias={searchLocationBias}
             />
 
             <AttractionCard
               attractions={trip.attractions}
               tripId={trip.id}
               isAdmin={isAdmin}
-              googleApiKey={googleApiKey}
+              searchLocationBias={searchLocationBias}
             />
 
-            <ItineraryCard
+            <TripExperienceCard
               tripDays={trip.tripDays}
               startDate={trip.startDate}
               endDate={trip.endDate}

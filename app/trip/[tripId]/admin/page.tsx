@@ -6,7 +6,7 @@ import AttractionCard from '@/app/components/trip/AttractionCard'
 import LogisticsCard from '@/app/components/trip/LogisticsCard'
 import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
-import ItineraryCard from '@/app/components/trip/ItineraryCard'
+import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import { getTrip } from '@/lib/actions/trip'
 import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
@@ -27,6 +27,11 @@ export default async function AdminPage({ params }: PageProps) {
   if (!success || !trip) {
     redirect('/')
   }
+
+  const searchLocationBias =
+    trip.lodging?.lat != null && trip.lodging?.lng != null
+      ? { lat: trip.lodging.lat, lng: trip.lodging.lng }
+      : null
 
   const title = tripDisplayTitle(trip.purpose)
   const dateRangeLabel = tripDateRangeLabel(trip.startDate, trip.endDate)
@@ -93,17 +98,17 @@ export default async function AdminPage({ params }: PageProps) {
               dining={trip.dining}
               tripId={trip.id}
               isAdmin={true}
-              googleApiKey={googleApiKey}
+              searchLocationBias={searchLocationBias}
             />
 
             <AttractionCard
               attractions={trip.attractions}
               tripId={trip.id}
               isAdmin={true}
-              googleApiKey={googleApiKey}
+              searchLocationBias={searchLocationBias}
             />
 
-            <ItineraryCard
+            <TripExperienceCard
               tripDays={trip.tripDays}
               startDate={trip.startDate}
               endDate={trip.endDate}

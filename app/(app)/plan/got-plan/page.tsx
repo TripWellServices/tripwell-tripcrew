@@ -146,6 +146,8 @@ function EnterTripDetailsInner() {
           transportMode: transportMode || null,
           lodging: importedPlan?.lodging ?? null,
           legs: importedPlan?.legs ?? [],
+          experiences: importedPlan?.experiences ?? [],
+          daySlots: importedPlan?.daySlots ?? [],
           notes: importedPlan?.notes?.trim() || null,
           startingLocation: travelingFrom.trim() || null,
         }),
@@ -171,12 +173,24 @@ function EnterTripDetailsInner() {
     void persistTrip('admin')
   }
 
+  const importHintParts: string[] = []
+  if (importedPlan) {
+    if (importedPlan.legs.length > 0) {
+      importHintParts.push(`${importedPlan.legs.length} logistics item(s)`)
+    }
+    if (importedPlan.lodging?.title) {
+      importHintParts.push(`stay at ${importedPlan.lodging.title}`)
+    }
+    if ((importedPlan.experiences?.length ?? 0) > 0) {
+      importHintParts.push(
+        `${importedPlan.experiences!.length} experience(s) for day 1`
+      )
+    }
+  }
   const importHint =
-    importedPlan &&
-    (importedPlan.legs.length > 0 || importedPlan.lodging != null) &&
-    `Including ${importedPlan.legs.length} logistics item(s)${
-      importedPlan.lodging?.title ? ` and stay at ${importedPlan.lodging.title}` : ''
-    }.`
+    importedPlan && importHintParts.length > 0
+      ? `Including ${importHintParts.join(', ')}.`
+      : null
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -219,6 +233,8 @@ function EnterTripDetailsInner() {
           {importedPlan &&
           (importedPlan.legs.length > 0 ||
             importedPlan.lodging?.title ||
+            (importedPlan.experiences?.length ?? 0) > 0 ||
+            (importedPlan.daySlots?.length ?? 0) > 0 ||
             importedPlan.notes?.trim()) ? (
             <div className="bg-amber-50/90 border border-amber-200 rounded-lg p-4">
               <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide mb-2">
@@ -235,6 +251,27 @@ function EnterTripDetailsInner() {
                     <li key={i} className="border-l-2 border-amber-400 pl-2">
                       <span className="font-medium capitalize">{leg.kind}:</span>{' '}
                       {leg.summary || leg.origin || leg.destination || '—'}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {(importedPlan.experiences?.length ?? 0) > 0 ? (
+                <ul className="text-xs text-amber-950 space-y-1.5 mt-2">
+                  {importedPlan.experiences!.map((ex, i) => (
+                    <li key={`exp-${i}`} className="border-l-2 border-amber-500 pl-2">
+                      <span className="font-medium">Experience:</span> {ex.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {(importedPlan.daySlots?.length ?? 0) > 0 ? (
+                <ul className="text-xs text-amber-950 space-y-1.5 mt-2">
+                  {importedPlan.daySlots!.map((s, i) => (
+                    <li key={`slot-${i}`} className="border-l-2 border-sky-500 pl-2">
+                      <span className="font-medium capitalize">{s.type}:</span> {s.title}
+                      {s.startTime || s.endTime
+                        ? ` (${[s.startTime, s.endTime].filter(Boolean).join(' – ')})`
+                        : ''}
                     </li>
                   ))}
                 </ul>

@@ -5,13 +5,26 @@ import { seedTripDays } from '@/lib/trip/seedTripDays'
 import { resolveTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
 import { parseLodgingType } from '@/lib/lodging/apiFields'
 import {
+  daySlotAttractionMetadata,
+  daySlotDiningMetadata,
+  experienceSpecToMetadata,
   legToLogisticItem,
   normalizeParsedTripPlan,
+  planNoteFromExperienceSpec,
+  type ParsedDaySlot,
+  type ParsedExperienceSpec,
   type ParsedLodging,
   type ParsedTripLeg,
 } from '@/lib/trip-plan-model'
-import { TripType, TransportMode, WhoWith } from '@prisma/client'
+import {
+  TripType,
+  TransportMode,
+  TripDayExperienceStatus,
+  WhoWith,
+} from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import { enrichCityCatalogIfNeeded } from '@/lib/city-guide-enrich'
+import { upsertCityByName } from '@/lib/city-upsert'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +57,8 @@ export async function POST(request: NextRequest) {
       transportMode: transportModeRaw,
       lodging: lodgingRaw,
       legs: legsRaw,
+      experiences: experiencesRaw,
+      daySlots: daySlotsRaw,
       notes,
       startingLocation: startingLocationRaw,
     } = body as {
@@ -59,6 +74,8 @@ export async function POST(request: NextRequest) {
       transportMode?: string | null
       lodging?: ParsedLodging | null
       legs?: ParsedTripLeg[] | null
+      experiences?: unknown[] | null
+      daySlots?: unknown[] | null
       notes?: string | null
       startingLocation?: string | null
     }
@@ -133,6 +150,32 @@ export async function POST(request: NextRequest) {
       legs = norm.legs
     }
 
+    let experiences: ParsedExperienceSpec[] = []
+    if (Array.isArray(experiencesRaw)) {
+      const norm = normalizeParsedTripPlan({ experiences: experiencesRaw })
+      experiences = norm.experiences
+    }
+
+    let daySlots: ParsedDaySlot[] = []
+    if (Array.isArray(daySlotsRaw)) {
+      const norm = normalizeParsedTripPlan({ daySlots: daySlotsRaw })
+      daySlots = norm.daySlots
+    }
+
+    let cityIdForCatalogue: string | null = null
+    if (cityT) {
+      try {
+        const cityRow = await upsertCityByName({
+          name: cityT,
+          state: stateT,
+          country: countryT ?? 'USA',
+        })
+        cityIdForCatalogue = cityRow.id
+      } catch (e) {
+        console.error('ingest-plan upsertCityByName:', e)
+      }
+    }
+
     const startingLoc =
       typeof startingLocationRaw === 'string' && startingLocationRaw.trim()
         ? startingLocationRaw.trim()
@@ -191,6 +234,118 @@ export async function POST(request: NextRequest) {
             detail,
           },
         })
+      }
+
+      const day1 = await tx.tripDay.findFirst({
+        where: { tripId: t.id, dayNumber: 1 },
+      })
+
+      if (day1 && (experiences.length > 0 || daySlots.length > 0)) {
+        const agg = await tx.tripDayExperience.aggregate({
+          where: { tripDayId: day1.id },
+          _max: { orderIndex: true },
+        })
+        let orderIndex = (agg._max.orderIndex ?? -1) + 1
+
+        for (const exp of experiences) {
+          const meta = experienceSpecToMetadata(exp)
+          const attraction = await tx.attraction.create({
+            data: {
+              tripId: t.id,
+              cityId: cityIdForCatalogue,
+              title: exp.name,
+              category: exp.experience_type?.trim() || null,
+              address: exp.location?.address?.trim() || null,
+              lat: exp.location?.lat ?? null,
+              lng: exp.location?.lng ?? null,
+              description: exp.description?.trim() || null,
+              metadata: meta as Prisma.InputJsonValue,
+              tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+            },
+          })
+
+          await tx.tripDayExperience.create({
+            data: {
+              tripDayId: day1.id,
+              orderIndex: orderIndex++,
+              attractionId: attraction.id,
+              notes: planNoteFromExperienceSpec(exp),
+              status: TripDayExperienceStatus.PLANNED,
+            },
+          })
+        }
+
+        for (const slot of daySlots) {
+          if (slot.type === 'logistic') {
+            const detail = [slot.notes, slot.address].filter(Boolean).join('\n').trim()
+            await tx.logisticItem.create({
+              data: {
+                tripId: t.id,
+                title: slot.title.slice(0, 200),
+                detail: detail || null,
+              },
+            })
+            continue
+          }
+
+          if (slot.type === 'dining') {
+            const dmeta = daySlotDiningMetadata(slot) as Prisma.InputJsonValue
+            const diningRow = await tx.dining.create({
+              data: {
+                tripId: t.id,
+                cityId: cityIdForCatalogue,
+                title: slot.title,
+                address: slot.address?.trim() || null,
+                description:
+                  slot.description?.trim() || slot.notes?.trim() || null,
+                category: slot.foodType?.trim() || null,
+                metadata: dmeta,
+                tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+              },
+            })
+            const slotNotes = [slot.foodType, slot.notes]
+              .filter(Boolean)
+              .join(' · ')
+              .trim()
+            await tx.tripDayExperience.create({
+              data: {
+                tripDayId: day1.id,
+                orderIndex: orderIndex++,
+                diningId: diningRow.id,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                notes: slotNotes || null,
+                status: TripDayExperienceStatus.PLANNED,
+              },
+            })
+            continue
+          }
+
+          const ameta = daySlotAttractionMetadata(slot) as Prisma.InputJsonValue
+          const attractionRow = await tx.attraction.create({
+            data: {
+              tripId: t.id,
+              cityId: cityIdForCatalogue,
+              title: slot.title,
+              category: slot.category?.trim() || null,
+              address: slot.address?.trim() || null,
+              description: slot.description?.trim() || null,
+              metadata: ameta,
+              tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+            },
+          })
+          await tx.tripDayExperience.create({
+            data: {
+              tripDayId: day1.id,
+              orderIndex: orderIndex++,
+              attractionId: attractionRow.id,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              notes: slot.notes?.trim() || null,
+              status: TripDayExperienceStatus.PLANNED,
+            },
+          })
+        }
       }
 
       return t.id

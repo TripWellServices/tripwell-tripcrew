@@ -179,8 +179,26 @@ export async function getTrip(tripId: string) {
               orderBy: { orderIndex: 'asc' },
               include: {
                 hike: true,
-                dining: true,
-                attraction: true,
+                dining: {
+                  select: {
+                    id: true,
+                    title: true,
+                    category: true,
+                    address: true,
+                    description: true,
+                    metadata: true,
+                  },
+                },
+                attraction: {
+                  select: {
+                    id: true,
+                    title: true,
+                    category: true,
+                    address: true,
+                    description: true,
+                    metadata: true,
+                  },
+                },
                 concert: true,
                 sport: true,
                 adventure: true,

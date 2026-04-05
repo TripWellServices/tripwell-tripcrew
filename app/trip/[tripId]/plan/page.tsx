@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import LodgingCard from '@/app/components/trip/LodgingCard'
 import DiningCard from '@/app/components/trip/DiningCard'
 import AttractionCard from '@/app/components/trip/AttractionCard'
-import ItineraryCard from '@/app/components/trip/ItineraryCard'
+import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import { getTrip } from '@/lib/actions/trip'
 
 export const dynamic = 'force-dynamic'
@@ -20,6 +20,11 @@ export default async function TripPlanPage({ params }: PageProps) {
   if (!success || !trip) {
     notFound()
   }
+
+  const searchLocationBias =
+    trip.lodging?.lat != null && trip.lodging?.lng != null
+      ? { lat: trip.lodging.lat, lng: trip.lodging.lng }
+      : null
 
   const allExperiences =
     trip.tripDays?.flatMap((d) => d.experiences ?? []) ?? []
@@ -70,7 +75,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             dining={trip.dining}
             tripId={trip.id}
             isAdmin={true}
-            googleApiKey={googleApiKey}
+            searchLocationBias={searchLocationBias}
           />
         </section>
 
@@ -81,7 +86,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             attractions={trip.attractions}
             tripId={trip.id}
             isAdmin={true}
-            googleApiKey={googleApiKey}
+            searchLocationBias={searchLocationBias}
           />
         </section>
 
@@ -100,7 +105,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             </ul>
           ) : (
             <p className="text-gray-500 text-sm">
-              No concerts on the itinerary yet. Add an itinerary item and link it to a concert (first-class) from the Itinerary section below.
+              No concerts on the itinerary yet. Add an itinerary item and link it to a concert (first-class) from the Day plan section below.
             </p>
           )}
         </section>
@@ -120,18 +125,18 @@ export default async function TripPlanPage({ params }: PageProps) {
             </ul>
           ) : (
             <p className="text-gray-500 text-sm">
-              No hikes on the itinerary yet. Add an itinerary item and link it to a hike (first-class) from the Itinerary section below.
+              No hikes on the itinerary yet. Add an itinerary item and link it to a hike (first-class) from the Day plan section below.
             </p>
           )}
         </section>
 
         {/* Itinerary */}
         <section>
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Itinerary</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Day plan</h2>
           <p className="text-gray-500 text-sm mb-4">
-            Day-by-day view. Add and assign dining, attractions, concerts, hikes, and more.
+            Day-by-day TripDay experiences. Add dining, attractions, concerts, hikes, and more.
           </p>
-          <ItineraryCard
+          <TripExperienceCard
             tripDays={trip.tripDays}
             startDate={trip.startDate}
             endDate={trip.endDate}

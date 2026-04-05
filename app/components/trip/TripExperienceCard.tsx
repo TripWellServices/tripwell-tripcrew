@@ -1,16 +1,20 @@
 'use client'
 
 import { format } from 'date-fns'
+import {
+  summarizeAttractionMetadata,
+  summarizeDiningMetadata,
+} from '@/lib/trip-experience-display'
 
 /** Shape matches getTrip → tripDays → experiences include (serializable from server). */
-export type ItineraryTripDay = {
+export type TripDayRow = {
   id: string
   date: Date | string
   dayNumber: number
-  experiences: ItineraryExperience[]
+  experiences: TripExperienceRow[]
 }
 
-export type ItineraryExperience = {
+export type TripExperienceRow = {
   id: string
   orderIndex: number
   startTime: string | null
@@ -18,28 +22,50 @@ export type ItineraryExperience = {
   status: string
   notes: string | null
   hike?: { id: string; name: string; trailOrPlace?: string | null } | null
-  dining?: { id: string; title: string } | null
-  attraction?: { id: string; title: string } | null
+  dining?: {
+    id: string
+    title: string
+    category?: string | null
+    description?: string | null
+    metadata?: unknown
+  } | null
+  attraction?: {
+    id: string
+    title: string
+    category?: string | null
+    description?: string | null
+    metadata?: unknown
+  } | null
   concert?: { id: string; name: string; artist?: string | null; venue?: string | null } | null
   sport?: { id: string; name: string; venue?: string | null } | null
   adventure?: { id: string; name: string } | null
   cruise?: { id: string; name: string } | null
 }
 
-interface ItineraryCardProps {
-  tripDays: ItineraryTripDay[]
+interface TripExperienceCardProps {
+  tripDays: TripDayRow[]
   startDate: Date | null
   endDate: Date | null
   tripId: string
   isAdmin: boolean
 }
 
-function experienceLabel(exp: ItineraryExperience): { emoji: string; title: string; sub?: string } {
+function experienceLabel(
+  exp: TripExperienceRow
+): { emoji: string; title: string; sub?: string } {
   if (exp.dining) {
-    return { emoji: '🍽', title: exp.dining.title }
+    return {
+      emoji: '🍽',
+      title: exp.dining.title,
+      sub: exp.dining.category ?? undefined,
+    }
   }
   if (exp.attraction) {
-    return { emoji: '🎯', title: exp.attraction.title }
+    return {
+      emoji: '🎯',
+      title: exp.attraction.title,
+      sub: exp.attraction.category ?? undefined,
+    }
   }
   if (exp.hike) {
     const sub = exp.hike.trailOrPlace ? String(exp.hike.trailOrPlace) : undefined
@@ -72,13 +98,13 @@ function chipClass(emoji: string): string {
   return 'bg-gray-100 text-gray-800'
 }
 
-export default function ItineraryCard({
+export default function TripExperienceCard({
   tripDays,
   startDate,
   endDate,
   tripId,
   isAdmin,
-}: ItineraryCardProps) {
+}: TripExperienceCardProps) {
   const handleRemoveExperience = async (experienceId: string) => {
     try {
       const res = await fetch(`/api/trip/${tripId}/itinerary-items/${experienceId}`, {
@@ -98,8 +124,8 @@ export default function ItineraryCard({
   if (!startDate || !endDate) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Itinerary</h2>
-        <p className="text-gray-500">Set trip dates to view itinerary.</p>
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Day plan</h2>
+        <p className="text-gray-500">Set trip dates to view your schedule.</p>
       </div>
     )
   }
@@ -108,7 +134,7 @@ export default function ItineraryCard({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Itinerary</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-4">Day plan</h2>
 
       {sortedDays.length === 0 ? (
         <p className="text-gray-500">No trip days yet. Days are created when you set the trip dates.</p>
@@ -134,21 +160,58 @@ export default function ItineraryCard({
                       const { emoji, title, sub } = experienceLabel(exp)
                       const timeBits = [exp.startTime, exp.endTime].filter(Boolean)
                       const timeLine = timeBits.length > 0 ? timeBits.join(' – ') : null
+                      const isDining = Boolean(exp.dining)
+                      const isAttraction = Boolean(exp.attraction)
 
                       return (
                         <div
                           key={exp.id}
                           className="flex items-start gap-2 p-2 bg-gray-50 rounded"
                         >
-                          <span className={`px-2 py-1 text-xs rounded shrink-0 ${chipClass(emoji)}`}>
+                          <span
+                            className={`px-2 py-1 text-xs rounded shrink-0 ${chipClass(emoji)}`}
+                          >
                             {emoji}
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-gray-900">{title}</div>
-                            {sub && <div className="text-xs text-gray-600 truncate">{sub}</div>}
-                            {timeLine && (
-                              <div className="text-xs text-gray-500 mt-0.5">{timeLine}</div>
+                            {sub && (
+                              <div className="text-xs text-gray-600 truncate">{sub}</div>
                             )}
+                            {timeLine && (
+                              <div className="text-xs text-gray-500 mt-0.5 font-medium">
+                                {timeLine}
+                              </div>
+                            )}
+                            {isAttraction && exp.attraction?.description?.trim() ? (
+                              <p className="text-sm text-gray-700 mt-1 line-clamp-2">
+                                {exp.attraction.description.trim()}
+                              </p>
+                            ) : null}
+                            {isAttraction &&
+                              summarizeAttractionMetadata(exp.attraction?.metadata).map(
+                                (line, i) => (
+                                  <p key={`am-${i}`} className="text-xs text-gray-600 mt-1">
+                                    {line}
+                                  </p>
+                                )
+                              )}
+                            {isDining && exp.dining?.description?.trim() ? (
+                              <p className="text-sm text-gray-700 mt-1 line-clamp-2">
+                                {exp.dining.description.trim()}
+                              </p>
+                            ) : null}
+                            {isDining &&
+                              summarizeDiningMetadata(exp.dining?.metadata).map((line, i) => (
+                                <p key={`dm-${i}`} className="text-xs text-gray-600 mt-1">
+                                  {line}
+                                </p>
+                              ))}
+                            {exp.notes?.trim() ? (
+                              <div className="text-xs text-gray-600 mt-0.5">
+                                {exp.notes.trim()}
+                              </div>
+                            ) : null}
                             {exp.status && exp.status !== 'PLANNED' && (
                               <div className="text-xs text-gray-500 mt-0.5 capitalize">
                                 {exp.status.toLowerCase()}
@@ -176,8 +239,8 @@ export default function ItineraryCard({
       )}
 
       <p className="mt-6 text-sm text-gray-500">
-        Add experiences to a day from Plan, Discover, or the itinerary-items API. Dining and
-        attractions are catalogue entries; scheduling lives on each day as a TripDay experience.
+        Each block is a TripDay experience (time + dining, attraction, concert, etc.). Add from
+        Plan, Discover, or paste a timed itinerary on got-plan.
       </p>
     </div>
   )

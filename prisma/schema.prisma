@@ -487,6 +487,8 @@ model Dining {
   rating              Float?
   lat                 Float?
   lng                 Float?
+  description         String?   @db.Text
+  metadata            Json?
   distanceFromLodging Float?
   driveTimeMinutes    Int?
   createdAt           DateTime  @default(now())
@@ -527,6 +529,8 @@ model Attraction {
   rating               Float?
   lat                  Float?
   lng                  Float?
+  description          String?   @db.Text
+  metadata             Json?
   distanceFromLodging  Float?
   driveTimeMinutes     Int?
   createdAt            DateTime  @default(now())

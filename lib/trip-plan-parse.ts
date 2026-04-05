@@ -17,6 +17,20 @@ Fields:
 - lodging: object|null — { title, address, chain, lodgingType (one of HOTEL|RESORT|EXTENDED_STAY|VACATION_RENTAL|HOSTEL|BED_AND_BREAKFAST|OTHER|null), defaultCheckInTime, defaultCheckOutTime, notes }
 - legs: array — each leg: { kind: flight|train|drive|other, summary, depart, arrive, origin, destination, carrier, flightNumber, recordLocator } (use nulls for missing keys)
 - notes: string|null — other useful planning notes from the text
+- experiences: array (optional) — when the text describes places to visit, museums, activities, or structured “experience” specs (bullets for duration, cost, address, jump-off nearby). Omit or use [] if the text is only travel confirmations with no POI/activity blocks. Each item:
+  { name, entity_ref, description, duration_minutes (number), experience_type (string),
+    cost: { adult_usd, child_usd, family_estimate_usd },
+    location: { name, address, lat, lng },
+    logistics: { arrival_buffer_minutes, booking_required, indoor_outdoor, walking_required },
+    jump_off_next_to: [ { name, type, distance_minutes_walk, distance_minutes_drive, description } ],
+    tripwell_fit: { effort_level, kid_friendly, parent_friendly, time_block } }
+  Use null for unknown nested keys. Integers or floats for money/durations when stated.
+- daySlots: array (optional) — when the text is a timed day itinerary (time blocks + named locations, markdown tours, or bullet schedules). Omit or use [] for pure confirmations or unstructured notes. Each item in chronological order:
+  { type: "dining"|"attraction"|"logistic", title, startTime, endTime, address, notes,
+    foodType, costLevel (integer 1–5 only, 1=cheap 5=fine), idealTime ("breakfast"|"lunch"|"dinner"|"snack"|"coffee_stop"),
+    reservationRequired (boolean), description (longer prose), category (short label e.g. museum, shopping_district),
+    subItems: string[] (store names, nearby stops, must-see list). }
+  Use null for unknown keys. Drives, parking, "head home", and multi-hour transit blocks are "logistic". Meals, cafes, bakeries, dinner reservations are "dining". Sightseeing, museums, shopping streets, parks, campuses are "attraction".
 
 If the text mentions multiple flights or trains, add one object per leg to legs in chronological order.`
 

@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../../GoFast/GoFastCompany"
+		},
+		{
+			"path": "../../Ignite/IgniteBd-Next-combine"
 		}
 	],
 	"settings": {}
