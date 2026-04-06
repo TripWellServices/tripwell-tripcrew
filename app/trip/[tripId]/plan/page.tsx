@@ -4,6 +4,7 @@ import DiningCard from '@/app/components/trip/DiningCard'
 import AttractionCard from '@/app/components/trip/AttractionCard'
 import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import { getTrip } from '@/lib/actions/trip'
+import { resolveCityId } from '@/lib/city-mapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,10 +22,7 @@ export default async function TripPlanPage({ params }: PageProps) {
     notFound()
   }
 
-  const searchLocationBias =
-    trip.lodging?.lat != null && trip.lodging?.lng != null
-      ? { lat: trip.lodging.lat, lng: trip.lodging.lng }
-      : null
+  const catalogueCityId = await resolveCityId(trip.city, trip.state, trip.country)
 
   const allExperiences =
     trip.tripDays?.flatMap((d) => d.experiences ?? []) ?? []
@@ -75,7 +73,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             dining={trip.dining}
             tripId={trip.id}
             isAdmin={true}
-            searchLocationBias={searchLocationBias}
+            catalogueCityId={catalogueCityId}
           />
         </section>
 
@@ -86,7 +84,7 @@ export default async function TripPlanPage({ params }: PageProps) {
             attractions={trip.attractions}
             tripId={trip.id}
             isAdmin={true}
-            searchLocationBias={searchLocationBias}
+            catalogueCityId={catalogueCityId}
           />
         </section>
 

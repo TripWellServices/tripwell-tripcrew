@@ -8,6 +8,7 @@ import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
 import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import { getTrip } from '@/lib/actions/trip'
+import { resolveCityId } from '@/lib/city-mapper'
 import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
 
@@ -28,10 +29,7 @@ export default async function AdminPage({ params }: PageProps) {
     redirect('/')
   }
 
-  const searchLocationBias =
-    trip.lodging?.lat != null && trip.lodging?.lng != null
-      ? { lat: trip.lodging.lat, lng: trip.lodging.lng }
-      : null
+  const catalogueCityId = await resolveCityId(trip.city, trip.state, trip.country)
 
   const title = tripDisplayTitle(trip.purpose)
   const dateRangeLabel = tripDateRangeLabel(trip.startDate, trip.endDate)
@@ -98,14 +96,14 @@ export default async function AdminPage({ params }: PageProps) {
               dining={trip.dining}
               tripId={trip.id}
               isAdmin={true}
-              searchLocationBias={searchLocationBias}
+              catalogueCityId={catalogueCityId}
             />
 
             <AttractionCard
               attractions={trip.attractions}
               tripId={trip.id}
               isAdmin={true}
-              searchLocationBias={searchLocationBias}
+              catalogueCityId={catalogueCityId}
             />
 
             <TripExperienceCard

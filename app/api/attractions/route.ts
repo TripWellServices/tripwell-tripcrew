@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
       lng,
       distanceFromLodging,
       driveTimeMinutes,
+      description,
     } = body
 
     if (!title?.trim()) {
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
           typeof distanceFromLodging === 'number' ? distanceFromLodging : null,
         driveTimeMinutes:
           typeof driveTimeMinutes === 'number' ? driveTimeMinutes : null,
+        description: typeof description === 'string' ? description.trim() || null : null,
       },
     })
 

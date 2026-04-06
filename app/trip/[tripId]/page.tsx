@@ -9,6 +9,7 @@ import WeatherCard from '@/app/components/trip/WeatherCard'
 import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import TripMemoriesCard from '@/app/components/trip/TripMemoriesCard'
 import { getTrip } from '@/lib/actions/trip'
+import { resolveCityId } from '@/lib/city-mapper'
 import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
 
 export const dynamic = 'force-dynamic'
@@ -29,10 +30,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
     notFound()
   }
 
-  const searchLocationBias =
-    trip.lodging?.lat != null && trip.lodging?.lng != null
-      ? { lat: trip.lodging.lat, lng: trip.lodging.lng }
-      : null
+  const catalogueCityId = await resolveCityId(trip.city, trip.state, trip.country)
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -56,14 +54,14 @@ export default async function TripPage({ params, searchParams }: PageProps) {
               dining={trip.dining}
               tripId={trip.id}
               isAdmin={isAdmin}
-              searchLocationBias={searchLocationBias}
+              catalogueCityId={catalogueCityId}
             />
 
             <AttractionCard
               attractions={trip.attractions}
               tripId={trip.id}
               isAdmin={isAdmin}
-              searchLocationBias={searchLocationBias}
+              catalogueCityId={catalogueCityId}
             />
 
             <TripExperienceCard

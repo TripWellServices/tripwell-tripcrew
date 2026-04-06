@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     const {
       tripId,
       tripWellEnterpriseId,
+      cityId,
       title,
       category,
       address,
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
       lng,
       distanceFromLodging,
       driveTimeMinutes,
+      description,
     } = body
 
     if (!title?.trim()) {
@@ -89,6 +91,7 @@ export async function POST(request: NextRequest) {
       data: {
         tripId: tripId || null,
         tripWellEnterpriseId: resolveTripWellEnterpriseId(tripWellEnterpriseId),
+        cityId: cityId?.trim() || null,
         title: title.trim(),
         category: category?.trim() || null,
         address: address?.trim() || null,
@@ -103,6 +106,7 @@ export async function POST(request: NextRequest) {
           typeof distanceFromLodging === 'number' ? distanceFromLodging : null,
         driveTimeMinutes:
           typeof driveTimeMinutes === 'number' ? driveTimeMinutes : null,
+        description: typeof description === 'string' ? description.trim() || null : null,
       },
     })
 
