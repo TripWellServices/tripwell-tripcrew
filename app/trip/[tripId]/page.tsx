@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import TripHeader from '@/app/components/trip/TripHeader'
 import LodgingCard from '@/app/components/trip/LodgingCard'
@@ -8,6 +9,7 @@ import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
 import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import TripMemoriesCard from '@/app/components/trip/TripMemoriesCard'
+import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
 import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
@@ -16,7 +18,7 @@ export const dynamic = 'force-dynamic'
 
 interface PageProps {
   params: { tripId: string }
-  searchParams: { admin?: string }
+  searchParams: { admin?: string; ingested?: string }
 }
 
 export default async function TripPage({ params, searchParams }: PageProps) {
@@ -40,6 +42,10 @@ export default async function TripPage({ params, searchParams }: PageProps) {
           startDate={trip.startDate}
           endDate={trip.endDate}
         />
+
+        <Suspense fallback={null}>
+          <PostIngestNextSteps />
+        </Suspense>
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">

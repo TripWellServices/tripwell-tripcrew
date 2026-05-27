@@ -3,7 +3,7 @@
 import Link from 'next/link'
 
 /**
- * Planner entry — four paths: direct trip form, Discover (AI), Destinations, Experience build.
+ * Planner entry — four paths: confirmed ingest, event planning, destination pick, experience browse.
  */
 export default function PlanForkPage() {
   return (
@@ -13,8 +13,8 @@ export default function PlanForkPage() {
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Planner</h1>
       <p className="text-gray-600 mb-8">
-        Choose how you want to start. Create trips on your account first — send them to a TripCrew from
-        trip admin when you want to collaborate.
+        Start with what you know. Trips are created on your account first — invite people through TripCrew
+        after your plan is in.
       </p>
 
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Start a trip</h2>
@@ -24,10 +24,22 @@ export default function PlanForkPage() {
             href="/plan/got-plan"
             className="block h-full p-6 border border-gray-200 rounded-xl bg-white hover:border-sky-300 hover:shadow-sm transition"
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Got my plan</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Already booked</h3>
             <p className="text-sm text-gray-600">
-              Already have dates or confirmations? Enter details or paste an itinerary to extract flights
-              and hotels.
+              Tickets, hotel, or confirmations in hand? Paste them — we&apos;ll build your trip from what
+              you have.
+            </p>
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/plan/got-plan?intent=event"
+            className="block h-full p-6 border border-gray-200 rounded-xl bg-white hover:border-purple-300 hover:shadow-sm transition"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Plan around an event</h3>
+            <p className="text-sm text-gray-600">
+              Concert or festival in mind? Tell us what and where — Osheaga, a show, a game — then add
+              logistics.
             </p>
           </Link>
         </li>
@@ -36,32 +48,21 @@ export default function PlanForkPage() {
             href="/plan/destination?mode=trip"
             className="block h-full p-6 border border-gray-200 rounded-xl bg-white hover:border-violet-300 hover:shadow-sm transition"
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Discover</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Pick a destination</h3>
             <p className="text-sm text-gray-600">
-              Explore where to go — describe what you&apos;re thinking; AI suggests cities, then you pick
-              one and add it to a trip.
+              Not sure where yet? Describe what you&apos;re thinking; AI suggests cities, then you pick one.
             </p>
           </Link>
         </li>
         <li>
           <Link
-            href="/destinations"
-            className="block h-full p-6 border border-gray-200 rounded-xl bg-white hover:border-emerald-300 hover:shadow-sm transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Destination</h3>
-            <p className="text-sm text-gray-600">
-              Open city guides, pick a place, then plan from that guide.
-            </p>
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/experiences/build"
+            href="/experiences/find"
             className="block h-full p-6 border border-gray-200 rounded-xl bg-white hover:border-amber-300 hover:shadow-sm transition"
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Experience</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Explore experiences</h3>
             <p className="text-sm text-gray-600">
-              Pick something you saved and build dates and a trip around it.
+              Browse concerts, dining, hikes, and attractions in a city — save picks or build a trip
+              around one.
             </p>
           </Link>
         </li>

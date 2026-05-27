@@ -8,12 +8,13 @@ const TRIP_PLAN_SYSTEM = `You extract structured trip planning data from free te
 Return ONLY one JSON object (no markdown). Use null for unknown values. Do not invent confirmation codes or flight numbers not in the text.
 
 Fields:
-- tripName: string|null — short trip label
-- startDate, endDate: string|null — ISO date YYYY-MM-DD if known
+- tripName: string|null — short trip label (festival name, event name, or trip title)
+- startDate, endDate: string|null — ISO date YYYY-MM-DD when known; for "July 31 - August 2" set both ends
 - city, state, country: string|null — primary destination (if multi-city, use main stay)
 - whereFreeform: string|null — if place is vague ("Amalfi coast"), put it here
-- whoWith: one of SOLO|SPOUSE|FRIENDS|FAMILY|OTHER|null
-- transportMode: one of CAR|BOAT|PLANE|null — primary way traveler reaches the destination
+- ingestType: one of mixed-confirmed-trip|concert|lodging|travel|destination|null — best classification of this paste
+- eventAnchor: object|null — when text is about a concert, festival, or ticketed event:
+  { name, kind: concert|festival|event, artist, venue, eventDate (YYYY-MM-DD if single-day anchor), ticketStatus, confirmationNotes }
 - lodging: object|null — { title, address, chain, lodgingType (one of HOTEL|RESORT|EXTENDED_STAY|VACATION_RENTAL|HOSTEL|BED_AND_BREAKFAST|OTHER|null), defaultCheckInTime, defaultCheckOutTime, notes }
 - legs: array — each leg: { kind: flight|train|drive|other, summary, depart, arrive, origin, destination, carrier, flightNumber, recordLocator } (use nulls for missing keys)
 - notes: string|null — other useful planning notes from the text
@@ -26,13 +27,14 @@ Fields:
     tripwell_fit: { effort_level, kid_friendly, parent_friendly, time_block } }
   Use null for unknown nested keys. Integers or floats for money/durations when stated.
 - daySlots: array (optional) — when the text is a timed day itinerary (time blocks + named locations, markdown tours, or bullet schedules). Omit or use [] for pure confirmations or unstructured notes. Each item in chronological order:
-  { type: "dining"|"attraction"|"logistic", title, startTime, endTime, address, notes,
+  { type: "dining"|"attraction"|"logistic", title, slotDate (YYYY-MM-DD when known), dayNumber (1-based trip day when slotDate unknown), startTime, endTime, address, notes,
     foodType, costLevel (integer 1–5 only, 1=cheap 5=fine), idealTime ("breakfast"|"lunch"|"dinner"|"snack"|"coffee_stop"),
     reservationRequired (boolean), description (longer prose), category (short label e.g. museum, shopping_district),
     subItems: string[] (store names, nearby stops, must-see list). }
   Use null for unknown keys. Drives, parking, "head home", and multi-hour transit blocks are "logistic". Meals, cafes, bakeries, dinner reservations are "dining". Sightseeing, museums, shopping streets, parks, campuses are "attraction".
 
-If the text mentions multiple flights or trains, add one object per leg to legs in chronological order.`
+If the text mentions multiple flights or trains, add one object per leg to legs in chronological order.
+For festivals like Osheaga: set eventAnchor with kind festival, trip dates from festival span, city Montreal, and lodging from hotel confirmation if present.`
 
 export async function parseTripPlanBlobWithOpenAI(
   blob: string

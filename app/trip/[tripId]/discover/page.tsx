@@ -73,6 +73,13 @@ export default function TripDiscoverPage() {
   const activeState = destinations[selectedDestIdx]?.state || defaultState
   const tripCountry = trip?.country ?? 'USA'
 
+  const tripDayOptions =
+    trip?.tripDays?.map((d: { id: string; dayNumber: number; date: string | Date }) => ({
+      id: d.id,
+      dayNumber: d.dayNumber,
+      date: typeof d.date === 'string' ? d.date : new Date(d.date).toISOString(),
+    })) ?? []
+
   useEffect(() => {
     if (!trip?.city?.trim()) {
       setCityGuide(null)
@@ -202,6 +209,7 @@ export default function TripDiscoverPage() {
         defaultState={activeState}
         tripId={tripId}
         travelerId={travelerId}
+        tripDays={tripDayOptions}
         tripDaysTotal={trip.daysTotal ?? null}
         tripWhoWith={trip.whoWith ?? null}
         tripSeason={trip.season ?? null}

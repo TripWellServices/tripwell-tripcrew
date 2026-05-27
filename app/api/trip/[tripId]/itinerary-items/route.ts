@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { TripDayExperienceStatus } from '@prisma/client'
+import { parseFlexibleDateOnly } from '@/lib/trip-plan-dates'
 
 export const dynamic = 'force-dynamic'
 
-function startOfLocalDay(d: Date): Date {
-  const x = new Date(d)
-  x.setHours(0, 0, 0, 0)
-  return x
+function utcDayKey(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+}
+
+function tripDayForDateInput(
+  tripDays: Array<{ id: string; dayNumber: number; date: Date }>,
+  dateRaw: string
+): { day: (typeof tripDays)[number] | null; ymd: string | null; invalid: boolean } {
+  const ymd = parseFlexibleDateOnly(dateRaw)
+  if (!ymd) return { day: null, ymd: null, invalid: true }
+  const targetKey = utcDayKey(new Date(`${ymd}T12:00:00.000Z`))
+  const day =
+    tripDays.find((td) => utcDayKey(new Date(td.date)) === targetKey) ?? null
+  return { day, ymd, invalid: false }
 }
 
 /**
@@ -100,20 +111,26 @@ export async function POST(
       )
     }
 
-    let tripDay = null as Awaited<ReturnType<typeof prisma.tripDay.findFirst>>
+    const tripDays = await prisma.tripDay.findMany({
+      where: { tripId },
+      orderBy: { dayNumber: 'asc' },
+    })
+
+    let tripDay: (typeof tripDays)[number] | null = null
     if (date) {
-      const d = startOfLocalDay(new Date(date))
-      tripDay = await prisma.tripDay.findFirst({
-        where: {
-          tripId,
-          date: d,
-        },
-      })
-    }
-    if (!tripDay) {
-      tripDay = await prisma.tripDay.findFirst({
-        where: { tripId, dayNumber: 1 },
-      })
+      const resolved = tripDayForDateInput(tripDays, date)
+      if (resolved.invalid) {
+        return NextResponse.json({ error: 'Invalid date for itinerary item' }, { status: 400 })
+      }
+      if (!resolved.day) {
+        return NextResponse.json(
+          { error: `No trip day matches ${resolved.ymd}; check your trip dates` },
+          { status: 400 }
+        )
+      }
+      tripDay = resolved.day
+    } else {
+      tripDay = tripDays.find((d) => d.dayNumber === 1) ?? tripDays[0] ?? null
     }
     if (!tripDay) {
       return NextResponse.json(

@@ -10,16 +10,21 @@ import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
 import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
+import { Suspense } from 'react'
 import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
+import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
 
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
   params: Promise<{ tripId: string }>
+  searchParams: Promise<{ ingested?: string }>
 }
 
-export default async function AdminPage({ params }: PageProps) {
+export default async function AdminPage({ params, searchParams }: PageProps) {
   const { tripId } = await params
+  const { ingested } = await searchParams
+  const showIngestBanner = ingested === '1'
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
 
   // Use server action for safe hydration
@@ -40,7 +45,13 @@ export default async function AdminPage({ params }: PageProps) {
           <p className="text-yellow-800 font-semibold">🔧 Admin Mode Active</p>
         </div>
 
-        <div className="mb-6">
+        {showIngestBanner ? (
+          <Suspense fallback={null}>
+            <PostIngestNextSteps />
+          </Suspense>
+        ) : null}
+
+        <div className={`mb-6 ${showIngestBanner ? 'ring-2 ring-emerald-400 rounded-xl p-4 bg-white' : ''}`}>
           <SendToTripCrew
             tripId={trip.id}
             currentCrewId={trip.crewId ?? null}

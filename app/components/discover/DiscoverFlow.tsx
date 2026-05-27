@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -43,12 +43,20 @@ interface Suggestion {
   durationMin?: number
 }
 
+export interface TripDayOption {
+  id: string
+  dayNumber: number
+  date: string
+}
+
 interface DiscoverFlowProps {
   /** Pre-set city (in-trip mode). If omitted, user types city in React state. */
   defaultCity?: string
   defaultState?: string
   /** Present when this flow is inside a trip — enables Add to Itinerary action. */
   tripId?: string
+  /** Trip calendar days — required for day-aware itinerary adds in-trip. */
+  tripDays?: TripDayOption[]
   /** Firebase / Traveler ID for wishlist actions and Build a trip. */
   travelerId?: string | null
   /** Traveler home city/state for tripScope pre-fill (local vs travel). */
@@ -75,6 +83,26 @@ const CATEGORIES: { type: DiscoverType; label: string; icon: string; description
 
 function itemDisplayName(item: CatalogueItem): string {
   return item.name ?? item.title ?? 'Untitled'
+}
+
+function tripDayDateYmd(dateIso: string): string {
+  const d = new Date(dateIso)
+  if (Number.isNaN(d.getTime())) return dateIso.slice(0, 10)
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function formatTripDayLabel(dayNumber: number, dateIso: string): string {
+  const d = new Date(dateIso)
+  if (Number.isNaN(d.getTime())) return `Day ${dayNumber}`
+  return `Day ${dayNumber} · ${d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })}`
 }
 
 function itemSubtitle(item: CatalogueItem, type: DiscoverType): string {
@@ -110,6 +138,7 @@ export default function DiscoverFlow({
   tripWhoWith,
   tripSeason,
   tripCountry,
+  tripDays = [],
 }: DiscoverFlowProps) {
   // City state (standalone mode only; in-trip mode is pre-set)
   const [cityInput, setCityInput] = useState(defaultCity ?? '')
@@ -128,6 +157,8 @@ export default function DiscoverFlow({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [discoverLoading, setDiscoverLoading] = useState(false)
   const [discoverShown, setDiscoverShown] = useState(false)
+  const [discoverError, setDiscoverError] = useState<string | null>(null)
+  const [selectedTripDayId, setSelectedTripDayId] = useState<string>('')
 
   /** After AI suggests an item: rowKey → catalogue id (wishlist is a separate step). */
   const [suggestionSavedIds, setSuggestionSavedIds] = useState<
@@ -146,8 +177,24 @@ export default function DiscoverFlow({
   const inTripMode = Boolean(defaultCity)
   const effectiveCity = inTripMode ? defaultCity! : committedCity
   const effectiveState = inTripMode ? defaultState ?? '' : committedState
+  const sortedTripDays = useMemo(
+    () => [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber),
+    [tripDays]
+  )
+  const selectedTripDay =
+    sortedTripDays.find((d) => d.id === selectedTripDayId) ?? sortedTripDays[0] ?? null
 
   const router = useRouter()
+
+  useEffect(() => {
+    if (sortedTripDays.length === 0) {
+      setSelectedTripDayId('')
+      return
+    }
+    setSelectedTripDayId((prev) =>
+      prev && sortedTripDays.some((d) => d.id === prev) ? prev : sortedTripDays[0].id
+    )
+  }, [sortedTripDays])
 
   function showFeedback(id: string, message: string, ok: boolean) {
     setFeedback({ id, message, ok })
@@ -232,6 +279,7 @@ export default function DiscoverFlow({
   async function discoverMore() {
     if (!activeType || !effectiveCity) return
     setDiscoverLoading(true)
+    setDiscoverError(null)
 
     try {
       const res = await fetch('/api/discover', {
@@ -246,12 +294,20 @@ export default function DiscoverFlow({
           season: tripSeason ?? undefined,
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Discover request failed')
+      }
       setSuggestionSavedIds({})
       setSuggestions(data.suggestions ?? [])
       setDiscoverShown(true)
-    } catch {
+      if (!data.suggestions?.length) {
+        setDiscoverError('No suggestions returned — try another category or city.')
+      }
+    } catch (err) {
       setSuggestions([])
+      setDiscoverShown(true)
+      setDiscoverError(err instanceof Error ? err.message : 'Discover failed')
     } finally {
       setDiscoverLoading(false)
     }
@@ -335,12 +391,17 @@ export default function DiscoverFlow({
 
   async function addToItinerary(item: CatalogueItem, type: DiscoverType) {
     if (!tripId) return
+    if (!selectedTripDay) {
+      showFeedback(item.id, 'No trip days found — check trip dates', false)
+      return
+    }
 
     setItineraryingId(item.id)
     try {
       const body: Record<string, string> = {
         title: itemDisplayName(item),
         type,
+        date: tripDayDateYmd(selectedTripDay.date),
       }
       if (type === 'concert')    body.concertId    = item.id
       if (type === 'hike')       body.hikeId       = item.id
@@ -352,10 +413,19 @@ export default function DiscoverFlow({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error()
-      showFeedback(item.id, 'Added to itinerary', true)
-    } catch {
-      showFeedback(item.id, 'Failed to add to itinerary', false)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to add to itinerary')
+      showFeedback(
+        item.id,
+        `Added to ${formatTripDayLabel(selectedTripDay.dayNumber, selectedTripDay.date)}`,
+        true
+      )
+    } catch (err) {
+      showFeedback(
+        item.id,
+        err instanceof Error ? err.message : 'Failed to add to itinerary',
+        false
+      )
     } finally {
       setItineraryingId(null)
     }
@@ -454,11 +524,35 @@ export default function DiscoverFlow({
 
       {/* ── City header (in-trip mode) ── */}
       {inTripMode && (
-        <div className="text-sm text-gray-500">
-          Discovering in{' '}
-          <span className="font-semibold text-gray-800">
-            {defaultCity}{defaultState ? `, ${defaultState}` : ''}
-          </span>
+        <div className="space-y-3">
+          <div className="text-sm text-gray-500">
+            Discovering in{' '}
+            <span className="font-semibold text-gray-800">
+              {defaultCity}{defaultState ? `, ${defaultState}` : ''}
+            </span>
+          </div>
+          {tripId && sortedTripDays.length > 0 ? (
+            <label className="block">
+              <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                Add to which day?
+              </span>
+              <select
+                value={selectedTripDayId}
+                onChange={(e) => setSelectedTripDayId(e.target.value)}
+                className="w-full sm:w-auto min-w-[220px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+              >
+                {sortedTripDays.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {formatTripDayLabel(d.dayNumber, d.date)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : tripId ? (
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              This trip has no calendar days yet — set dates in trip admin before adding to the itinerary.
+            </p>
+          ) : null}
         </div>
       )}
 
@@ -534,6 +628,12 @@ export default function DiscoverFlow({
               </button>
             )}
           </div>
+
+          {discoverError ? (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {discoverError}
+            </p>
+          ) : null}
 
           {catalogueLoading ? (
             <p className="text-sm text-gray-400 animate-pulse">Loading catalogue…</p>

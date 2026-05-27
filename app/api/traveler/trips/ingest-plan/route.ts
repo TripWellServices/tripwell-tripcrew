@@ -12,10 +12,16 @@ import {
   normalizeParsedTripPlan,
   planNoteFromExperienceSpec,
   type ParsedDaySlot,
+  type ParsedEventAnchor,
   type ParsedExperienceSpec,
   type ParsedLodging,
   type ParsedTripLeg,
 } from '@/lib/trip-plan-model'
+import {
+  resolveTripDayForEventDate,
+  resolveTripDayForSlot,
+} from '@/lib/trip-plan-ingest'
+import { parseIncomingTripDate } from '@/lib/trip-plan-dates'
 import {
   TripType,
   TransportMode,
@@ -37,9 +43,143 @@ function normEnum<T extends string>(v: unknown, allowed: T[]): T | null {
   return allowed.includes(u) ? u : null
 }
 
+async function nextOrderIndex(
+  tx: Prisma.TransactionClient,
+  tripDayId: string
+): Promise<number> {
+  const agg = await tx.tripDayExperience.aggregate({
+    where: { tripDayId },
+    _max: { orderIndex: true },
+  })
+  return (agg._max.orderIndex ?? -1) + 1
+}
+
+async function attachDaySlot(
+  tx: Prisma.TransactionClient,
+  params: {
+    tripId: string
+    cityIdForCatalogue: string | null
+    tripDays: Array<{ id: string; dayNumber: number; date: Date }>
+    tripStart: Date
+    slot: ParsedDaySlot
+  }
+): Promise<void> {
+  const { tripId, cityIdForCatalogue, tripDays, tripStart, slot } = params
+  const targetDay = resolveTripDayForSlot(tripDays, tripStart, slot)
+  if (!targetDay) return
+
+  let orderIndex = await nextOrderIndex(tx, targetDay.id)
+
+  if (slot.type === 'logistic') {
+    const detail = [slot.notes, slot.address].filter(Boolean).join('\n').trim()
+    await tx.logisticItem.create({
+      data: {
+        tripId,
+        title: slot.title.slice(0, 200),
+        detail: detail || null,
+      },
+    })
+    return
+  }
+
+  if (slot.type === 'dining') {
+    const dmeta = daySlotDiningMetadata(slot) as Prisma.InputJsonValue
+    const diningRow = await tx.dining.create({
+      data: {
+        tripId,
+        cityId: cityIdForCatalogue,
+        title: slot.title,
+        address: slot.address?.trim() || null,
+        description: slot.description?.trim() || slot.notes?.trim() || null,
+        category: slot.foodType?.trim() || null,
+        metadata: dmeta,
+        tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+      },
+    })
+    const slotNotes = [slot.foodType, slot.notes].filter(Boolean).join(' · ').trim()
+    await tx.tripDayExperience.create({
+      data: {
+        tripDayId: targetDay.id,
+        orderIndex: orderIndex++,
+        diningId: diningRow.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        notes: slotNotes || null,
+        status: TripDayExperienceStatus.PLANNED,
+      },
+    })
+    return
+  }
+
+  const ameta = daySlotAttractionMetadata(slot) as Prisma.InputJsonValue
+  const attractionRow = await tx.attraction.create({
+    data: {
+      tripId,
+      cityId: cityIdForCatalogue,
+      title: slot.title,
+      category: slot.category?.trim() || null,
+      address: slot.address?.trim() || null,
+      description: slot.description?.trim() || null,
+      metadata: ameta,
+      tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+    },
+  })
+  await tx.tripDayExperience.create({
+    data: {
+      tripDayId: targetDay.id,
+      orderIndex,
+      attractionId: attractionRow.id,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      notes: slot.notes?.trim() || null,
+      status: TripDayExperienceStatus.PLANNED,
+    },
+  })
+}
+
+async function attachEventAnchor(
+  tx: Prisma.TransactionClient,
+  params: {
+    tripId: string
+    cityIdForCatalogue: string | null
+    tripDays: Array<{ id: string; dayNumber: number; date: Date }>
+    anchor: ParsedEventAnchor
+  }
+): Promise<void> {
+  const { tripId, cityIdForCatalogue, tripDays, anchor } = params
+  const eventDay = resolveTripDayForEventDate(tripDays, anchor.eventDate)
+  if (!eventDay) return
+
+  const eventDate = anchor.eventDate
+    ? parseIncomingTripDate(anchor.eventDate)
+    : null
+
+  const concert = await tx.concert.create({
+    data: {
+      name: anchor.name,
+      artist: anchor.artist,
+      venue: anchor.venue,
+      cityId: cityIdForCatalogue,
+      eventDate,
+      description: anchor.confirmationNotes,
+    },
+  })
+
+  const orderIndex = await nextOrderIndex(tx, eventDay.id)
+  await tx.tripDayExperience.create({
+    data: {
+      tripDayId: eventDay.id,
+      orderIndex,
+      concertId: concert.id,
+      notes: anchor.ticketStatus,
+      status: TripDayExperienceStatus.PLANNED,
+    },
+  })
+}
+
 /**
  * POST /api/traveler/trips/ingest-plan
- * Creates Trip + optional Lodging + LogisticItem rows (flights, etc.) in one transaction.
+ * Minimal Trip shell + FK attachments (lodging, concert, destination, logistics, day items).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -59,6 +199,7 @@ export async function POST(request: NextRequest) {
       legs: legsRaw,
       experiences: experiencesRaw,
       daySlots: daySlotsRaw,
+      eventAnchor: eventAnchorRaw,
       notes,
       startingLocation: startingLocationRaw,
     } = body as {
@@ -76,6 +217,7 @@ export async function POST(request: NextRequest) {
       legs?: ParsedTripLeg[] | null
       experiences?: unknown[] | null
       daySlots?: unknown[] | null
+      eventAnchor?: ParsedEventAnchor | null
       notes?: string | null
       startingLocation?: string | null
     }
@@ -101,9 +243,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const start = new Date(startDateRaw)
-    const end = new Date(endDateRaw)
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    let start: Date
+    let end: Date
+    try {
+      start = parseIncomingTripDate(startDateRaw)
+      end = parseIncomingTripDate(endDateRaw)
+    } catch {
       return NextResponse.json({ error: 'Invalid startDate or endDate' }, { status: 400 })
     }
     if (end.getTime() < start.getTime()) {
@@ -121,45 +266,43 @@ export async function POST(request: NextRequest) {
     const countryT = typeof country === 'string' ? country.trim() || null : null
     const whereF =
       typeof whereFreeform === 'string' ? whereFreeform.trim() || null : null
-    const notesT = typeof notes === 'string' ? notes.trim() || null : null
 
     const placeParts = [cityT, stateT, countryT].filter(Boolean).join(', ')
     const whereLine = placeParts || whereF || ''
-    let purpose = whereLine ? `Where: ${whereLine}.` : 'Trip created with your details.'
-    if (notesT) {
-      purpose = `${purpose} ${notesT}`.trim()
-    }
-    purpose = `${tripName}. ${purpose}`
+    let purpose = tripName
+    if (whereLine) purpose = `${tripName}. ${whereLine}`
 
     const { daysTotal, season } = computeTripMetadata(start, end)
     const sameCalendarDay =
-      start.getFullYear() === end.getFullYear() &&
-      start.getMonth() === end.getMonth() &&
-      start.getDate() === end.getDate()
+      start.getUTCFullYear() === end.getUTCFullYear() &&
+      start.getUTCMonth() === end.getUTCMonth() &&
+      start.getUTCDate() === end.getUTCDate()
     const tripType = sameCalendarDay ? TripType.SINGLE_DAY : TripType.MULTI_DAY
 
     let lodgingParsed: ParsedLodging | null = null
     if (lodgingRaw && typeof lodgingRaw === 'object') {
-      const norm = normalizeParsedTripPlan({ lodging: lodgingRaw })
-      lodgingParsed = norm.lodging
+      lodgingParsed = normalizeParsedTripPlan({ lodging: lodgingRaw }).lodging
     }
 
     let legs: ParsedTripLeg[] = []
     if (Array.isArray(legsRaw)) {
-      const norm = normalizeParsedTripPlan({ legs: legsRaw })
-      legs = norm.legs
+      legs = normalizeParsedTripPlan({ legs: legsRaw }).legs
     }
 
     let experiences: ParsedExperienceSpec[] = []
     if (Array.isArray(experiencesRaw)) {
-      const norm = normalizeParsedTripPlan({ experiences: experiencesRaw })
-      experiences = norm.experiences
+      experiences = normalizeParsedTripPlan({ experiences: experiencesRaw }).experiences
     }
 
     let daySlots: ParsedDaySlot[] = []
     if (Array.isArray(daySlotsRaw)) {
-      const norm = normalizeParsedTripPlan({ daySlots: daySlotsRaw })
-      daySlots = norm.daySlots
+      daySlots = normalizeParsedTripPlan({ daySlots: daySlotsRaw }).daySlots
+    }
+
+    let eventAnchor: ParsedEventAnchor | null = null
+    if (eventAnchorRaw && typeof eventAnchorRaw === 'object') {
+      eventAnchor =
+        normalizeParsedTripPlan({ eventAnchor: eventAnchorRaw }).eventAnchor ?? null
     }
 
     let cityIdForCatalogue: string | null = null
@@ -207,6 +350,24 @@ export async function POST(request: NextRequest) {
         endDate: end,
       })
 
+      const tripDays = await tx.tripDay.findMany({
+        where: { tripId: t.id },
+        orderBy: { dayNumber: 'asc' },
+      })
+
+      if (cityIdForCatalogue) {
+        await tx.destination.create({
+          data: {
+            tripId: t.id,
+            cityId: cityIdForCatalogue,
+            name: cityT,
+            state: stateT,
+            country: countryT,
+            order: 0,
+          },
+        })
+      }
+
       if (lodgingParsed?.title?.trim()) {
         const lt = lodgingParsed.lodgingType
           ? parseLodgingType(lodgingParsed.lodgingType)
@@ -228,124 +389,57 @@ export async function POST(request: NextRequest) {
       for (const leg of legs) {
         const { title, detail } = legToLogisticItem(leg)
         await tx.logisticItem.create({
+          data: { tripId: t.id, title, detail },
+        })
+      }
+
+      if (eventAnchor?.name) {
+        await attachEventAnchor(tx, {
+          tripId: t.id,
+          cityIdForCatalogue,
+          tripDays,
+          anchor: eventAnchor,
+        })
+      }
+
+      for (const exp of experiences) {
+        const targetDay = tripDays.find((d) => d.dayNumber === 1) ?? tripDays[0]
+        if (!targetDay) continue
+        let orderIndex = await nextOrderIndex(tx, targetDay.id)
+        const meta = experienceSpecToMetadata(exp)
+        const attraction = await tx.attraction.create({
           data: {
             tripId: t.id,
-            title,
-            detail,
+            cityId: cityIdForCatalogue,
+            title: exp.name,
+            category: exp.experience_type?.trim() || null,
+            address: exp.location?.address?.trim() || null,
+            lat: exp.location?.lat ?? null,
+            lng: exp.location?.lng ?? null,
+            description: exp.description?.trim() || null,
+            metadata: meta as Prisma.InputJsonValue,
+            tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+          },
+        })
+        await tx.tripDayExperience.create({
+          data: {
+            tripDayId: targetDay.id,
+            orderIndex,
+            attractionId: attraction.id,
+            notes: planNoteFromExperienceSpec(exp),
+            status: TripDayExperienceStatus.PLANNED,
           },
         })
       }
 
-      const day1 = await tx.tripDay.findFirst({
-        where: { tripId: t.id, dayNumber: 1 },
-      })
-
-      if (day1 && (experiences.length > 0 || daySlots.length > 0)) {
-        const agg = await tx.tripDayExperience.aggregate({
-          where: { tripDayId: day1.id },
-          _max: { orderIndex: true },
+      for (const slot of daySlots) {
+        await attachDaySlot(tx, {
+          tripId: t.id,
+          cityIdForCatalogue,
+          tripDays,
+          tripStart: start,
+          slot,
         })
-        let orderIndex = (agg._max.orderIndex ?? -1) + 1
-
-        for (const exp of experiences) {
-          const meta = experienceSpecToMetadata(exp)
-          const attraction = await tx.attraction.create({
-            data: {
-              tripId: t.id,
-              cityId: cityIdForCatalogue,
-              title: exp.name,
-              category: exp.experience_type?.trim() || null,
-              address: exp.location?.address?.trim() || null,
-              lat: exp.location?.lat ?? null,
-              lng: exp.location?.lng ?? null,
-              description: exp.description?.trim() || null,
-              metadata: meta as Prisma.InputJsonValue,
-              tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
-            },
-          })
-
-          await tx.tripDayExperience.create({
-            data: {
-              tripDayId: day1.id,
-              orderIndex: orderIndex++,
-              attractionId: attraction.id,
-              notes: planNoteFromExperienceSpec(exp),
-              status: TripDayExperienceStatus.PLANNED,
-            },
-          })
-        }
-
-        for (const slot of daySlots) {
-          if (slot.type === 'logistic') {
-            const detail = [slot.notes, slot.address].filter(Boolean).join('\n').trim()
-            await tx.logisticItem.create({
-              data: {
-                tripId: t.id,
-                title: slot.title.slice(0, 200),
-                detail: detail || null,
-              },
-            })
-            continue
-          }
-
-          if (slot.type === 'dining') {
-            const dmeta = daySlotDiningMetadata(slot) as Prisma.InputJsonValue
-            const diningRow = await tx.dining.create({
-              data: {
-                tripId: t.id,
-                cityId: cityIdForCatalogue,
-                title: slot.title,
-                address: slot.address?.trim() || null,
-                description:
-                  slot.description?.trim() || slot.notes?.trim() || null,
-                category: slot.foodType?.trim() || null,
-                metadata: dmeta,
-                tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
-              },
-            })
-            const slotNotes = [slot.foodType, slot.notes]
-              .filter(Boolean)
-              .join(' · ')
-              .trim()
-            await tx.tripDayExperience.create({
-              data: {
-                tripDayId: day1.id,
-                orderIndex: orderIndex++,
-                diningId: diningRow.id,
-                startTime: slot.startTime,
-                endTime: slot.endTime,
-                notes: slotNotes || null,
-                status: TripDayExperienceStatus.PLANNED,
-              },
-            })
-            continue
-          }
-
-          const ameta = daySlotAttractionMetadata(slot) as Prisma.InputJsonValue
-          const attractionRow = await tx.attraction.create({
-            data: {
-              tripId: t.id,
-              cityId: cityIdForCatalogue,
-              title: slot.title,
-              category: slot.category?.trim() || null,
-              address: slot.address?.trim() || null,
-              description: slot.description?.trim() || null,
-              metadata: ameta,
-              tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
-            },
-          })
-          await tx.tripDayExperience.create({
-            data: {
-              tripDayId: day1.id,
-              orderIndex: orderIndex++,
-              attractionId: attractionRow.id,
-              startTime: slot.startTime,
-              endTime: slot.endTime,
-              notes: slot.notes?.trim() || null,
-              status: TripDayExperienceStatus.PLANNED,
-            },
-          })
-        }
       }
 
       return t.id
@@ -356,9 +450,14 @@ export async function POST(request: NextRequest) {
       include: {
         lodging: true,
         logistics: { orderBy: { createdAt: 'asc' } },
+        destinations: { include: { city: true } },
         tripDays: {
           orderBy: { dayNumber: 'asc' },
-          include: { experiences: true },
+          include: {
+            experiences: {
+              include: { concert: true, dining: true, attraction: true },
+            },
+          },
         },
       },
     })

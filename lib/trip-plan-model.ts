@@ -1,114 +1,34 @@
 import { TransportMode, WhoWith } from '@prisma/client'
 import { isLodgingType } from '@/lib/lodging/apiFields'
-
-export type ParsedLegKind = 'flight' | 'train' | 'drive' | 'other'
-
-export interface ParsedTripLeg {
-  kind: ParsedLegKind
-  summary?: string | null
-  depart?: string | null
-  arrive?: string | null
-  origin?: string | null
-  destination?: string | null
-  carrier?: string | null
-  flightNumber?: string | null
-  recordLocator?: string | null
-}
-
-export interface ParsedLodging {
-  title?: string | null
-  address?: string | null
-  chain?: string | null
-  lodgingType?: string | null
-  defaultCheckInTime?: string | null
-  defaultCheckOutTime?: string | null
-  notes?: string | null
-}
-
-/** Boston-style catalogue / POI block parsed from paste (see trip-plan-parse prompt). */
-export interface ParsedExperienceCost {
-  adult_usd: number | null
-  child_usd: number | null
-  family_estimate_usd: number | null
-}
-
-export interface ParsedExperienceLocation {
-  name: string | null
-  address: string | null
-  lat: number | null
-  lng: number | null
-}
-
-export interface ParsedExperienceLogistics {
-  arrival_buffer_minutes: number | null
-  booking_required: boolean | null
-  indoor_outdoor: string | null
-  walking_required: boolean | null
-}
-
-export interface ParsedJumpOff {
-  name: string | null
-  type: string | null
-  distance_minutes_walk: number | null
-  distance_minutes_drive: number | null
-  description: string | null
-}
-
-export interface ParsedTripwellFit {
-  effort_level: string | null
-  kid_friendly: boolean | null
-  parent_friendly: boolean | null
-  time_block: string | null
-}
-
-export interface ParsedExperienceSpec {
-  name: string
-  entity_ref: string | null
-  experience_type: string | null
-  description: string | null
-  duration_minutes: number | null
-  location: ParsedExperienceLocation | null
-  cost: ParsedExperienceCost | null
-  logistics: ParsedExperienceLogistics | null
-  jump_off_next_to: ParsedJumpOff[]
-  tripwell_fit: ParsedTripwellFit | null
-}
-
-/** Timed day itinerary slot (paste/parse → ingest → TripDayExperience). */
-export type ParsedDaySlotType = 'dining' | 'attraction' | 'logistic'
-
-export interface ParsedDaySlot {
-  type: ParsedDaySlotType
-  title: string
-  startTime: string | null
-  endTime: string | null
-  address: string | null
-  notes: string | null
-  foodType: string | null
-  costLevel: number | null
-  idealTime: string | null
-  reservationRequired: boolean | null
-  description: string | null
-  category: string | null
-  subItems: string[]
-}
-
-export interface ParsedTripPlan {
-  tripName: string | null
-  startDate: string | null
-  endDate: string | null
-  city: string | null
-  state: string | null
-  country: string | null
-  whereFreeform: string | null
-  whoWith: WhoWith | null
-  transportMode: TransportMode | null
-  lodging: ParsedLodging | null
-  legs: ParsedTripLeg[]
-  notes: string | null
-  experiences: ParsedExperienceSpec[]
-  daySlots: ParsedDaySlot[]
-}
+import { parseFlexibleDateOnly } from '@/lib/trip-plan-dates'
+export type {
+  IngestClassification,
+  ParsedDaySlot,
+  ParsedDaySlotType,
+  ParsedEventAnchor,
+  ParsedEventAnchorKind,
+  ParsedExperienceCost,
+  ParsedExperienceLocation,
+  ParsedExperienceLogistics,
+  ParsedExperienceSpec,
+  ParsedJumpOff,
+  ParsedLegKind,
+  ParsedLodging,
+  ParsedTransportMode,
+  ParsedTripLeg,
+  ParsedTripPlan,
+  ParsedTripwellFit,
+  ParsedWhoWith,
+} from '@/lib/trip-plan-types'
+import type {
+  IngestClassification,
+  ParsedDaySlot,
+  ParsedEventAnchor,
+  ParsedExperienceSpec,
+  ParsedLodging,
+  ParsedTripLeg,
+  ParsedTripPlan,
+} from '@/lib/trip-plan-types'
 
 const WHO_WITH: WhoWith[] = ['SOLO', 'SPOUSE', 'FRIENDS', 'FAMILY', 'OTHER']
 const TRANSPORT: TransportMode[] = ['CAR', 'BOAT', 'PLANE']
@@ -129,19 +49,7 @@ function optionalStr(v: unknown): string | null {
 
 /** YYYY-MM-DD or null */
 function isoDateOnly(v: unknown): string | null {
-  const s = optionalStr(v)
-  if (!s) return null
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) {
-    const d = new Date(`${m[1]}-${m[2]}-${m[3]}T12:00:00`)
-    return Number.isNaN(d.getTime()) ? null : `${m[1]}-${m[2]}-${m[3]}`
-  }
-  const d = new Date(s)
-  if (Number.isNaN(d.getTime())) return null
-  const y = d.getFullYear()
-  const mo = String(d.getMonth() + 1).padStart(2, '0')
-  const da = String(d.getDate()).padStart(2, '0')
-  return `${y}-${mo}-${da}`
+  return parseFlexibleDateOnly(v)
 }
 
 function normLegKind(v: unknown): ParsedLegKind {
@@ -441,6 +349,51 @@ function normDaySlot(raw: unknown): ParsedDaySlot | null {
     description: optionalStr(o.description ?? o.summary),
     category: optionalStr(o.category ?? o.kind),
     subItems: normSubItems(o.subItems ?? o.sub_items ?? o.stores ?? o.stops),
+    slotDate: isoDateOnly(o.slotDate ?? o.date ?? o.dayDate ?? o.calendarDate),
+    dayNumber: numOrNull(o.dayNumber ?? o.day_number ?? o.tripDay),
+  }
+}
+
+const INGEST_TYPES: IngestClassification[] = [
+  'mixed-confirmed-trip',
+  'concert',
+  'lodging',
+  'travel',
+  'destination',
+]
+
+function normIngestType(v: unknown): IngestClassification | null {
+  const s = optionalStr(v)?.toLowerCase().replace(/\s+/g, '-')
+  if (!s) return null
+  if (INGEST_TYPES.includes(s as IngestClassification)) return s as IngestClassification
+  if (s === 'festival' || s === 'concert-festival') return 'concert'
+  return null
+}
+
+function normEventAnchorKind(v: unknown): ParsedEventAnchorKind {
+  const s = optionalStr(v)?.toLowerCase()
+  if (s === 'festival') return 'festival'
+  if (s === 'concert') return 'concert'
+  return 'event'
+}
+
+function normEventAnchor(raw: unknown): ParsedEventAnchor | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const name =
+    optionalStr(o.name ?? o.title ?? o.eventName ?? o.festivalName) ??
+    optionalStr(o.concert)
+  if (!name) return null
+  return {
+    name: name.trim(),
+    kind: normEventAnchorKind(o.kind ?? o.type ?? o.eventType),
+    artist: optionalStr(o.artist ?? o.headliner),
+    venue: optionalStr(o.venue ?? o.location),
+    eventDate: isoDateOnly(o.eventDate ?? o.date ?? o.startDate),
+    ticketStatus: optionalStr(o.ticketStatus ?? o.tickets ?? o.ticket_status),
+    confirmationNotes: optionalStr(
+      o.confirmationNotes ?? o.confirmation ?? o.notes
+    ),
   }
 }
 
@@ -515,6 +468,13 @@ export function normalizeParsedTripPlan(parsed: unknown): ParsedTripPlan {
     }
   }
 
+  const eventAnchor =
+    normEventAnchor(o.eventAnchor ?? o.event ?? o.concert ?? o.festival) ??
+    null
+
+  let ingestType = normIngestType(o.ingestType ?? o.ingest_type)
+  if (!ingestType && eventAnchor) ingestType = 'concert'
+
   return {
     tripName: str(o.tripName ?? o.name ?? o.title),
     startDate: isoDateOnly(o.startDate ?? o.start),
@@ -530,6 +490,8 @@ export function normalizeParsedTripPlan(parsed: unknown): ParsedTripPlan {
     notes: optionalStr(o.notes ?? o.rawNotes),
     experiences,
     daySlots,
+    eventAnchor,
+    ingestType,
   }
 }
 
@@ -549,6 +511,8 @@ function emptyPlan(): ParsedTripPlan {
     notes: null,
     experiences: [],
     daySlots: [],
+    eventAnchor: null,
+    ingestType: null,
   }
 }
 
