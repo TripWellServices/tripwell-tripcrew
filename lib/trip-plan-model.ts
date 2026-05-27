@@ -23,11 +23,21 @@ export type {
 import type {
   IngestClassification,
   ParsedDaySlot,
+  ParsedDaySlotType,
   ParsedEventAnchor,
+  ParsedEventAnchorKind,
+  ParsedExperienceCost,
+  ParsedExperienceLocation,
+  ParsedExperienceLogistics,
   ParsedExperienceSpec,
+  ParsedJumpOff,
+  ParsedLegKind,
   ParsedLodging,
+  ParsedTransportMode,
   ParsedTripLeg,
   ParsedTripPlan,
+  ParsedTripwellFit,
+  ParsedWhoWith,
 } from '@/lib/trip-plan-types'
 
 const WHO_WITH: WhoWith[] = ['SOLO', 'SPOUSE', 'FRIENDS', 'FAMILY', 'OTHER']

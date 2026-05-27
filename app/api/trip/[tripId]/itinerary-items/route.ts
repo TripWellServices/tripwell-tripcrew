@@ -5,14 +5,16 @@ import { parseFlexibleDateOnly } from '@/lib/trip-plan-dates'
 
 export const dynamic = 'force-dynamic'
 
+type TripDayPick = { id: string; dayNumber: number; date: Date }
+
 function utcDayKey(d: Date): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
 }
 
 function tripDayForDateInput(
-  tripDays: Array<{ id: string; dayNumber: number; date: Date }>,
+  tripDays: TripDayPick[],
   dateRaw: string
-): { day: (typeof tripDays)[number] | null; ymd: string | null; invalid: boolean } {
+): { day: TripDayPick | null; ymd: string | null; invalid: boolean } {
   const ymd = parseFlexibleDateOnly(dateRaw)
   if (!ymd) return { day: null, ymd: null, invalid: true }
   const targetKey = utcDayKey(new Date(`${ymd}T12:00:00.000Z`))
@@ -114,9 +116,10 @@ export async function POST(
     const tripDays = await prisma.tripDay.findMany({
       where: { tripId },
       orderBy: { dayNumber: 'asc' },
+      select: { id: true, dayNumber: true, date: true },
     })
 
-    let tripDay: (typeof tripDays)[number] | null = null
+    let tripDay: TripDayPick | null = null
     if (date) {
       const resolved = tripDayForDateInput(tripDays, date)
       if (resolved.invalid) {
