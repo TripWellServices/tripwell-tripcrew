@@ -1,5 +1,5 @@
-import DestinationsListClient from '@/app/components/destinations/DestinationsListClient'
+import { redirect } from 'next/navigation'
 
-export default function TravelerDestinationsPage() {
-  return <DestinationsListClient />
+export default function DestinationsRedirectPage() {
+  redirect('/plan')
 }

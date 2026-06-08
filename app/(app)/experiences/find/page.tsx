@@ -1,5 +1,5 @@
-import ExperiencesFindClient from '@/app/components/experiences/ExperiencesFindClient'
+import { redirect } from 'next/navigation'
 
-export default function TravelerExperiencesFindPage() {
-  return <ExperiencesFindClient />
+export default function ExperiencesFindRedirectPage() {
+  redirect('/plan')
 }

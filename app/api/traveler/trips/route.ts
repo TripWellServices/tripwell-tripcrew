@@ -81,9 +81,10 @@ export async function GET(request: NextRequest) {
     }
 
     const trips = await prisma.trip.findMany({
-      where: { crewId: null, travelerId },
+      where: { travelerId },
       orderBy: { createdAt: 'desc' },
       include: {
+        crew: { select: { id: true, name: true } },
         _count: {
           select: { destinations: true, tripDays: true },
         },

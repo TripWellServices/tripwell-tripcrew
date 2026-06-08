@@ -68,10 +68,10 @@ export default function SendToTripCrew({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-gray-900 mb-1">Send to TripCrew</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">Push to TripCrew</h2>
       <p className="text-sm text-gray-600 mb-4">
-        Link this trip to a crew so it appears on the crew page. You can clear the selection to keep it
-        personal.
+        Link this trip to a crew so members can see it in the shared container. Clear the selection to
+        keep it personal.
       </p>
       {currentCrewName && (
         <p className="text-xs text-sky-700 mb-2">
@@ -105,7 +105,7 @@ export default function SendToTripCrew({
             disabled={saving}
             className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50"
           >
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Pushing…' : 'Push to TripCrew'}
           </button>
         </div>
       )}

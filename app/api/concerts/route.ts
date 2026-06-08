@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
+import { resolveConcertCreateData } from '@/lib/concert-api-fields'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,8 +23,8 @@ export async function GET(request: NextRequest) {
             ...(wId ? [{ wishlistId: wId }] : []),
           ],
         },
-        orderBy: [{ eventDate: 'asc' }, { name: 'asc' }],
-        include: { city: true },
+        orderBy: [{ eventStartDate: 'asc' }, { eventDate: 'asc' }, { name: 'asc' }],
+        include: { city: true, scheduleItems: { orderBy: { sortOrder: 'asc' } } },
       })
       return NextResponse.json({ concerts })
     }
@@ -30,16 +32,16 @@ export async function GET(request: NextRequest) {
     if (savedByTravelerId) {
       const concerts = await prisma.concert.findMany({
         where: { savedByTravelerId },
-        orderBy: [{ eventDate: 'asc' }, { name: 'asc' }],
-        include: { city: true },
+        orderBy: [{ eventStartDate: 'asc' }, { eventDate: 'asc' }, { name: 'asc' }],
+        include: { city: true, scheduleItems: { orderBy: { sortOrder: 'asc' } } },
       })
       return NextResponse.json({ concerts })
     }
 
     const concerts = await prisma.concert.findMany({
       where: cityId ? { cityId } : undefined,
-      orderBy: [{ eventDate: 'asc' }, { name: 'asc' }],
-      include: { city: true },
+      orderBy: [{ eventStartDate: 'asc' }, { eventDate: 'asc' }, { name: 'asc' }],
+      include: { city: true, scheduleItems: { orderBy: { sortOrder: 'asc' } } },
     })
 
     return NextResponse.json(concerts)
@@ -55,27 +57,39 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, artist, venue, cityId, eventDate, url, imageUrl, description } = body
-
-    if (!name?.trim()) {
+    const resolved = await resolveConcertCreateData(body)
+    if ('error' in resolved) {
       return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
+        { error: resolved.error },
+        { status: resolved.status }
       )
     }
 
+    const { data, scheduleItems } = resolved
+    const createData: Prisma.ConcertUncheckedCreateInput = {
+      ...data,
+      scheduleItems: scheduleItems.length
+        ? {
+            create: scheduleItems.map((item) => ({
+              title: item.title,
+              artist: item.artist,
+              stage: item.stage,
+              location: item.location,
+              date: item.date,
+              startTime: item.startTime,
+              endTime: item.endTime,
+              notes: item.notes,
+              sortOrder: item.sortOrder,
+            })),
+          }
+        : undefined,
+    }
     const concert = await prisma.concert.create({
-      data: {
-        name: name.trim(),
-        artist: artist?.trim() || null,
-        venue: venue?.trim() || null,
-        cityId: cityId || null,
-        eventDate: eventDate ? new Date(eventDate) : null,
-        url: url?.trim() || null,
-        imageUrl: imageUrl?.trim() || null,
-        description: description?.trim() || null,
+      data: createData,
+      include: {
+        city: true,
+        scheduleItems: { orderBy: { sortOrder: 'asc' } },
       },
-      include: { city: true },
     })
 
     return NextResponse.json(concert)

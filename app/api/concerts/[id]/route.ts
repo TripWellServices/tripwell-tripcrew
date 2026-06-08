@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { concertPatchData } from '@/lib/concert-api-fields'
+import { resolveConcertCityId } from '@/lib/concert-city-resolve'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +13,10 @@ export async function GET(
     const { id } = await params
     const concert = await prisma.concert.findUnique({
       where: { id },
-      include: { city: true },
+      include: {
+        city: true,
+        scheduleItems: { orderBy: { sortOrder: 'asc' } },
+      },
     })
     if (!concert) {
       return NextResponse.json({ error: 'Concert not found' }, { status: 404 })
@@ -33,27 +38,48 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { name, artist, venue, cityId, eventDate, url, imageUrl, description } = body
 
     const existing = await prisma.concert.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ error: 'Concert not found' }, { status: 404 })
     }
 
-    const data: Record<string, unknown> = {}
-    if (name !== undefined) data.name = name?.trim() ?? existing.name
-    if (artist !== undefined) data.artist = artist?.trim() || null
-    if (venue !== undefined) data.venue = venue?.trim() || null
-    if (cityId !== undefined) data.cityId = cityId || null
-    if (eventDate !== undefined) data.eventDate = eventDate ? new Date(eventDate) : null
-    if (url !== undefined) data.url = url?.trim() || null
-    if (imageUrl !== undefined) data.imageUrl = imageUrl?.trim() || null
-    if (description !== undefined) data.description = description?.trim() || null
+    const data = concertPatchData(body, existing)
+
+    if (
+      body.cityId !== undefined ||
+      body.city !== undefined ||
+      body.state !== undefined ||
+      body.country !== undefined
+    ) {
+      const resolvedCityId = await resolveConcertCityId({
+        cityId: body.cityId,
+        city: body.city,
+        state: body.state,
+        country: body.country,
+      })
+      if (body.cityId?.trim() && !resolvedCityId) {
+        return NextResponse.json({ error: 'City not found' }, { status: 404 })
+      }
+      if (
+        body.cityId !== undefined ||
+        body.city !== undefined ||
+        body.state !== undefined ||
+        body.country !== undefined
+      ) {
+        data.city = resolvedCityId
+          ? { connect: { id: resolvedCityId } }
+          : { disconnect: true }
+      }
+    }
 
     const updated = await prisma.concert.update({
       where: { id },
       data,
-      include: { city: true },
+      include: {
+        city: true,
+        scheduleItems: { orderBy: { sortOrder: 'asc' } },
+      },
     })
     return NextResponse.json(updated)
   } catch (error) {

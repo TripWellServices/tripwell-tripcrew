@@ -12,25 +12,28 @@ export default function PostIngestNextSteps() {
 
   return (
     <div className="mb-6 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-4">
-      <p className="text-sm font-semibold text-emerald-950 mb-2">Trip created — what&apos;s next?</p>
+      <p className="text-sm font-semibold text-emerald-950 mb-2">Concert trip saved — keep building</p>
       <ul className="text-sm text-emerald-900 space-y-2">
         <li>
+          Edit concert, lodging, and itinerary in the cards below — everything stays inline on this trip.
+        </li>
+        <li>
           <Link
-            href={`/trip/${tripId}/discover`}
+            href="/my-trips"
             className="font-medium text-emerald-800 underline hover:text-emerald-950"
           >
-            Discover experiences
+            My Trips
           </Link>{' '}
-          — add city POI to specific days on your itinerary.
+          — see all your saved trips and push to TripCrew when ready.
         </li>
         <li>
           <Link
             href={`/trip/${tripId}/admin?ingested=1`}
             className="font-medium text-emerald-800 underline hover:text-emerald-950"
           >
-            Invite to TripCrew
+            Push to TripCrew
           </Link>{' '}
-          — share the trip so family can plan with you.
+          — link this trip to a crew so members can plan together.
         </li>
       </ul>
     </div>

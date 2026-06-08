@@ -1,7 +1,5 @@
-import MemoriesPageClient from '@/app/(app)/memories/MemoriesPageClient'
+import { redirect } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
-
-export default function MemoriesPage() {
-  return <MemoriesPageClient />
+export default function MemoriesRedirectPage() {
+  redirect('/my-trips')
 }

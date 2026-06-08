@@ -1,5 +1,5 @@
-import ExperiencesHub from '@/app/components/experiences/ExperiencesHub'
+import { redirect } from 'next/navigation'
 
-export default function TravelerExperiencesPage() {
-  return <ExperiencesHub />
+export default function ExperiencesRedirectPage() {
+  redirect('/plan')
 }

@@ -228,14 +228,15 @@ model Trip {
 
   crew         TripCrew?  @relation(fields: [crewId], references: [id], onDelete: Cascade)
   traveler     Traveler?  @relation("TravelerTrips", fields: [travelerId], references: [id], onDelete: SetNull)
-  destinations Destination[]
-  tripDays     TripDay[]
-  logistics    LogisticItem[]
-  packItems    PackItem[]
-  lodging      Lodging?     @relation("TripLodging")
-  dining       Dining[]     @relation("TripDining")
-  attractions  Attraction[] @relation("TripAttractions")
-  memories     TripMemory[]
+  destinations    Destination[]
+  tripDays        TripDay[]
+  logistics       LogisticItem[]
+  packItems       PackItem[]
+  lodging         Lodging?            @relation("TripLodging")
+  dining          Dining[]            @relation("TripDining")
+  attractions     Attraction[]        @relation("TripAttractions")
+  memories        TripMemory[]
+  concertAnchors  TripConcertAnchor[]
 
   @@index([crewId])
   @@index([travelerId])
@@ -581,7 +582,12 @@ model Concert {
   artist      String?
   venue       String?
   cityId      String?
-  eventDate   DateTime?
+  eventDate   DateTime? // legacy/start alias during transition
+  eventStartDate DateTime?
+  eventStartTime String?
+  eventEndDate   DateTime?
+  eventEndTime   String?
+  isFestival     Boolean @default(false)
   url         String?
   imageUrl    String?
   description String?
@@ -593,17 +599,56 @@ model Concert {
   wishlistId         String?
   savedByTravelerId  String?
 
-  city               City?               @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  city               City?                 @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  scheduleItems      ConcertScheduleItem[]
+  tripAnchors        TripConcertAnchor[]
   tripDayExperiences TripDayExperience[]
-  createdBy          Traveler?           @relation("ConcertAuthor", fields: [createdById], references: [id], onDelete: SetNull)
-  savedBy            Traveler?           @relation("ConcertSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
-  wishlist           Wishlist?           @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
+  createdBy          Traveler?             @relation("ConcertAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  savedBy            Traveler?             @relation("ConcertSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
+  wishlist           Wishlist?             @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
 
   @@index([cityId])
   @@index([eventDate])
+  @@index([eventStartDate])
   @@index([createdById])
   @@index([wishlistId])
   @@index([savedByTravelerId])
+}
+
+model ConcertScheduleItem {
+  id        String @id @default(uuid())
+  concertId String
+
+  title     String
+  artist    String?
+  stage     String?
+  location  String?
+  date      DateTime?
+  startTime String?
+  endTime   String?
+  notes     String?
+  sortOrder Int @default(0)
+
+  concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
+
+  @@index([concertId])
+  @@index([concertId, date])
+}
+
+model TripConcertAnchor {
+  id        String @id @default(uuid())
+  tripId    String
+  concertId String
+  role      String? // primary, opener, festival, related
+  notes     String?
+  sortOrder Int @default(0)
+
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([concertId])
+  @@unique([tripId, concertId])
 }
 
 // Hike — first-class activity (trail/place, city, difficulty, distance); can bolt to itinerary
