@@ -7,6 +7,7 @@ import { getFirebaseAuth } from '@/lib/firebase'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { onAuthStateChanged } from 'firebase/auth'
 import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
+import { concertsIngestPath } from '@/lib/experience-routes'
 
 interface PersonalTrip {
   id: string
@@ -70,17 +71,9 @@ export default function MyTripsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
-          <p className="text-gray-500 text-sm mt-1">Your personal concert trips — push to TripCrew when ready.</p>
-        </div>
-        <Link
-          href="/plan"
-          className="inline-flex px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700"
-        >
-          + Concert Planner
-        </Link>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
+        <p className="text-gray-500 text-sm mt-1">Your personal concert trips — push to TripCrew when ready.</p>
       </div>
 
       {error ? (
@@ -92,8 +85,8 @@ export default function MyTripsPage() {
       {trips.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
           <p className="text-gray-600 mb-4">No trips yet. Start with a concert.</p>
-          <Link href="/plan" className="text-sky-600 font-medium hover:underline">
-            Open Concert Planner
+          <Link href={concertsIngestPath()} className="text-sky-600 font-medium hover:underline">
+            Ingest a concert trip
           </Link>
         </div>
       ) : (

@@ -3,20 +3,31 @@
  */
 
 export function experienceHubPath(): string {
-  return '/experiences'
+  return '/experiences/concerts'
+}
+
+export function concertsListPath(): string {
+  return '/experiences/concerts'
+}
+
+export function concertsIngestPath(): string {
+  return '/experiences/concerts/ingest'
 }
 
 export function experiencePaths() {
-  const hub = experienceHubPath()
+  const concertsList = concertsListPath()
+  const concertsIngest = concertsIngestPath()
   return {
-    hub,
-    build: `${hub}/build`,
-    find: `${hub}/find`,
-    enter: `${hub}/enter`,
+    hub: '/experiences',
+    concertsList,
+    concertsIngest,
+    build: '/experiences/build',
+    find: '/experiences/find',
+    enter: '/experiences/enter',
     wishlist: '/wishlist',
     destinations: '/destinations',
-    planFork: '/plan',
-    planGotPlan: '/plan/got-plan',
+    planFork: concertsIngest,
+    planGotPlan: concertsIngest,
     planDestination: (mode: 'trip' | 'season', citySlug?: string) => {
       const base = '/plan/destination'
       const q = new URLSearchParams({ mode })
