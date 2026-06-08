@@ -72,6 +72,7 @@ export type ConcertWizardFormState = {
   concertName: string
   artist: string
   venue: string
+  description: string
   city: string
   stateUS: string
   country: string

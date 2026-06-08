@@ -7,6 +7,8 @@ import { LocalStorageAPI } from '@/lib/localStorage'
 import type { ParsedTripPlan } from '@/lib/trip-plan-model'
 import { dateOnlyToNoonISO } from '@/lib/trip-plan-dates'
 import { concertsListPath } from '@/lib/experience-routes'
+import type { ConcertIngestDraft } from '@/app/components/planner/concert-ingest-types'
+import { coreFromDraft } from '@/app/components/planner/concert-ingest-types'
 import {
   WIZARD_STEPS,
   countCompletedSteps,
@@ -15,6 +17,27 @@ import {
   type ScheduleRow,
   type PoiRow,
 } from '@/app/components/planner/concert-wizard-steps'
+
+type ConcertTripWizardProps = {
+  initialDraft?: ConcertIngestDraft
+}
+
+function stateFromDraft(draft?: ConcertIngestDraft) {
+  if (!draft) return null
+  const core = coreFromDraft(draft)
+  const wd = draft.wizardDefaults
+  return {
+    core,
+    tripName: wd?.tripName?.trim() || core.concertName,
+    startDate: wd?.startDate || '',
+    endDate: wd?.endDate || '',
+    lodgingTitle: wd?.lodgingTitle?.trim() || '',
+    lodgingAddress: wd?.lodgingAddress?.trim() || '',
+    lodgingCheckIn: wd?.lodgingCheckIn?.trim() || '',
+    lodgingCheckOut: wd?.lodgingCheckOut?.trim() || '',
+    importedPlan: wd?.importedPlan ?? null,
+  }
+}
 
 const EMPTY_SCHEDULE: ScheduleRow = {
   title: '',
@@ -62,38 +85,42 @@ function applyParseToFields(
   }
 }
 
-export default function ConcertTripWizard() {
+export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardProps) {
   const router = useRouter()
   const tripDatesTouched = useRef(false)
+  const seeded = stateFromDraft(initialDraft)
 
   const [activeStep, setActiveStep] = useState<WizardStepId>('concertCore')
-  const [concertName, setConcertName] = useState('')
-  const [artist, setArtist] = useState('')
-  const [venue, setVenue] = useState('')
-  const [city, setCity] = useState('')
-  const [stateUS, setStateUS] = useState('')
-  const [country, setCountry] = useState('USA')
-  const [concertUrl, setConcertUrl] = useState('')
-  const [eventStartDate, setEventStartDate] = useState('')
-  const [eventStartTime, setEventStartTime] = useState('')
-  const [eventEndDate, setEventEndDate] = useState('')
-  const [eventEndTime, setEventEndTime] = useState('')
-  const [isFestival, setIsFestival] = useState(false)
+  const [concertName, setConcertName] = useState(seeded?.core.concertName ?? '')
+  const [artist, setArtist] = useState(seeded?.core.artist ?? '')
+  const [venue, setVenue] = useState(seeded?.core.venue ?? '')
+  const [description, setDescription] = useState(seeded?.core.description ?? '')
+  const [city, setCity] = useState(seeded?.core.city ?? '')
+  const [stateUS, setStateUS] = useState(seeded?.core.stateUS ?? '')
+  const [country, setCountry] = useState(seeded?.core.country ?? 'USA')
+  const [concertUrl, setConcertUrl] = useState(seeded?.core.concertUrl ?? '')
+  const [eventStartDate, setEventStartDate] = useState(seeded?.core.eventStartDate ?? '')
+  const [eventStartTime, setEventStartTime] = useState(seeded?.core.eventStartTime ?? '')
+  const [eventEndDate, setEventEndDate] = useState(seeded?.core.eventEndDate ?? '')
+  const [eventEndTime, setEventEndTime] = useState(seeded?.core.eventEndTime ?? '')
+  const [isFestival, setIsFestival] = useState(seeded?.core.isFestival ?? false)
   const [scheduleRows, setScheduleRows] = useState<ScheduleRow[]>([{ ...EMPTY_SCHEDULE }])
-  const [tripName, setTripName] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [tripName, setTripName] = useState(seeded?.tripName ?? '')
+  const [startDate, setStartDate] = useState(seeded?.startDate ?? '')
+  const [endDate, setEndDate] = useState(seeded?.endDate ?? '')
   const [whoWith, setWhoWith] = useState('')
   const [transportMode, setTransportMode] = useState('')
   const [tripNotes, setTripNotes] = useState('')
-  const [lodgingTitle, setLodgingTitle] = useState('')
-  const [lodgingAddress, setLodgingAddress] = useState('')
-  const [lodgingCheckIn, setLodgingCheckIn] = useState('')
-  const [lodgingCheckOut, setLodgingCheckOut] = useState('')
+  const [lodgingTitle, setLodgingTitle] = useState(seeded?.lodgingTitle ?? '')
+  const [lodgingAddress, setLodgingAddress] = useState(seeded?.lodgingAddress ?? '')
+  const [lodgingCheckIn, setLodgingCheckIn] = useState(seeded?.lodgingCheckIn ?? '')
+  const [lodgingCheckOut, setLodgingCheckOut] = useState(seeded?.lodgingCheckOut ?? '')
   const [poiRows, setPoiRows] = useState<PoiRow[]>([{ ...EMPTY_POI }])
   const [blobText, setBlobText] = useState('')
   const [parsing, setParsing] = useState(false)
-  const [importedPlan, setImportedPlan] = useState<ParsedTripPlan | null>(null)
+  const [importedPlan, setImportedPlan] = useState<ParsedTripPlan | null>(
+    seeded?.importedPlan ?? null
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -101,6 +128,7 @@ export default function ConcertTripWizard() {
     concertName,
     artist,
     venue,
+    description,
     city,
     stateUS,
     country,
@@ -288,6 +316,7 @@ export default function ConcertTripWizard() {
             name: concertName.trim(),
             artist: artist.trim() || null,
             venue: venue.trim() || null,
+            description: description.trim() || null,
             city: city.trim() || null,
             state: stateUS.trim() || null,
             country: country.trim() || null,
@@ -361,6 +390,16 @@ export default function ConcertTripWizard() {
                 <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
               </label>
             </div>
+            <label className="block">
+              <span className="block text-sm font-medium text-gray-700 mb-1">Description / source copy</span>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Ticket notes, lineup copy, or confirmation text"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+            </label>
             <label className="block">
               <span className="block text-sm font-medium text-gray-700 mb-1">Event URL</span>
               <input type="url" value={concertUrl} onChange={(e) => setConcertUrl(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
@@ -553,9 +592,9 @@ export default function ConcertTripWizard() {
         ← Back to Concerts
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Ingest concert trip</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Concert trip wizard</h1>
       <p className="text-sm text-gray-600 mb-6">
-        Build the concert source object, then attach trip context — save when ready.
+        Schedule, trip dates, lodging, and POI — save when ready.
       </p>
 
       {error ? (

@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense } from 'react'
-import ConcertTripWizard from '@/app/components/planner/ConcertTripWizard'
+import ConcertIngest from '@/app/components/planner/ConcertIngest'
 
 export default function ConcertsIngestPage() {
   return (
@@ -12,7 +12,7 @@ export default function ConcertsIngestPage() {
         </div>
       }
     >
-      <ConcertTripWizard />
+      <ConcertIngest />
     </Suspense>
   )
 }
