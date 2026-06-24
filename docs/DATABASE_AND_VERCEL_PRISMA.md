@@ -77,3 +77,16 @@ If you see **`The column 'TripCrew.handle' does not exist in the current databas
 2. **Or run the migration SQL by hand** in your provider’s SQL console (e.g. Prisma Data Platform), using the contents of `prisma/migrations/20260303000000_add_tripcrew_handle/migration.sql`.
 
 After the migration is applied, redeploy or retry; the error should stop.
+
+---
+
+## Migration history baseline (2026-06-24)
+
+Older incremental migrations were squashed into a single baseline:
+
+- Active: `prisma/migrations/00000000000000_baseline_current_schema/`
+- Archived: `prisma/migrations_archive/` (includes the broken `ItineraryItem` replay chain)
+
+**Apply pending migrations in prod/dev:** `npx prisma migrate deploy` (works with Accelerate).
+
+**Create new migrations locally:** `npx prisma migrate dev` needs a **separate empty Postgres database** for Prisma's shadow replay. Set `SHADOW_DATABASE_URL` to a direct `postgresql://...` URL (not Accelerate). Without it, `migrate dev` may hang or fail even though `migrate deploy` and `migrate status` are fine.
