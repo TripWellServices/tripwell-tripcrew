@@ -84,6 +84,18 @@ function normLodging(raw: unknown): ParsedLodging | null {
     defaultCheckInTime: optionalStr(o.defaultCheckInTime ?? o.checkIn),
     defaultCheckOutTime: optionalStr(o.defaultCheckOutTime ?? o.checkOut),
     notes: optionalStr(o.notes),
+    googlePlaceId: optionalStr(o.googlePlaceId),
+    phone: optionalStr(o.phone),
+    website: optionalStr(o.website),
+    imageUrl: optionalStr(o.imageUrl),
+    rating: typeof o.rating === 'number' && Number.isFinite(o.rating) ? o.rating : null,
+    lat: typeof o.lat === 'number' && Number.isFinite(o.lat) ? o.lat : null,
+    lng: typeof o.lng === 'number' && Number.isFinite(o.lng) ? o.lng : null,
+    streetAddress: optionalStr(o.streetAddress),
+    city: optionalStr(o.city),
+    state: optionalStr(o.state),
+    postalCode: optionalStr(o.postalCode),
+    countryCode: optionalStr(o.countryCode),
   }
 }
 

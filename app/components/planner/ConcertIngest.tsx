@@ -207,7 +207,7 @@ function CoreReviewCard({
   )
 }
 
-export default function ConcertIngest() {
+export default function ConcertIngest({ googleApiKey = '' }: { googleApiKey?: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [ingestTab, setIngestTab] = useState<IngestTab>('paste')
   const [rawText, setRawText] = useState('')
@@ -219,7 +219,7 @@ export default function ConcertIngest() {
   const [error, setError] = useState('')
 
   if (showWizard && draft) {
-    return <ConcertTripWizard initialDraft={draft} />
+    return <ConcertTripWizard initialDraft={draft} googleApiKey={googleApiKey} />
   }
 
   const tabBtn = (tab: IngestTab, label: string) => (

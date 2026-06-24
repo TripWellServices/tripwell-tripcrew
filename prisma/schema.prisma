@@ -29,6 +29,12 @@ enum TransportMode {
   PLANE
 }
 
+enum TripFlightDirection {
+  OUTBOUND
+  RETURN
+  OTHER
+}
+
 enum TripDayExperienceStatus {
   PLANNED
   CANCELLED
@@ -232,10 +238,12 @@ model Trip {
   destinations    Destination[]
   tripDays        TripDay[]
   logistics       LogisticItem[]
+  flights         TripFlight[]
   packItems       PackItem[]
   lodging         Lodging?            @relation("TripLodging")
   dining          Dining[]            @relation("TripDining")
   attractions     Attraction[]        @relation("TripAttractions")
+  adventures      Adventure[]         @relation("TripAdventures")
   memories        TripMemory[]
   concertAnchors  TripConcertAnchor[]
 
@@ -391,6 +399,7 @@ model Sport {
 
 model Adventure {
   id          String   @id @default(uuid())
+  tripId      String?
   name        String
   category    String?
   cityId      String?
@@ -406,12 +415,14 @@ model Adventure {
   wishlistId        String?
   savedByTravelerId String?
 
+  trip               Trip?               @relation("TripAdventures", fields: [tripId], references: [id], onDelete: Cascade)
   city               City?               @relation(fields: [cityId], references: [id], onDelete: SetNull)
   tripDayExperiences TripDayExperience[]
   createdBy          Traveler?           @relation("AdventureAuthor", fields: [createdById], references: [id], onDelete: SetNull)
   savedBy            Traveler?           @relation("AdventureSavedBy", fields: [savedByTravelerId], references: [id], onDelete: SetNull)
   wishlist           Wishlist?           @relation(fields: [wishlistId], references: [id], onDelete: SetNull)
 
+  @@index([tripId])
   @@index([cityId])
   @@index([createdById])
   @@index([wishlistId])
@@ -721,6 +732,28 @@ model Cruise {
   @@index([createdById])
   @@index([wishlistId])
   @@index([savedByTravelerId])
+}
+
+model TripFlight {
+  id                   String              @id @default(uuid())
+  tripId               String
+  direction            TripFlightDirection @default(OTHER)
+  airlineName          String?
+  airlineCode          String?
+  flightNumber         String?
+  departureAirportCode String?
+  arrivalAirportCode   String?
+  departureTime        DateTime?
+  arrivalTime          DateTime?
+  confirmationCode     String?
+  notes                String?
+  sortOrder            Int                 @default(0)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
 }
 
 model LogisticItem {

@@ -22,9 +22,13 @@ import {
   type LineupRow,
   type PoiRow,
 } from '@/app/components/planner/concert-wizard-steps'
+import LodgingPlacePicker, {
+  type LodgingPlaceSelection,
+} from '@/app/components/trip/LodgingPlacePicker'
 
 type ConcertTripWizardProps = {
   initialDraft?: ConcertIngestDraft
+  googleApiKey?: string
 }
 
 function stateFromDraft(draft?: ConcertIngestDraft) {
@@ -80,7 +84,10 @@ function applyIngestDraft(
   }
 }
 
-export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardProps) {
+export default function ConcertTripWizard({
+  initialDraft,
+  googleApiKey = '',
+}: ConcertTripWizardProps) {
   const router = useRouter()
   const tripDatesTouched = useRef(false)
   const seeded = stateFromDraft(initialDraft)
@@ -109,10 +116,16 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
   const [whoWith, setWhoWith] = useState('')
   const [transportMode, setTransportMode] = useState('')
   const [tripNotes, setTripNotes] = useState('')
-  const [lodgingTitle, setLodgingTitle] = useState(seeded?.lodgingTitle ?? '')
-  const [lodgingAddress, setLodgingAddress] = useState(seeded?.lodgingAddress ?? '')
-  const [lodgingCheckIn, setLodgingCheckIn] = useState(seeded?.lodgingCheckIn ?? '')
-  const [lodgingCheckOut, setLodgingCheckOut] = useState(seeded?.lodgingCheckOut ?? '')
+  const [lodgingSelection, setLodgingSelection] = useState<LodgingPlaceSelection | null>(
+    seeded?.lodgingTitle
+      ? {
+          title: seeded.lodgingTitle,
+          address: seeded.lodgingAddress || null,
+          defaultCheckInTime: seeded.lodgingCheckIn || null,
+          defaultCheckOutTime: seeded.lodgingCheckOut || null,
+        }
+      : null
+  )
   const [poiRows, setPoiRows] = useState<PoiRow[]>([{ ...EMPTY_POI }])
   const [blobText, setBlobText] = useState('')
   const [parsing, setParsing] = useState(false)
@@ -144,10 +157,10 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
     whoWith,
     transportMode,
     tripNotes,
-    lodgingTitle,
-    lodgingAddress,
-    lodgingCheckIn,
-    lodgingCheckOut,
+    lodgingTitle: lodgingSelection?.title ?? '',
+    lodgingAddress: lodgingSelection?.address ?? '',
+    lodgingCheckIn: lodgingSelection?.defaultCheckInTime ?? '',
+    lodgingCheckOut: lodgingSelection?.defaultCheckOutTime ?? '',
     poiRows,
     blobText,
   }
@@ -262,16 +275,33 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
       .filter((row) => row.title)
 
     const lodgingFromForm =
-      lodgingTitle.trim() || importedPlan?.lodging?.title
+      lodgingSelection?.title?.trim() || importedPlan?.lodging?.title
         ? {
-            title: lodgingTitle.trim() || importedPlan?.lodging?.title || '',
-            address: lodgingAddress.trim() || importedPlan?.lodging?.address || null,
+            title: lodgingSelection?.title.trim() || importedPlan?.lodging?.title || '',
+            address:
+              lodgingSelection?.address?.trim() || importedPlan?.lodging?.address || null,
             defaultCheckInTime:
-              lodgingCheckIn.trim() || importedPlan?.lodging?.defaultCheckInTime || null,
+              lodgingSelection?.defaultCheckInTime?.trim() ||
+              importedPlan?.lodging?.defaultCheckInTime ||
+              null,
             defaultCheckOutTime:
-              lodgingCheckOut.trim() || importedPlan?.lodging?.defaultCheckOutTime || null,
+              lodgingSelection?.defaultCheckOutTime?.trim() ||
+              importedPlan?.lodging?.defaultCheckOutTime ||
+              null,
             chain: importedPlan?.lodging?.chain ?? null,
             lodgingType: importedPlan?.lodging?.lodgingType ?? null,
+            googlePlaceId: lodgingSelection?.googlePlaceId ?? null,
+            phone: lodgingSelection?.phone ?? null,
+            website: lodgingSelection?.website ?? null,
+            imageUrl: lodgingSelection?.imageUrl ?? null,
+            rating: lodgingSelection?.rating ?? null,
+            lat: lodgingSelection?.lat ?? null,
+            lng: lodgingSelection?.lng ?? null,
+            streetAddress: lodgingSelection?.streetAddress ?? null,
+            city: lodgingSelection?.city ?? null,
+            state: lodgingSelection?.state ?? null,
+            postalCode: lodgingSelection?.postalCode ?? null,
+            countryCode: lodgingSelection?.countryCode ?? null,
           }
         : importedPlan?.lodging ?? null
 
@@ -567,15 +597,17 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
         return (
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Lodging</h3>
-              <p className="text-sm text-gray-600">Saved as a Lodging FK on your trip.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Stay</h3>
+              <p className="text-sm text-gray-600">
+                Search for your hotel or rental — saved to your trip on submit.
+              </p>
             </div>
-            <input type="text" value={lodgingTitle} onChange={(e) => setLodgingTitle(e.target.value)} placeholder="Hotel name" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-            <input type="text" value={lodgingAddress} onChange={(e) => setLodgingAddress(e.target.value)} placeholder="Address" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input type="time" value={lodgingCheckIn} onChange={(e) => setLodgingCheckIn(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg" aria-label="Check-in time" />
-              <input type="time" value={lodgingCheckOut} onChange={(e) => setLodgingCheckOut(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg" aria-label="Check-out time" />
-            </div>
+            <LodgingPlacePicker
+              googleApiKey={googleApiKey}
+              value={lodgingSelection}
+              onChange={setLodgingSelection}
+              compact
+            />
           </div>
         )
       case 'poi':

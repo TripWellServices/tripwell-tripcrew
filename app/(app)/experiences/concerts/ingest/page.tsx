@@ -1,9 +1,9 @@
-'use client'
-
 import { Suspense } from 'react'
 import ConcertIngest from '@/app/components/planner/ConcertIngest'
 
 export default function ConcertsIngestPage() {
+  const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
+
   return (
     <Suspense
       fallback={
@@ -12,7 +12,7 @@ export default function ConcertsIngestPage() {
         </div>
       }
     >
-      <ConcertIngest />
+      <ConcertIngest googleApiKey={googleApiKey} />
     </Suspense>
   )
 }

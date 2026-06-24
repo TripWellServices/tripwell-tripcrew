@@ -85,6 +85,8 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
           lodging: trip.lodging,
           dining: trip.dining,
           attractions: trip.attractions,
+          adventures: trip.adventures,
+          flights: trip.flights,
           logistics: trip.logistics,
           concertId: concert?.id ?? null,
           concertName:

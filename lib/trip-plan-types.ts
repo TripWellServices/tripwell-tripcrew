@@ -29,6 +29,18 @@ export interface ParsedLodging {
   defaultCheckInTime?: string | null
   defaultCheckOutTime?: string | null
   notes?: string | null
+  googlePlaceId?: string | null
+  phone?: string | null
+  website?: string | null
+  imageUrl?: string | null
+  rating?: number | null
+  lat?: number | null
+  lng?: number | null
+  streetAddress?: string | null
+  city?: string | null
+  state?: string | null
+  postalCode?: string | null
+  countryCode?: string | null
 }
 
 export interface ParsedExperienceCost {

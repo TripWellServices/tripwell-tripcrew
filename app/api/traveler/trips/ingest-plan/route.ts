@@ -323,6 +323,18 @@ export async function POST(request: NextRequest) {
             lodgingType: lt ?? null,
             defaultCheckInTime: lodgingParsed.defaultCheckInTime?.trim() || null,
             defaultCheckOutTime: lodgingParsed.defaultCheckOutTime?.trim() || null,
+            googlePlaceId: lodgingParsed.googlePlaceId?.trim() || null,
+            phone: lodgingParsed.phone?.trim() || null,
+            website: lodgingParsed.website?.trim() || null,
+            imageUrl: lodgingParsed.imageUrl?.trim() || null,
+            rating: lodgingParsed.rating ?? null,
+            lat: lodgingParsed.lat ?? null,
+            lng: lodgingParsed.lng ?? null,
+            streetAddress: lodgingParsed.streetAddress?.trim() || null,
+            city: lodgingParsed.city?.trim() || null,
+            state: lodgingParsed.state?.trim() || null,
+            postalCode: lodgingParsed.postalCode?.trim() || null,
+            countryCode: lodgingParsed.countryCode?.trim() || null,
           },
         })
       }

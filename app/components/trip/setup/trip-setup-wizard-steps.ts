@@ -1,4 +1,5 @@
 import type { ConcertLineupRow } from '@/lib/concert-lineup'
+import type { TripFlightFormRow } from '@/lib/trip-flight'
 
 export type LineupRow = ConcertLineupRow
 
@@ -31,18 +32,18 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
   },
   {
     id: 'flightInfo',
-    title: 'Flight & travel',
-    description: 'Flights, transfers, and travel logistics',
+    title: 'Flights',
+    description: 'Outbound, return, and other flight legs',
   },
   {
     id: 'lodging',
-    title: 'Lodging',
+    title: 'Stay',
     description: 'Where you are staying',
   },
   {
     id: 'poi',
-    title: 'Places to go',
-    description: 'Restaurants, beaches, trails, and sights',
+    title: 'Things to do',
+    description: 'Must dos, dining, and experiences for your trip list',
   },
 ]
 
@@ -68,11 +69,11 @@ export type TripSetupFormState = {
   eventEndTime: string
   isFestival: boolean
   scheduleRows: LineupRow[]
-  flightOutbound: string
-  flightReturn: string
+  flightRows: TripFlightFormRow[]
   flightNotes: string
   lodgingSet: boolean
   poiCount: number
+  flightCount: number
   logisticsCount: number
 }
 
@@ -97,13 +98,20 @@ export function computeSetupStepStatus(
       if (form.concertName.trim()) return 'complete'
       if (form.concertVenue.trim() || form.concertArtist.trim()) return 'partial'
       return 'empty'
-    case 'flightInfo':
-      if (form.flightOutbound.trim() || form.flightReturn.trim() || form.logisticsCount > 0) {
-        return form.flightOutbound.trim() && form.flightReturn.trim()
-          ? 'complete'
-          : 'partial'
+    case 'flightInfo': {
+      const filled = form.flightRows.filter(
+        (r) =>
+          r.airlineName.trim() ||
+          r.flightNumber.trim() ||
+          r.departureAirportCode.trim() ||
+          r.arrivalAirportCode.trim()
+      )
+      if (filled.length >= 2) return 'complete'
+      if (filled.length > 0 || form.flightNotes.trim() || form.logisticsCount > 0) {
+        return 'partial'
       }
       return 'empty'
+    }
     case 'lodging':
       return form.lodgingSet ? 'complete' : 'empty'
     case 'poi':

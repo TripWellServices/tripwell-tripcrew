@@ -9,6 +9,11 @@ import {
   lineupRowsToScheduleItems,
   scheduleItemToLineupRow,
 } from '@/lib/concert-lineup'
+import {
+  emptyFlightRow,
+  flightRowsFromInitial,
+  flightRowHasData,
+} from '@/lib/trip-flight'
 import type { LodgingCardLodging } from '@/app/components/trip/LodgingCard'
 import CoreDetailsStep from '@/app/components/trip/setup/steps/CoreDetailsStep'
 import FlightInfoStep from '@/app/components/trip/setup/steps/FlightInfoStep'
@@ -47,6 +52,28 @@ type PoiItem = {
   driveTimeMinutes?: number | null
 }
 
+type AdventureItem = {
+  id: string
+  name: string
+  category?: string | null
+  notes?: string | null
+}
+
+type TripFlightItem = {
+  id: string
+  direction: string
+  airlineName?: string | null
+  airlineCode?: string | null
+  flightNumber?: string | null
+  departureAirportCode?: string | null
+  arrivalAirportCode?: string | null
+  departureTime?: string | Date | null
+  arrivalTime?: string | Date | null
+  confirmationCode?: string | null
+  notes?: string | null
+  sortOrder?: number
+}
+
 export type TripSetupWizardProps = {
   tripId: string
   googleApiKey: string
@@ -64,6 +91,8 @@ export type TripSetupWizardProps = {
     lodging: LodgingCardLodging | null
     dining: PoiItem[]
     attractions: PoiItem[]
+    adventures: AdventureItem[]
+    flights: TripFlightItem[]
     logistics: LogisticItem[]
     concertId: string | null
     concertName: string
@@ -90,16 +119,28 @@ function dateInputValue(d: Date | string | null | undefined): string {
   return `${y}-${m}-${day}`
 }
 
-function findFlightDetail(items: LogisticItem[], title: string): string {
-  const item = items.find((i) => i.title.trim().toLowerCase() === title.toLowerCase())
-  return item?.detail?.trim() || ''
-}
-
 function buildInitialForm(initial: TripSetupWizardProps['initial']): TripSetupFormState {
   const split = splitLegacyPurposeBlob(initial.purpose, initial.title)
   const includesMusicEvent =
     Boolean(initial.concertId) ||
     detectMusicTrip({ title: split.title, purpose: split.purposeText })
+
+  const flightRows = flightRowsFromInitial(
+    initial.flights.map((f) => ({
+      ...f,
+      direction: f.direction as import('@prisma/client').TripFlightDirection,
+      airlineName: f.airlineName ?? null,
+      airlineCode: f.airlineCode ?? null,
+      flightNumber: f.flightNumber ?? null,
+      departureAirportCode: f.departureAirportCode ?? null,
+      arrivalAirportCode: f.arrivalAirportCode ?? null,
+      departureTime: f.departureTime ? new Date(f.departureTime) : null,
+      arrivalTime: f.arrivalTime ? new Date(f.arrivalTime) : null,
+      confirmationCode: f.confirmationCode ?? null,
+      notes: f.notes ?? null,
+      sortOrder: f.sortOrder ?? 0,
+    }))
+  )
 
   return {
     title: split.title,
@@ -125,13 +166,14 @@ function buildInitialForm(initial: TripSetupWizardProps['initial']): TripSetupFo
     scheduleRows: initial.scheduleRows.length
       ? initial.scheduleRows
       : [emptyLineupRow()],
-    flightOutbound: findFlightDetail(initial.logistics, 'Outbound flight'),
-    flightReturn: findFlightDetail(initial.logistics, 'Return flight'),
+    flightRows,
     flightNotes:
       initial.logistics.find((i) => i.title.trim().toLowerCase() === 'travel notes')?.detail ??
       '',
     lodgingSet: Boolean(initial.lodging),
-    poiCount: initial.dining.length + initial.attractions.length,
+    poiCount:
+      initial.dining.length + initial.attractions.length + initial.adventures.length,
+    flightCount: initial.flights.length,
     logisticsCount: initial.logistics.length,
   }
 }
@@ -312,53 +354,28 @@ export default function TripSetupWizard({
     }
   }
 
-  async function upsertLogistic(title: string, detail: string | null, existing?: LogisticItem) {
-    if (existing) {
-      await fetch(`/api/trip/${tripId}/logistics`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: existing.id, title, detail }),
-      })
-      return
-    }
-    if (!detail?.trim() && !title.trim()) return
-    await fetch(`/api/trip/${tripId}/logistics`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, detail: detail?.trim() || null }),
-    })
-  }
-
   async function saveFlightInfo() {
     setError(null)
-    requireTravelerId()
+    const travelerId = requireTravelerId()
+    if (!travelerId) return
+
     setSaving(true)
     try {
-      const outboundExisting = initial.logistics.find(
-        (i) => i.title.trim().toLowerCase() === 'outbound flight'
-      )
-      const returnExisting = initial.logistics.find(
-        (i) => i.title.trim().toLowerCase() === 'return flight'
-      )
-      const notesExisting = initial.logistics.find(
-        (i) => i.title.trim().toLowerCase() === 'travel notes'
-      )
+      const res = await fetch(`/api/trip/${tripId}/flights`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          travelerId,
+          flights: form.flightRows.filter(flightRowHasData),
+          travelNotes: form.flightNotes.trim() || null,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to save flights')
 
-      if (form.flightOutbound.trim()) {
-        await upsertLogistic(
-          'Outbound flight',
-          form.flightOutbound.trim(),
-          outboundExisting
-        )
-      }
-      if (form.flightReturn.trim()) {
-        await upsertLogistic('Return flight', form.flightReturn.trim(), returnExisting)
-      }
-      if (form.flightNotes.trim()) {
-        await upsertLogistic('Travel notes', form.flightNotes.trim(), notesExisting)
-      }
-
-      patchForm({ logisticsCount: initial.logistics.length })
+      patchForm({
+        flightCount: Array.isArray(data.flights) ? data.flights.length : form.flightRows.length,
+      })
       router.refresh()
       advanceAfterSave('flightInfo')
     } catch (err) {
@@ -402,9 +419,11 @@ export default function TripSetupWizard({
       case 'flightInfo':
         return (
           <FlightInfoStep
-            form={form}
-            items={initial.logistics}
-            onChange={patchForm}
+            flightRows={form.flightRows}
+            flightNotes={form.flightNotes}
+            legacyFlightItems={initial.logistics}
+            onChangeFlights={(flightRows) => patchForm({ flightRows })}
+            onChangeNotes={(flightNotes) => patchForm({ flightNotes })}
             onSave={saveFlightInfo}
             saving={saving}
             error={error}
@@ -425,6 +444,7 @@ export default function TripSetupWizard({
             catalogueCityId={catalogueCityId}
             dining={initial.dining}
             attractions={initial.attractions}
+            adventures={initial.adventures}
             lodgingSet={Boolean(initial.lodging)}
           />
         )

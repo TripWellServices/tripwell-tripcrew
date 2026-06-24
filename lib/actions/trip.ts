@@ -218,6 +218,14 @@ export async function getTrip(tripId: string) {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
+        adventures: {
+          where: { tripId },
+          orderBy: { createdAt: 'desc' },
+        },
+        flights: {
+          where: { tripId },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        },
         logistics: {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
