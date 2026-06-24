@@ -1,3 +1,5 @@
+import type { ConcertLineupRow } from '@/lib/concert-lineup'
+
 export type WizardStepId =
   | 'concertCore'
   | 'concertSchedule'
@@ -21,8 +23,8 @@ export const WIZARD_STEPS: WizardStepInfo[] = [
   },
   {
     id: 'concertSchedule',
-    title: 'Concert schedule',
-    description: 'Stages, sets, and day rows',
+    title: 'Festival lineup',
+    description: 'Day, time, and headliner rows',
   },
   {
     id: 'tripCore',
@@ -46,21 +48,15 @@ export const WIZARD_STEPS: WizardStepInfo[] = [
   },
   {
     id: 'paste',
-    title: 'Paste details',
-    description: 'Optional AI parse from tickets',
+    title: 'Ingest festival info',
+    description: 'Paste website copy — lineup & tips',
   },
 ]
 
-export type ScheduleRow = {
-  title: string
-  artist: string
-  stage: string
-  location: string
-  date: string
-  startTime: string
-  endTime: string
-  notes: string
-}
+export type LineupRow = ConcertLineupRow
+
+/** @deprecated Use LineupRow */
+export type ScheduleRow = LineupRow
 
 export type PoiRow = {
   kind: 'attraction' | 'dining'
@@ -82,7 +78,10 @@ export type ConcertWizardFormState = {
   eventEndDate: string
   eventEndTime: string
   isFestival: boolean
-  scheduleRows: ScheduleRow[]
+  lineupRows: LineupRow[]
+  bagPolicy: string
+  gettingThere: string
+  tipsText: string
   tripName: string
   startDate: string
   endDate: string
@@ -107,7 +106,7 @@ export function computeStepStatus(
       if (form.artist.trim() || form.venue.trim() || form.city.trim()) return 'partial'
       return 'empty'
     case 'concertSchedule': {
-      const filled = form.scheduleRows.some((r) => r.title.trim())
+      const filled = form.lineupRows.some((r) => r.headliner.trim())
       if (filled) return 'complete'
       return 'empty'
     }

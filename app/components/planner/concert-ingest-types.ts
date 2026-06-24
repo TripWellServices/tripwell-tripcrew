@@ -1,4 +1,28 @@
 import type { ParsedLodging, ParsedTripPlan } from '@/lib/trip-plan-model'
+import type { ConcertLineupRow } from '@/lib/concert-lineup'
+
+/** One festival lineup row: day + times + headliner only. */
+export type { ConcertLineupRow }
+
+/** Draft JSON from /api/concerts/ingest-lineup — no DB writes. */
+export type ConcertInfoIngest = {
+  concertName: string | null
+  artist: string | null
+  venue: string | null
+  city: string | null
+  state: string | null
+  country: string | null
+  concertUrl: string | null
+  eventStartDate: string | null
+  eventEndDate: string | null
+  eventStartTime: string | null
+  eventEndTime: string | null
+  isFestival: boolean
+  lineup: ConcertLineupRow[]
+  bagPolicy: string | null
+  gettingThere: string | null
+  tips: string[]
+}
 
 /** Concert Core — canonical source identity from ingest (not trip/lodging/schedule). */
 export type ConcertCoreFields = {

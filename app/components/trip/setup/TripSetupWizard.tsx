@@ -3,7 +3,12 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
-import type { ScheduleRow } from '@/app/components/planner/concert-wizard-steps'
+import type { ScheduleRow } from '@/app/components/trip/setup/trip-setup-wizard-steps'
+import {
+  emptyLineupRow,
+  lineupRowsToScheduleItems,
+  scheduleItemToLineupRow,
+} from '@/lib/concert-lineup'
 import type { LodgingCardLodging } from '@/app/components/trip/LodgingCard'
 import CoreDetailsStep from '@/app/components/trip/setup/steps/CoreDetailsStep'
 import FlightInfoStep from '@/app/components/trip/setup/steps/FlightInfoStep'
@@ -119,18 +124,7 @@ function buildInitialForm(initial: TripSetupWizardProps['initial']): TripSetupFo
     isFestival: initial.isFestival,
     scheduleRows: initial.scheduleRows.length
       ? initial.scheduleRows
-      : [
-          {
-            title: '',
-            artist: '',
-            stage: '',
-            location: '',
-            date: '',
-            startTime: '',
-            endTime: '',
-            notes: '',
-          },
-        ],
+      : [emptyLineupRow()],
     flightOutbound: findFlightDetail(initial.logistics, 'Outbound flight'),
     flightReturn: findFlightDetail(initial.logistics, 'Return flight'),
     flightNotes:
@@ -245,19 +239,10 @@ export default function TripSetupWizard({
 
     setSaving(true)
     try {
-      const scheduleItems = form.scheduleRows
-        .map((row, sortOrder) => ({
-          title: row.title.trim(),
-          artist: row.artist.trim() || null,
-          stage: row.stage.trim() || null,
-          location: row.location.trim() || null,
-          date: row.date || null,
-          startTime: row.startTime.trim() || null,
-          endTime: row.endTime.trim() || null,
-          notes: row.notes.trim() || null,
-          sortOrder,
-        }))
-        .filter((row) => row.title)
+      const scheduleItems = lineupRowsToScheduleItems(
+        form.scheduleRows,
+        form.eventStartDate
+      )
 
       const concertBody = {
         name: form.concertName.trim(),

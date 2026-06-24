@@ -1,4 +1,9 @@
-import type { ScheduleRow } from '@/app/components/planner/concert-wizard-steps'
+import type { ConcertLineupRow } from '@/lib/concert-lineup'
+
+export type LineupRow = ConcertLineupRow
+
+/** @deprecated Use LineupRow */
+export type ScheduleRow = LineupRow
 
 export type TripSetupStepId =
   | 'coreDetails'
@@ -62,7 +67,7 @@ export type TripSetupFormState = {
   eventStartTime: string
   eventEndTime: string
   isFestival: boolean
-  scheduleRows: ScheduleRow[]
+  scheduleRows: LineupRow[]
   flightOutbound: string
   flightReturn: string
   flightNotes: string

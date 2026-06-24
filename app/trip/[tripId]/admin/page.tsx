@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import TripSetupWizard from '@/app/components/trip/setup/TripSetupWizard'
 import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
-import type { ScheduleRow } from '@/app/components/planner/concert-wizard-steps'
+import type { LineupRow } from '@/app/components/trip/setup/trip-setup-wizard-steps'
+import { scheduleItemToLineupRow } from '@/lib/concert-lineup'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
 import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
@@ -41,17 +42,22 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
   const primaryAnchor = trip.concertAnchors?.[0]
   const concert = primaryAnchor?.concert ?? null
 
-  const scheduleRows: ScheduleRow[] =
-    concert?.scheduleItems?.map((item) => ({
-      title: item.title ?? '',
-      artist: item.artist ?? '',
-      stage: item.stage ?? '',
-      location: item.location ?? '',
-      date: item.date ? dateInputValue(item.date) : '',
-      startTime: item.startTime ?? '',
-      endTime: item.endTime ?? '',
-      notes: item.notes ?? '',
-    })) ?? []
+  const eventStartForLineup = dateInputValue(
+    concert?.eventStartDate ?? concert?.eventDate
+  )
+
+  const scheduleRows: LineupRow[] =
+    concert?.scheduleItems?.map((item) =>
+      scheduleItemToLineupRow(
+        {
+          title: item.title ?? '',
+          date: item.date ? dateInputValue(item.date) : null,
+          startTime: item.startTime,
+          endTime: item.endTime,
+        },
+        eventStartForLineup
+      )
+    ) ?? []
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">

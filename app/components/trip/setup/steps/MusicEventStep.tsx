@@ -1,18 +1,10 @@
 'use client'
 
-import type { ScheduleRow } from '@/app/components/planner/concert-wizard-steps'
 import type { TripSetupFormState } from '@/app/components/trip/setup/trip-setup-wizard-steps'
+import type { LineupRow } from '@/app/components/trip/setup/trip-setup-wizard-steps'
+import { emptyLineupRow } from '@/lib/concert-lineup'
 
-const EMPTY_SCHEDULE: ScheduleRow = {
-  title: '',
-  artist: '',
-  stage: '',
-  location: '',
-  date: '',
-  startTime: '',
-  endTime: '',
-  notes: '',
-}
+const EMPTY_LINEUP = emptyLineupRow()
 
 type MusicEventStepProps = {
   form: TripSetupFormState
@@ -31,7 +23,7 @@ export default function MusicEventStep({
   error,
   hasExistingConcert,
 }: MusicEventStepProps) {
-  function updateScheduleRow(index: number, patch: Partial<ScheduleRow>) {
+  function updateLineupRow(index: number, patch: Partial<LineupRow>) {
     onChange({
       scheduleRows: form.scheduleRows.map((row, i) =>
         i === index ? { ...row, ...patch } : row
@@ -75,11 +67,12 @@ export default function MusicEventStep({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
-          <span className="block text-sm font-medium text-gray-700 mb-1">Headliner / artist</span>
+          <span className="block text-sm font-medium text-gray-700 mb-1">Main headliner</span>
           <input
             type="text"
             value={form.concertArtist}
             onChange={(e) => onChange({ concertArtist: e.target.value })}
+            placeholder="Primary artist, if one"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
           />
         </label>
@@ -161,26 +154,66 @@ export default function MusicEventStep({
           onChange={(e) => onChange({ isFestival: e.target.checked })}
           className="rounded border-gray-300"
         />
-        Multi-day festival
+        Festival / multi-day event
       </label>
 
       <div className="border-t border-gray-100 pt-5">
-        <h4 className="text-sm font-semibold text-gray-800 mb-2">Set schedule</h4>
-        <p className="text-xs text-gray-500 mb-3">Stages, headliners, and day rows.</p>
+        <h4 className="text-sm font-semibold text-gray-800 mb-2">Festival lineup</h4>
+        <p className="text-xs text-gray-500 mb-3">
+          Day number is relative to event start date — day 1, time, headliner.
+        </p>
         <ul className="space-y-3">
           {form.scheduleRows.map((row, index) => (
             <li
               key={index}
-              className="border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50/50"
+              className="border border-gray-100 rounded-lg p-3 bg-gray-50/50"
             >
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={row.title}
-                  onChange={(e) => updateScheduleRow(index, { title: e.target.value })}
-                  placeholder="Set / headliner"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
+              <div className="flex gap-2 items-start">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+                  <label className="block">
+                    <span className="block text-xs text-gray-500 mb-1">Day</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={row.day}
+                      onChange={(e) =>
+                        updateLineupRow(index, {
+                          day: e.target.value ? parseInt(e.target.value, 10) : '',
+                        })
+                      }
+                      placeholder="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs text-gray-500 mb-1">Start</span>
+                    <input
+                      type="time"
+                      value={row.startTime}
+                      onChange={(e) => updateLineupRow(index, { startTime: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs text-gray-500 mb-1">End</span>
+                    <input
+                      type="time"
+                      value={row.endTime}
+                      onChange={(e) => updateLineupRow(index, { endTime: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </label>
+                  <label className="block sm:col-span-1 col-span-2">
+                    <span className="block text-xs text-gray-500 mb-1">Headliner</span>
+                    <input
+                      type="text"
+                      value={row.headliner}
+                      onChange={(e) => updateLineupRow(index, { headliner: e.target.value })}
+                      placeholder="Artist name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </label>
+                </div>
                 {form.scheduleRows.length > 1 ? (
                   <button
                     type="button"
@@ -195,45 +228,17 @@ export default function MusicEventStep({
                   </button>
                 ) : null}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  value={row.artist}
-                  onChange={(e) => updateScheduleRow(index, { artist: e.target.value })}
-                  placeholder="Artist"
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <input
-                  type="text"
-                  value={row.stage}
-                  onChange={(e) => updateScheduleRow(index, { stage: e.target.value })}
-                  placeholder="Stage"
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <input
-                  type="date"
-                  value={row.date}
-                  onChange={(e) => updateScheduleRow(index, { date: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <input
-                  type="time"
-                  value={row.startTime}
-                  onChange={(e) => updateScheduleRow(index, { startTime: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
             </li>
           ))}
         </ul>
         <button
           type="button"
           onClick={() =>
-            onChange({ scheduleRows: [...form.scheduleRows, { ...EMPTY_SCHEDULE }] })
+            onChange({ scheduleRows: [...form.scheduleRows, { ...EMPTY_LINEUP }] })
           }
           className="mt-2 text-sm text-indigo-700 font-medium hover:underline"
         >
-          + Add schedule row
+          + Add headliner
         </button>
       </div>
 

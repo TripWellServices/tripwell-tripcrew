@@ -4,17 +4,22 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LocalStorageAPI } from '@/lib/localStorage'
-import type { ParsedTripPlan } from '@/lib/trip-plan-model'
 import { dateOnlyToNoonISO } from '@/lib/trip-plan-dates'
 import { concertsListPath } from '@/lib/experience-routes'
-import type { ConcertIngestDraft } from '@/app/components/planner/concert-ingest-types'
+import type { ConcertIngestDraft, ConcertInfoIngest } from '@/app/components/planner/concert-ingest-types'
 import { coreFromDraft } from '@/app/components/planner/concert-ingest-types'
+import {
+  composeFestivalDescription,
+  emptyLineupRow,
+  lineupRowsToScheduleItems,
+  tipsFromMultilineText,
+} from '@/lib/concert-lineup'
 import {
   WIZARD_STEPS,
   countCompletedSteps,
   computeStepStatus,
   type WizardStepId,
-  type ScheduleRow,
+  type LineupRow,
   type PoiRow,
 } from '@/app/components/planner/concert-wizard-steps'
 
@@ -39,49 +44,39 @@ function stateFromDraft(draft?: ConcertIngestDraft) {
   }
 }
 
-const EMPTY_SCHEDULE: ScheduleRow = {
-  title: '',
-  artist: '',
-  stage: '',
-  location: '',
-  date: '',
-  startTime: '',
-  endTime: '',
-  notes: '',
-}
+const EMPTY_LINEUP = emptyLineupRow()
 
 const EMPTY_POI: PoiRow = { kind: 'attraction', title: '', category: '' }
 
-function applyParseToFields(
-  plan: ParsedTripPlan,
+function applyIngestDraft(
+  draft: ConcertInfoIngest,
   current: {
-    concertName: string
-    artist: string
-    venue: string
-    city: string
-    stateUS: string
-    country: string
-    eventStartDate: string
-    eventEndDate: string
     tripName: string
     startDate: string
     endDate: string
   }
 ) {
-  const anchor = plan.eventAnchor
-  const eventStart = anchor?.eventDate || plan.startDate || current.eventStartDate
   return {
-    concertName: anchor?.name || plan.tripName?.trim() || current.concertName,
-    artist: anchor?.artist || current.artist,
-    venue: anchor?.venue || current.venue,
-    city: plan.city?.trim() || current.city,
-    stateUS: plan.state?.trim() || current.stateUS,
-    country: plan.country?.trim() || current.country || 'USA',
-    eventStartDate: eventStart,
-    eventEndDate: eventStart || current.eventEndDate,
-    tripName: plan.tripName?.trim() || anchor?.name || current.tripName,
-    startDate: plan.startDate || current.startDate,
-    endDate: plan.endDate || current.endDate,
+    concertName: draft.concertName ?? '',
+    artist: draft.artist ?? '',
+    venue: draft.venue ?? '',
+    city: draft.city ?? '',
+    stateUS: draft.state ?? '',
+    country: draft.country ?? 'USA',
+    concertUrl: draft.concertUrl ?? '',
+    eventStartDate: draft.eventStartDate ?? '',
+    eventEndDate: draft.eventEndDate ?? draft.eventStartDate ?? '',
+    eventStartTime: draft.eventStartTime ?? '',
+    eventEndTime: draft.eventEndTime ?? '',
+    isFestival: draft.isFestival,
+    lineupRows:
+      draft.lineup.length > 0 ? draft.lineup : [{ ...EMPTY_LINEUP }],
+    bagPolicy: draft.bagPolicy ?? '',
+    gettingThere: draft.gettingThere ?? '',
+    tipsText: (draft.tips ?? []).join('\n'),
+    tripName: draft.concertName ?? current.tripName,
+    startDate: draft.eventStartDate ?? current.startDate,
+    endDate: draft.eventEndDate ?? draft.eventStartDate ?? current.endDate,
   }
 }
 
@@ -104,7 +99,10 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
   const [eventEndDate, setEventEndDate] = useState(seeded?.core.eventEndDate ?? '')
   const [eventEndTime, setEventEndTime] = useState(seeded?.core.eventEndTime ?? '')
   const [isFestival, setIsFestival] = useState(seeded?.core.isFestival ?? false)
-  const [scheduleRows, setScheduleRows] = useState<ScheduleRow[]>([{ ...EMPTY_SCHEDULE }])
+  const [lineupRows, setLineupRows] = useState<LineupRow[]>([{ ...EMPTY_LINEUP }])
+  const [bagPolicy, setBagPolicy] = useState('')
+  const [gettingThere, setGettingThere] = useState('')
+  const [tipsText, setTipsText] = useState('')
   const [tripName, setTripName] = useState(seeded?.tripName ?? '')
   const [startDate, setStartDate] = useState(seeded?.startDate ?? '')
   const [endDate, setEndDate] = useState(seeded?.endDate ?? '')
@@ -118,9 +116,7 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
   const [poiRows, setPoiRows] = useState<PoiRow[]>([{ ...EMPTY_POI }])
   const [blobText, setBlobText] = useState('')
   const [parsing, setParsing] = useState(false)
-  const [importedPlan, setImportedPlan] = useState<ParsedTripPlan | null>(
-    seeded?.importedPlan ?? null
-  )
+  const [importedPlan] = useState(seeded?.importedPlan ?? null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -138,7 +134,10 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
     eventEndDate,
     eventEndTime,
     isFestival,
-    scheduleRows,
+    lineupRows,
+    bagPolicy,
+    gettingThere,
+    tipsText,
     tripName,
     startDate,
     endDate,
@@ -175,8 +174,8 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
     if (!tripName.trim()) setTripName(value)
   }
 
-  function updateScheduleRow(index: number, patch: Partial<ScheduleRow>) {
-    setScheduleRows((prev) =>
+  function updateLineupRow(index: number, patch: Partial<LineupRow>) {
+    setLineupRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, ...patch } : row))
     )
   }
@@ -193,47 +192,36 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
     }
     setParsing(true)
     try {
-      const res = await fetch('/api/plan/parse-blob', {
+      const res = await fetch('/api/concerts/ingest-lineup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blob: blobText }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Parse failed')
-      const plan = data.parsed as ParsedTripPlan
-      setImportedPlan(plan)
-      const next = applyParseToFields(plan, {
-        concertName,
-        artist,
-        venue,
-        city,
-        stateUS,
-        country,
-        eventStartDate,
-        eventEndDate,
-        tripName,
-        startDate,
-        endDate,
-      })
+      const draft = data.draft as ConcertInfoIngest
+      const next = applyIngestDraft(draft, { tripName, startDate, endDate })
       setConcertName(next.concertName)
       setArtist(next.artist)
       setVenue(next.venue)
       setCity(next.city)
       setStateUS(next.stateUS)
       setCountry(next.country)
+      setConcertUrl(next.concertUrl)
       setEventStartDate(next.eventStartDate)
       setEventEndDate(next.eventEndDate)
+      setEventStartTime(next.eventStartTime)
+      setEventEndTime(next.eventEndTime)
+      setIsFestival(next.isFestival)
+      setLineupRows(next.lineupRows)
+      setBagPolicy(next.bagPolicy)
+      setGettingThere(next.gettingThere)
+      setTipsText(next.tipsText)
       if (!tripDatesTouched.current) {
         setStartDate(next.startDate)
         setEndDate(next.endDate)
       }
       if (!tripName.trim()) setTripName(next.tripName)
-      if (plan.lodging?.title) {
-        setLodgingTitle(plan.lodging.title)
-        setLodgingAddress(plan.lodging.address ?? '')
-        setLodgingCheckIn(plan.lodging.defaultCheckInTime ?? '')
-        setLodgingCheckOut(plan.lodging.defaultCheckOutTime ?? '')
-      }
       setActiveStep('concertCore')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Parse failed')
@@ -257,19 +245,13 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
     }
 
     const resolvedTripName = (tripName || concertName).trim()
-    const scheduleItems = scheduleRows
-      .map((row, sortOrder) => ({
-        title: row.title.trim(),
-        artist: row.artist.trim() || null,
-        stage: row.stage.trim() || null,
-        location: row.location.trim() || null,
-        date: row.date || null,
-        startTime: row.startTime.trim() || null,
-        endTime: row.endTime.trim() || null,
-        notes: row.notes.trim() || null,
-        sortOrder,
-      }))
-      .filter((row) => row.title)
+    const scheduleItems = lineupRowsToScheduleItems(lineupRows, eventStartDate)
+    const descriptionText = composeFestivalDescription({
+      notes: description,
+      bagPolicy,
+      gettingThere,
+      tips: tipsFromMultilineText(tipsText),
+    })
 
     const wishlistPoi = poiRows
       .map((row) => ({
@@ -316,7 +298,7 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
             name: concertName.trim(),
             artist: artist.trim() || null,
             venue: venue.trim() || null,
-            description: description.trim() || null,
+            description: descriptionText.trim() || null,
             city: city.trim() || null,
             state: stateUS.trim() || null,
             country: country.trim() || null,
@@ -432,28 +414,80 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
         return (
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Concert schedule</h3>
-              <p className="text-sm text-gray-600">Openers, stages, day sets — like race expo schedule rows.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Festival lineup</h3>
+              <p className="text-sm text-gray-600">
+                One row per headliner — day number is relative to event start date.
+              </p>
             </div>
             <ul className="space-y-4">
-              {scheduleRows.map((row, index) => (
+              {lineupRows.map((row, index) => (
                 <li key={index} className="border border-gray-100 rounded-lg p-4 space-y-3 bg-gray-50/50">
                   <div className="flex gap-2 items-start">
-                    <input type="text" value={row.title} onChange={(e) => updateScheduleRow(index, { title: e.target.value })} placeholder="Set title / headliner" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                    {scheduleRows.length > 1 ? (
-                      <button type="button" onClick={() => setScheduleRows((p) => p.filter((_, i) => i !== index))} className="px-2 text-gray-500 hover:text-red-600 text-sm">×</button>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+                      <label className="block">
+                        <span className="block text-xs text-gray-500 mb-1">Day</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={row.day}
+                          onChange={(e) =>
+                            updateLineupRow(index, {
+                              day: e.target.value ? parseInt(e.target.value, 10) : '',
+                            })
+                          }
+                          placeholder="1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs text-gray-500 mb-1">Start</span>
+                        <input
+                          type="time"
+                          value={row.startTime}
+                          onChange={(e) => updateLineupRow(index, { startTime: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs text-gray-500 mb-1">End</span>
+                        <input
+                          type="time"
+                          value={row.endTime}
+                          onChange={(e) => updateLineupRow(index, { endTime: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </label>
+                      <label className="block sm:col-span-1 col-span-2">
+                        <span className="block text-xs text-gray-500 mb-1">Headliner</span>
+                        <input
+                          type="text"
+                          value={row.headliner}
+                          onChange={(e) => updateLineupRow(index, { headliner: e.target.value })}
+                          placeholder="Artist name"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </label>
+                    </div>
+                    {lineupRows.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => setLineupRows((p) => p.filter((_, i) => i !== index))}
+                        className="px-2 text-gray-500 hover:text-red-600 text-sm"
+                      >
+                        ×
+                      </button>
                     ) : null}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input type="text" value={row.artist} onChange={(e) => updateScheduleRow(index, { artist: e.target.value })} placeholder="Artist" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                    <input type="text" value={row.stage} onChange={(e) => updateScheduleRow(index, { stage: e.target.value })} placeholder="Stage" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                    <input type="date" value={row.date} onChange={(e) => updateScheduleRow(index, { date: e.target.value })} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                    <input type="time" value={row.startTime} onChange={(e) => updateScheduleRow(index, { startTime: e.target.value })} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
                   </div>
                 </li>
               ))}
             </ul>
-            <button type="button" onClick={() => setScheduleRows((p) => [...p, { ...EMPTY_SCHEDULE }])} className="text-sm text-indigo-700 font-medium hover:underline">+ Add schedule row</button>
+            <button
+              type="button"
+              onClick={() => setLineupRows((p) => [...p, { ...EMPTY_LINEUP }])}
+              className="text-sm text-indigo-700 font-medium hover:underline"
+            >
+              + Add headliner
+            </button>
           </div>
         )
       case 'tripCore':
@@ -572,13 +606,56 @@ export default function ConcertTripWizard({ initialDraft }: ConcertTripWizardPro
         return (
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Paste details</h3>
-              <p className="text-sm text-gray-600">Ticket email, hotel, or flight confirmations — we&apos;ll fill fields from parse.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Ingest festival info</h3>
+              <p className="text-sm text-gray-600">
+                Paste from the festival website — lineup, bag policy, getting there, and tips.
+              </p>
             </div>
-            <textarea value={blobText} onChange={(e) => setBlobText(e.target.value)} rows={8} placeholder="Paste ticket email, hotel confirmation…" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono" />
-            <button type="button" onClick={() => void handleParse()} disabled={parsing || blobText.trim().length < 20} className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50">
-              {parsing ? 'Parsing…' : 'Parse with AI'}
+            <textarea
+              value={blobText}
+              onChange={(e) => setBlobText(e.target.value)}
+              rows={8}
+              placeholder="Paste festival FAQ, lineup page, or ticket email…"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => void handleParse()}
+              disabled={parsing || blobText.trim().length < 20}
+              className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50"
+            >
+              {parsing ? 'Parsing…' : 'Ingest lineup & info'}
             </button>
+            <div className="grid grid-cols-1 gap-3 pt-2 border-t border-gray-100">
+              <label className="block">
+                <span className="block text-sm font-medium text-gray-700 mb-1">Bag policy</span>
+                <textarea
+                  value={bagPolicy}
+                  onChange={(e) => setBagPolicy(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-medium text-gray-700 mb-1">Getting there</span>
+                <textarea
+                  value={gettingThere}
+                  onChange={(e) => setGettingThere(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-medium text-gray-700 mb-1">Tips</span>
+                <textarea
+                  value={tipsText}
+                  onChange={(e) => setTipsText(e.target.value)}
+                  rows={3}
+                  placeholder="One tip per line"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </label>
+            </div>
           </div>
         )
       default:
