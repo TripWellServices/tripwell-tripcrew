@@ -17,7 +17,7 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
   {
     id: 'coreDetails',
     title: 'Core details',
-    description: 'Trip name, destination, dates, who & transport',
+    description: 'Trip title, purpose, destination, dates & transport',
   },
   {
     id: 'musicEvent',
@@ -42,13 +42,13 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
 ]
 
 export type TripSetupFormState = {
+  title: string
   purpose: string
   city: string
   state: string
   country: string
   startDate: string
   endDate: string
-  whoWith: string
   transportMode: string
   startingLocation: string
   includesMusicEvent: boolean
@@ -83,10 +83,10 @@ export function computeSetupStepStatus(
 ): 'complete' | 'partial' | 'empty' {
   switch (stepId) {
     case 'coreDetails':
-      if (form.purpose.trim() && form.city.trim() && form.startDate && form.endDate) {
+      if (form.title.trim() && form.city.trim() && form.startDate && form.endDate) {
         return 'complete'
       }
-      if (form.purpose.trim() || form.city.trim()) return 'partial'
+      if (form.title.trim() || form.city.trim()) return 'partial'
       return 'empty'
     case 'musicEvent':
       if (form.concertName.trim()) return 'complete'
@@ -117,6 +117,15 @@ export function countCompletedSetupSteps(
   ).length
 }
 
+export function detectMusicTrip(input: {
+  title?: string
+  purpose?: string
+}): boolean {
+  const hay = `${input.title ?? ''} ${input.purpose ?? ''}`
+  return /\b(festival|concert|osheaga|music|live\s+music|show)\b/i.test(hay)
+}
+
+/** @deprecated Use detectMusicTrip */
 export function detectMusicTripFromPurpose(purpose: string): boolean {
-  return /\b(festival|concert|osheaga|music|live\s+music|show)\b/i.test(purpose)
+  return detectMusicTrip({ purpose })
 }

@@ -8,6 +8,7 @@ export const tripMemoryApiInclude = {
   trip: {
     select: {
       id: true,
+      title: true,
       purpose: true,
       city: true,
       state: true,

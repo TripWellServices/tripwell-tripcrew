@@ -208,7 +208,8 @@ model Trip {
   travelerId String?
 
   tripType TripType @default(MULTI_DAY)
-  purpose  String   @default("")
+  title   String?
+  purpose String   @default("")
 
   city    String?
   state   String?

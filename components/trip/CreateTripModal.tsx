@@ -135,12 +135,10 @@ export default function CreateTripModal({ tripCrew, travelerId, onClose }: Creat
     }
 
     try {
-      const purposeCombined = [vacationData.tripName.trim(), vacationData.purpose.trim()]
-        .filter(Boolean)
-        .join(' — ')
       const result = await upsertTrip({
         crewId: tripCrew.id,
-        purpose: purposeCombined,
+        tripName: vacationData.tripName.trim(),
+        purpose: vacationData.purpose.trim(),
         city: vacationData.city.trim(),
         country: vacationData.country.trim(),
         startDate: new Date(vacationData.startDate),

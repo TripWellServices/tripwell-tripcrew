@@ -22,8 +22,8 @@ export default function CoreDetailsStep({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Core details</h3>
         <p className="text-sm text-gray-600">
-          Name your trip, set destination and travel dates, then choose whether this trip
-          includes a music festival or concert.
+          Set a clear trip title and optional purpose, then add destination, dates, and
+          transport. People and TripCrew sharing come later.
         </p>
       </div>
 
@@ -35,15 +35,29 @@ export default function CoreDetailsStep({
 
       <label className="block">
         <span className="block text-sm font-medium text-gray-700 mb-1">
-          Trip name / purpose <span className="text-red-500">*</span>
+          Trip title <span className="text-red-500">*</span>
         </span>
         <input
           type="text"
-          value={form.purpose}
-          onChange={(e) => onChange({ purpose: e.target.value })}
+          value={form.title}
+          onChange={(e) => onChange({ title: e.target.value })}
           placeholder="e.g. Osheaga Music Festival"
           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
         />
+      </label>
+
+      <label className="block">
+        <span className="block text-sm font-medium text-gray-700 mb-1">Trip purpose</span>
+        <textarea
+          value={form.purpose}
+          onChange={(e) => onChange({ purpose: e.target.value })}
+          rows={3}
+          placeholder="e.g. Attending the Osheaga music festival with friends"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+        />
+        <span className="block text-xs text-gray-500 mt-1">
+          Why you are going — separate from the display title.
+        </span>
       </label>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -104,22 +118,7 @@ export default function CoreDetailsStep({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className="block">
-          <span className="block text-sm font-medium text-gray-700 mb-1">Who</span>
-          <select
-            value={form.whoWith}
-            onChange={(e) => onChange({ whoWith: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          >
-            <option value="">—</option>
-            <option value="SOLO">Solo</option>
-            <option value="SPOUSE">Spouse</option>
-            <option value="FRIENDS">Friends</option>
-            <option value="FAMILY">Family</option>
-            <option value="OTHER">Other</option>
-          </select>
-        </label>
-        <label className="block">
+        <label className="block sm:col-span-1">
           <span className="block text-sm font-medium text-gray-700 mb-1">Transport</span>
           <select
             value={form.transportMode}
@@ -132,18 +131,17 @@ export default function CoreDetailsStep({
             <option value="BOAT">Boat</option>
           </select>
         </label>
+        <label className="block sm:col-span-1">
+          <span className="block text-sm font-medium text-gray-700 mb-1">Starting from</span>
+          <input
+            type="text"
+            value={form.startingLocation}
+            onChange={(e) => onChange({ startingLocation: e.target.value })}
+            placeholder="Home airport or city"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+          />
+        </label>
       </div>
-
-      <label className="block">
-        <span className="block text-sm font-medium text-gray-700 mb-1">Starting from</span>
-        <input
-          type="text"
-          value={form.startingLocation}
-          onChange={(e) => onChange({ startingLocation: e.target.value })}
-          placeholder="Home airport or city"
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-        />
-      </label>
 
       <label className="flex items-start gap-3 p-4 rounded-lg border border-indigo-100 bg-indigo-50/50 cursor-pointer">
         <input

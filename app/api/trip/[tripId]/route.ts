@@ -92,7 +92,7 @@ export async function GET(
 
 /**
  * PATCH: assign trip to crew, clear crew, or update core trip fields.
- * Body: { travelerId, crewId?, purpose?, city?, state?, country?, startDate?, endDate?, whoWith?, transportMode?, startingLocation? }
+ * Body: { travelerId, crewId?, title?, purpose?, city?, state?, country?, startDate?, endDate?, whoWith?, transportMode?, startingLocation? }
  */
 export async function PATCH(
   request: NextRequest,
@@ -104,6 +104,7 @@ export async function PATCH(
     const {
       travelerId,
       crewId,
+      title: titleRaw,
       purpose,
       city,
       state,
@@ -116,7 +117,8 @@ export async function PATCH(
     } = body as {
       travelerId?: string
       crewId?: string | null
-      purpose?: string
+      title?: string | null
+      purpose?: string | null
       city?: string | null
       state?: string | null
       country?: string | null
@@ -140,6 +142,7 @@ export async function PATCH(
     }
 
     const hasCoreUpdate =
+      titleRaw !== undefined ||
       purpose !== undefined ||
       city !== undefined ||
       state !== undefined ||
@@ -183,7 +186,8 @@ export async function PATCH(
         const updated = await tx.trip.update({
           where: { id: tripId },
           data: {
-            ...(purpose !== undefined && { purpose: purpose.trim() }),
+            ...(titleRaw !== undefined && { title: titleRaw?.trim() || null }),
+            ...(purpose !== undefined && { purpose: purpose?.trim() ?? '' }),
             ...(city !== undefined && { city: city?.trim() || null }),
             ...(state !== undefined && { state: state?.trim() || null }),
             ...(country !== undefined && { country: country?.trim() || null }),

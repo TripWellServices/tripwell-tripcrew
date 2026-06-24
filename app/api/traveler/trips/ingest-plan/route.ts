@@ -209,10 +209,11 @@ export async function POST(request: NextRequest) {
       typeof whereFreeform === 'string' ? whereFreeform.trim() || null : null
 
     const placeParts = [cityT, stateT, countryT].filter(Boolean).join(', ')
-    const whereLine = placeParts || whereF || ''
-    let purpose = tripName
-    if (whereLine) purpose = `${tripName}. ${whereLine}`
-    if (notes?.trim()) purpose = `${purpose}. ${notes.trim()}`
+    const title = tripName
+    const purposeParts: string[] = []
+    if (notes?.trim()) purposeParts.push(notes.trim())
+    else if (concertCore?.description?.trim()) purposeParts.push(concertCore.description.trim())
+    const purpose = purposeParts.join('. ')
 
     const { daysTotal, season } = computeTripMetadata(start, end)
     const sameCalendarDay =
@@ -275,6 +276,7 @@ export async function POST(request: NextRequest) {
         data: {
           crewId: null,
           travelerId,
+          title,
           purpose,
           startDate: start,
           endDate: end,

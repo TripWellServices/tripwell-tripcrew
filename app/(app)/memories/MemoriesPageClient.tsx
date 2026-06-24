@@ -5,13 +5,15 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { uploadTripMemoryPhotoFile } from '@/lib/client/tripMemoryUpload'
-import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
+import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 
 type MemoryPhoto = { id: string; publicUrl: string; sortOrder: number }
 
 type TripOption = {
   id: string
   tripName?: string
+  title?: string | null
+  purpose?: string
   dateRange?: string
 }
 
@@ -36,6 +38,7 @@ type TripMemoryRow = {
   tripDay: { id: string; dayNumber: number; date: string } | null
   trip: {
     id: string
+    title: string | null
     purpose: string
     city: string | null
     state: string | null
@@ -94,9 +97,9 @@ export default function MemoriesPageClient() {
       const data = await res.json().catch(() => [])
       if (res.ok && Array.isArray(data)) {
         setTrips(
-          data.map((t: TripOption & { purpose?: string; startDate?: string }) => ({
+          data.map((t: TripOption) => ({
             id: t.id,
-            tripName: t.tripName || tripDisplayTitle(t.purpose),
+            tripName: t.tripName || resolveTripTitle(t.title, t.purpose),
             dateRange: t.dateRange,
           }))
         )
@@ -123,7 +126,7 @@ export default function MemoriesPageClient() {
   const memoryContextLine = (m: TripMemoryRow) => {
     if (m.trip) {
       const place = [m.trip.city, m.trip.state, m.trip.country].filter(Boolean).join(', ')
-      return place || tripDisplayTitle(m.trip.purpose) || 'TripWell trip'
+      return place || resolveTripTitle(m.trip.title, m.trip.purpose) || 'TripWell trip'
     }
     const place = [m.freestyleCity, m.freestyleState, m.freestyleCountry].filter(Boolean).join(', ')
     return [m.freestyleTitle, place].filter(Boolean).join(' · ') || 'Memory'

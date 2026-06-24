@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import {
   computeTripMetadata,
   tripDateRangeLabel,
-  tripDisplayTitle,
+  resolveTripTitle,
 } from '@/lib/trip/computeTripMetadata'
 import { seedTripDays } from '@/lib/trip/seedTripDays'
 import { TripType, TransportMode, WhoWith } from '@prisma/client'
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         trips.map((t) => ({
           ...t,
-          tripName: tripDisplayTitle(t.purpose),
+          tripName: resolveTripTitle(t.title, t.purpose),
           dateRange: tripDateRangeLabel(t.startDate, t.endDate),
         }))
       )
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       trips.map((t) => ({
         ...t,
-        tripName: tripDisplayTitle(t.purpose),
+        tripName: resolveTripTitle(t.title, t.purpose),
         dateRange: tripDateRangeLabel(t.startDate, t.endDate),
       }))
     )
@@ -233,9 +233,8 @@ export async function POST(request: NextRequest) {
 
     const tn = tripName?.trim()
     const pr = purpose?.trim()
-    let purposeFinal = ''
-    if (tn && pr) purposeFinal = `${tn}. ${pr}`
-    else purposeFinal = pr || tn || ''
+    const titleFinal = tn || anchorTitle
+    let purposeFinal = pr || ''
     if (!purposeFinal) {
       purposeFinal = createPlanned ? 'Planning our trip' : `Built around ${anchorTitle}`
     }
@@ -261,6 +260,7 @@ export async function POST(request: NextRequest) {
         data: {
           crewId,
           travelerId,
+          title: titleFinal,
           purpose: purposeFinal,
           startDate: start,
           endDate: end,

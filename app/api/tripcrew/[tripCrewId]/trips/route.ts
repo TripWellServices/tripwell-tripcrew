@@ -110,7 +110,8 @@ export async function POST(
           data: {
             crewId: tripCrewId,
             travelerId: travelerId || null,
-            purpose: (purpose || tripName || 'Planning our trip').trim(),
+            title: (tripName || 'Planning our trip').trim(),
+            purpose: (purpose || '').trim(),
             startDate: start,
             endDate: end,
             daysTotal,

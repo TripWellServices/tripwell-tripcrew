@@ -36,14 +36,61 @@ export function tripPersistedMetadata(startDate: Date, endDate: Date) {
   return { daysTotal, season }
 }
 
-export function tripDisplayTitle(purpose: string | null | undefined) {
+/** Legacy: derive display title from purpose blob (first segment before ". "). */
+export function tripDisplayTitleFromPurpose(purpose: string | null | undefined) {
   const t = purpose?.trim()
   if (!t) return 'Trip'
   const dot = t.indexOf('. ')
   return dot > 0 ? t.slice(0, dot) : t
 }
 
+/** Prefer explicit title; fall back to legacy purpose split. */
+export function resolveTripTitle(
+  title: string | null | undefined,
+  purpose?: string | null | undefined
+) {
+  const t = title?.trim()
+  if (t) return t
+  return tripDisplayTitleFromPurpose(purpose)
+}
+
+/** @deprecated Prefer resolveTripTitle(title, purpose). Still accepts purpose-only for legacy callers. */
+export function tripDisplayTitle(purpose: string | null | undefined) {
+  return tripDisplayTitleFromPurpose(purpose)
+}
+
+/**
+ * Split legacy AI-ingested purpose blobs into title + purpose text for wizard forms.
+ * Strips redundant "Where: …" lines when destination is already structured on the trip.
+ */
+export function splitLegacyPurposeBlob(
+  purpose: string | null | undefined,
+  title?: string | null
+): { title: string; purposeText: string } {
+  const raw = purpose?.trim() ?? ''
+  const resolvedTitle = title?.trim() || tripDisplayTitleFromPurpose(raw)
+
+  if (!raw) {
+    return { title: resolvedTitle === 'Trip' ? '' : resolvedTitle, purposeText: '' }
+  }
+
+  if (title?.trim()) {
+    return { title: title.trim(), purposeText: raw }
+  }
+
+  let remainder = raw
+  if (remainder.startsWith(resolvedTitle)) {
+    remainder = remainder.slice(resolvedTitle.length).replace(/^\.\s*/, '')
+  }
+
+  remainder = remainder.replace(/^Where:\s*[^.]+\.\s*/i, '').trim()
+
+  return {
+    title: resolvedTitle === 'Trip' ? raw : resolvedTitle,
+    purposeText: remainder,
+  }
+}
+
 export function tripDateRangeLabel(startDate: Date | string, endDate: Date | string) {
   return computeTripMetadata(new Date(startDate), new Date(endDate)).dateRange
 }
-

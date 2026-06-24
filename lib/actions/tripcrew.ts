@@ -8,7 +8,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
+import { tripDateRangeLabel, resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 import { revalidatePath } from 'next/cache'
 import { appConfig } from '@/config/appConfig'
 
@@ -219,7 +219,7 @@ export async function getTripCrew(tripCrewId: string, travelerId: string) {
       ...tripCrew,
       trips: tripCrew.trips.map((t) => ({
         ...t,
-        tripName: tripDisplayTitle(t.purpose),
+        tripName: resolveTripTitle(t.title, t.purpose),
         dateRange: tripDateRangeLabel(t.startDate, t.endDate),
       })),
     }
@@ -246,6 +246,7 @@ export async function getTravelerTripCrews(travelerId: string) {
               take: 3, // Latest 3 trips
               select: {
                 id: true,
+                title: true,
                 purpose: true,
                 city: true,
                 state: true,
@@ -274,7 +275,7 @@ export async function getTravelerTripCrews(travelerId: string) {
           ...crew,
           trips: crew.trips.map((t) => ({
             ...t,
-            tripName: tripDisplayTitle(t.purpose),
+            tripName: resolveTripTitle(t.title, t.purpose),
             dateRange: tripDateRangeLabel(t.startDate, t.endDate),
           })),
         }

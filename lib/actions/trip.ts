@@ -47,8 +47,8 @@ export async function upsertTrip(data: {
     const resolvedTripType = tripType ?? TripType.MULTI_DAY
     const endDate = resolvedTripType === TripType.SINGLE_DAY ? startDate : data.endDate
 
-    const resolvedPurpose =
-      purpose?.trim() || tripName?.trim() || 'Trip'
+    const resolvedTitle = tripName?.trim() || 'Trip'
+    const resolvedPurpose = purpose?.trim() ?? ''
 
     if (resolvedTripType === TripType.MULTI_DAY) {
       if (!city?.trim()) {
@@ -78,6 +78,7 @@ export async function upsertTrip(data: {
         const updated = await tx.trip.update({
           where: { id },
           data: {
+            title: resolvedTitle,
             purpose: resolvedPurpose,
             city: city?.trim() || null,
             state: state?.trim() || null,
@@ -113,6 +114,7 @@ export async function upsertTrip(data: {
         data: {
           crewId,
           travelerId,
+          title: resolvedTitle,
           purpose: resolvedPurpose,
           city: city?.trim() || null,
           state: state?.trim() || null,

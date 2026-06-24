@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTrip } from '@/lib/actions/trip'
-import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
+import { tripDateRangeLabel, resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 import TripNav from '@/app/components/trip/TripNav'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +22,7 @@ export default async function TripLayout({ children, params }: LayoutProps) {
   const crewId = trip.crew?.id ?? ''
   const crewName = trip.crew?.name ?? 'Crew'
   const hasCrew = Boolean(crewId)
-  const tripTitle = tripDisplayTitle(trip.purpose)
+  const tripTitle = resolveTripTitle(trip.title, trip.purpose)
   const destinationLine =
     trip.city && trip.country
       ? trip.state

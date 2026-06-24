@@ -8,7 +8,7 @@ import {
   buildMemoryShareHtml,
   sendTripMemoryShareEmail,
 } from '@/lib/email/sendTripMemoryShare'
-import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
+import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 
 export type ShareResultItem = {
   email: string
@@ -45,6 +45,7 @@ export async function executeMemoryShare(input: {
       trip: {
         select: {
           id: true,
+          title: true,
           purpose: true,
           city: true,
           state: true,
@@ -145,7 +146,7 @@ export async function executeMemoryShare(input: {
 
   if (memory.tripId && memory.trip) {
     tripLabel =
-      tripDisplayTitle(memory.trip.purpose) ||
+      resolveTripTitle(memory.trip.title, memory.trip.purpose) ||
       [memory.trip.city, memory.trip.state, memory.trip.country].filter(Boolean).join(', ') ||
       'Your trip'
     tripUrl = base ? `${base}/trip/${memory.tripId}` : `/trip/${memory.tripId}`

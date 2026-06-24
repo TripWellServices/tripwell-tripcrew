@@ -12,7 +12,7 @@ import TripMemoriesCard from '@/app/components/trip/TripMemoriesCard'
 import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
-import { tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
+import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +37,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
         <TripHeader
-          name={tripDisplayTitle(trip.purpose)}
+          name={resolveTripTitle(trip.title, trip.purpose)}
           destination={trip.state ? `${trip.city}, ${trip.state}, ${trip.country}` : `${trip.city}, ${trip.country}`}
           startDate={trip.startDate}
           endDate={trip.endDate}

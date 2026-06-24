@@ -13,14 +13,18 @@ import PoiStep from '@/app/components/trip/setup/steps/PoiStep'
 import {
   computeSetupStepStatus,
   countCompletedSetupSteps,
-  detectMusicTripFromPurpose,
+  detectMusicTrip,
   type TripSetupFormState,
   type TripSetupStepId,
   visibleSetupSteps,
 } from '@/app/components/trip/setup/trip-setup-wizard-steps'
 import { dateOnlyToNoonISO } from '@/lib/trip-plan-dates'
 import { LocalStorageAPI } from '@/lib/localStorage'
-import { tripDateRangeLabel, tripDisplayTitle } from '@/lib/trip/computeTripMetadata'
+import {
+  resolveTripTitle,
+  splitLegacyPurposeBlob,
+  tripDateRangeLabel,
+} from '@/lib/trip/computeTripMetadata'
 
 type LogisticItem = {
   id: string
@@ -43,13 +47,13 @@ export type TripSetupWizardProps = {
   googleApiKey: string
   catalogueCityId: string | null
   initial: {
+    title: string | null
     purpose: string
     city: string | null
     state: string | null
     country: string | null
     startDate: string
     endDate: string
-    whoWith: string | null
     transportMode: string | null
     startingLocation: string | null
     lodging: LodgingCardLodging | null
@@ -87,17 +91,19 @@ function findFlightDetail(items: LogisticItem[], title: string): string {
 }
 
 function buildInitialForm(initial: TripSetupWizardProps['initial']): TripSetupFormState {
+  const split = splitLegacyPurposeBlob(initial.purpose, initial.title)
   const includesMusicEvent =
-    Boolean(initial.concertId) || detectMusicTripFromPurpose(initial.purpose)
+    Boolean(initial.concertId) ||
+    detectMusicTrip({ title: split.title, purpose: split.purposeText })
 
   return {
-    purpose: initial.purpose,
+    title: split.title,
+    purpose: split.purposeText,
     city: initial.city ?? '',
     state: initial.state ?? '',
     country: initial.country ?? '',
     startDate: dateInputValue(initial.startDate),
     endDate: dateInputValue(initial.endDate),
-    whoWith: initial.whoWith ?? '',
     transportMode: initial.transportMode ?? '',
     startingLocation: initial.startingLocation ?? '',
     includesMusicEvent,
@@ -155,7 +161,7 @@ export default function TripSetupWizard({
   )
 
   const completedCount = countCompletedSetupSteps(form, form.includesMusicEvent)
-  const title = tripDisplayTitle(form.purpose)
+  const headerTitle = form.title.trim() || resolveTripTitle(null, form.purpose)
   const dateLabel = form.startDate && form.endDate
     ? tripDateRangeLabel(form.startDate, form.endDate)
     : ''
@@ -164,12 +170,13 @@ export default function TripSetupWizard({
     setForm((prev) => {
       const next = { ...prev, ...patch }
       if (
-        patch.purpose !== undefined &&
+        (patch.title !== undefined || patch.purpose !== undefined) &&
         patch.includesMusicEvent === undefined &&
         !initial.concertId
       ) {
         next.includesMusicEvent =
-          prev.includesMusicEvent || detectMusicTripFromPurpose(patch.purpose)
+          prev.includesMusicEvent ||
+          detectMusicTrip({ title: next.title, purpose: next.purpose })
       }
       if (patch.includesMusicEvent === false && activeStep === 'musicEvent') {
         setActiveStep('flightInfo')
@@ -192,8 +199,8 @@ export default function TripSetupWizard({
     const travelerId = requireTravelerId()
     if (!travelerId) return
 
-    if (!form.purpose.trim() || !form.city.trim() || !form.startDate || !form.endDate) {
-      setError('Trip name, city, and dates are required.')
+    if (!form.title.trim() || !form.city.trim() || !form.startDate || !form.endDate) {
+      setError('Trip title, city, and dates are required.')
       return
     }
 
@@ -204,13 +211,13 @@ export default function TripSetupWizard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           travelerId,
-          purpose: form.purpose.trim(),
+          title: form.title.trim(),
+          purpose: form.purpose.trim() || null,
           city: form.city.trim(),
           state: form.state.trim() || null,
           country: form.country.trim() || null,
           startDate: dateOnlyToNoonISO(form.startDate),
           endDate: dateOnlyToNoonISO(form.endDate),
-          whoWith: form.whoWith || null,
           transportMode: form.transportMode || null,
           startingLocation: form.startingLocation.trim() || null,
         }),
@@ -450,7 +457,7 @@ export default function TripSetupWizard({
         >
           ← View day plan
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{headerTitle}</h1>
         {dateLabel ? (
           <p className="text-sm text-gray-600 mt-1">
             {[form.city, form.state, form.country].filter(Boolean).join(', ')} · {dateLabel}

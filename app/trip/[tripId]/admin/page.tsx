@@ -5,6 +5,7 @@ import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
 import type { ScheduleRow } from '@/app/components/planner/concert-wizard-steps'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
+import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,13 +67,13 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
         googleApiKey={googleApiKey}
         catalogueCityId={catalogueCityId}
         initial={{
+          title: trip.title,
           purpose: trip.purpose,
           city: trip.city,
           state: trip.state,
           country: trip.country,
           startDate: trip.startDate.toISOString(),
           endDate: trip.endDate.toISOString(),
-          whoWith: trip.whoWith,
           transportMode: trip.transportMode,
           startingLocation: trip.startingLocation,
           lodging: trip.lodging,
@@ -80,7 +81,8 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
           attractions: trip.attractions,
           logistics: trip.logistics,
           concertId: concert?.id ?? null,
-          concertName: concert?.name ?? trip.purpose.split('.')[0]?.trim() ?? '',
+          concertName:
+            concert?.name ?? resolveTripTitle(trip.title, trip.purpose),
           concertArtist: concert?.artist ?? '',
           concertVenue: concert?.venue ?? '',
           concertUrl: concert?.url ?? '',
