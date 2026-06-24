@@ -15,7 +15,7 @@ export default function PostIngestNextSteps() {
       <p className="text-sm font-semibold text-emerald-950 mb-2">Concert trip saved — keep building</p>
       <ul className="text-sm text-emerald-900 space-y-2">
         <li>
-          Edit concert, lodging, and itinerary in the cards below — everything stays inline on this trip.
+          Continue the setup steps below — core details, travel, lodging, and places to go.
         </li>
         <li>
           <Link

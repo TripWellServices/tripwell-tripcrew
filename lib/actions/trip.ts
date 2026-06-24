@@ -224,6 +224,16 @@ export async function getTrip(tripId: string) {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
+        concertAnchors: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            concert: {
+              include: {
+                scheduleItems: { orderBy: { sortOrder: 'asc' } },
+              },
+            },
+          },
+        },
       },
     })
 
