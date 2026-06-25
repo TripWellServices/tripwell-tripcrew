@@ -14,7 +14,8 @@ import {
   type ParsedTripLeg,
 } from '@/lib/trip-plan-model'
 import { parseIncomingTripDate } from '@/lib/trip-plan-dates'
-import { TripType, TransportMode, WhoWith } from '@prisma/client'
+import { TripSetupOrigin, TripType, TransportMode, WhoWith } from '@prisma/client'
+import { inferConcertTripTitle } from '@/lib/trip/inferTripTitle'
 import { enrichCityCatalogIfNeeded } from '@/lib/city-guide-enrich'
 import { upsertCityByName } from '@/lib/city-upsert'
 import {
@@ -209,7 +210,14 @@ export async function POST(request: NextRequest) {
       typeof whereFreeform === 'string' ? whereFreeform.trim() || null : null
 
     const placeParts = [cityT, stateT, countryT].filter(Boolean).join(', ')
-    const title = tripName
+    const title = concertCore?.name?.trim()
+      ? inferConcertTripTitle({
+          concertName: concertCore.name,
+          city: cityT,
+          state: stateT,
+          country: countryT,
+        })
+      : tripName
     const purposeParts: string[] = []
     if (notes?.trim()) purposeParts.push(notes.trim())
     else if (concertCore?.description?.trim()) purposeParts.push(concertCore.description.trim())
@@ -276,6 +284,7 @@ export async function POST(request: NextRequest) {
         data: {
           crewId: null,
           travelerId,
+          setupOrigin: TripSetupOrigin.CONCERT_INGEST,
           title,
           purpose,
           startDate: start,
@@ -426,6 +435,7 @@ export async function POST(request: NextRequest) {
         tripId,
         concertId: savedConcertId,
         anchorId: savedAnchorId,
+        setupOrigin: TripSetupOrigin.CONCERT_INGEST,
       },
       { status: 201 }
     )

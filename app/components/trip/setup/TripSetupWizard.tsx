@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { ScheduleRow } from '@/app/components/trip/setup/trip-setup-wizard-steps'
 import {
   emptyLineupRow,
@@ -23,7 +23,7 @@ import PoiStep from '@/app/components/trip/setup/steps/PoiStep'
 import {
   computeSetupStepStatus,
   countCompletedSetupSteps,
-  detectMusicTrip,
+  type TripSetupContextProps,
   type TripSetupFormState,
   type TripSetupStepId,
   visibleSetupSteps,
@@ -31,10 +31,19 @@ import {
 import { dateOnlyToNoonISO } from '@/lib/trip-plan-dates'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import {
+  formatTripTitle,
+  inferConcertTripTitle,
+} from '@/lib/trip/inferTripTitle'
+import {
   resolveTripTitle,
   splitLegacyPurposeBlob,
   tripDateRangeLabel,
 } from '@/lib/trip/computeTripMetadata'
+import {
+  AutosaveStatusBar,
+  useTripSetupAutosave,
+} from '@/lib/trip/useTripSetupAutosave'
+import { UNITED_STATES_COUNTRY } from '@/lib/geo/us-states'
 
 type LogisticItem = {
   id: string
@@ -78,6 +87,8 @@ export type TripSetupWizardProps = {
   tripId: string
   googleApiKey: string
   catalogueCityId: string | null
+  setupContext: TripSetupContextProps
+  defaultLeavingFrom: string | null
   initial: {
     title: string | null
     purpose: string
@@ -86,7 +97,6 @@ export type TripSetupWizardProps = {
     country: string | null
     startDate: string
     endDate: string
-    transportMode: string | null
     startingLocation: string | null
     lodging: LodgingCardLodging | null
     dining: PoiItem[]
@@ -119,12 +129,12 @@ function dateInputValue(d: Date | string | null | undefined): string {
   return `${y}-${m}-${day}`
 }
 
-function buildInitialForm(initial: TripSetupWizardProps['initial']): TripSetupFormState {
+function buildInitialForm(
+  initial: TripSetupWizardProps['initial'],
+  setupContext: TripSetupContextProps,
+  defaultLeavingFrom: string | null
+): TripSetupFormState {
   const split = splitLegacyPurposeBlob(initial.purpose, initial.title)
-  const includesMusicEvent =
-    Boolean(initial.concertId) ||
-    detectMusicTrip({ title: split.title, purpose: split.purposeText })
-
   const flightRows = flightRowsFromInitial(
     initial.flights.map((f) => ({
       ...f,
@@ -142,17 +152,28 @@ function buildInitialForm(initial: TripSetupWizardProps['initial']): TripSetupFo
     }))
   )
 
+  const resolvedTitle =
+    split.title ||
+    setupContext.inferredTitle ||
+    (initial.concertName
+      ? inferConcertTripTitle({
+          concertName: initial.concertName,
+          city: initial.city,
+          state: initial.state,
+          country: initial.country,
+        })
+      : '')
+
   return {
-    title: split.title,
+    title: resolvedTitle,
+    titleManuallyEdited: Boolean(split.title?.trim()),
     purpose: split.purposeText,
     city: initial.city ?? '',
     state: initial.state ?? '',
-    country: initial.country ?? '',
+    country: initial.country?.trim() || UNITED_STATES_COUNTRY,
     startDate: dateInputValue(initial.startDate),
     endDate: dateInputValue(initial.endDate),
-    transportMode: initial.transportMode ?? '',
-    startingLocation: initial.startingLocation ?? '',
-    includesMusicEvent,
+    startingLocation: initial.startingLocation?.trim() || defaultLeavingFrom?.trim() || '',
     concertName: initial.concertName,
     concertArtist: initial.concertArtist,
     concertVenue: initial.concertVenue,
@@ -182,44 +203,26 @@ export default function TripSetupWizard({
   tripId,
   googleApiKey,
   catalogueCityId,
+  setupContext,
+  defaultLeavingFrom,
   initial,
 }: TripSetupWizardProps) {
   const router = useRouter()
   const [activeStep, setActiveStep] = useState<TripSetupStepId>('coreDetails')
-  const [form, setForm] = useState<TripSetupFormState>(() => buildInitialForm(initial))
-  const [concertId, setConcertId] = useState<string | null>(initial.concertId)
-  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState<TripSetupFormState>(() =>
+    buildInitialForm(initial, setupContext, defaultLeavingFrom)
+  )
+  const [concertId, setConcertId] = useState<string | null>(
+    setupContext.concertId ?? initial.concertId
+  )
   const [error, setError] = useState<string | null>(null)
 
-  const steps = useMemo(
-    () => visibleSetupSteps(form.includesMusicEvent),
-    [form.includesMusicEvent]
-  )
-
-  const completedCount = countCompletedSetupSteps(form, form.includesMusicEvent)
+  const showMusicStep = setupContext.showMusicStep
+  const steps = useMemo(() => visibleSetupSteps(showMusicStep), [showMusicStep])
+  const completedCount = countCompletedSetupSteps(form, showMusicStep)
   const headerTitle = form.title.trim() || resolveTripTitle(null, form.purpose)
-  const dateLabel = form.startDate && form.endDate
-    ? tripDateRangeLabel(form.startDate, form.endDate)
-    : ''
-
-  function patchForm(patch: Partial<TripSetupFormState>) {
-    setForm((prev) => {
-      const next = { ...prev, ...patch }
-      if (
-        (patch.title !== undefined || patch.purpose !== undefined) &&
-        patch.includesMusicEvent === undefined &&
-        !initial.concertId
-      ) {
-        next.includesMusicEvent =
-          prev.includesMusicEvent ||
-          detectMusicTrip({ title: next.title, purpose: next.purpose })
-      }
-      if (patch.includesMusicEvent === false && activeStep === 'musicEvent') {
-        setActiveStep('flightInfo')
-      }
-      return next
-    })
-  }
+  const dateLabel =
+    form.startDate && form.endDate ? tripDateRangeLabel(form.startDate, form.endDate) : ''
 
   function requireTravelerId(): string | null {
     const tid = LocalStorageAPI.getTravelerId()
@@ -230,212 +233,278 @@ export default function TripSetupWizard({
     return tid
   }
 
-  async function saveCoreDetails() {
-    setError(null)
-    const travelerId = requireTravelerId()
-    if (!travelerId) return
+  function patchForm(patch: Partial<TripSetupFormState>) {
+    setForm((prev) => {
+      const next = { ...prev, ...patch }
 
-    if (!form.title.trim() || !form.city.trim() || !form.startDate || !form.endDate) {
-      setError('Trip title, city, and dates are required.')
-      return
-    }
+      if (
+        !next.titleManuallyEdited &&
+        setupContext.isConcertTrip &&
+        (patch.concertName !== undefined ||
+          patch.city !== undefined ||
+          patch.state !== undefined ||
+          patch.country !== undefined)
+      ) {
+        const name = next.concertName.trim()
+        if (name) {
+          next.title = inferConcertTripTitle({
+            concertName: name,
+            city: next.city,
+            state: next.state,
+            country: next.country,
+          })
+        }
+      }
 
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/trip/${tripId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          travelerId,
-          title: form.title.trim(),
-          purpose: form.purpose.trim() || null,
-          city: form.city.trim(),
-          state: form.state.trim() || null,
-          country: form.country.trim() || null,
-          startDate: dateOnlyToNoonISO(form.startDate),
-          endDate: dateOnlyToNoonISO(form.endDate),
-          transportMode: form.transportMode || null,
-          startingLocation: form.startingLocation.trim() || null,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Failed to save core details')
-      router.refresh()
-      advanceAfterSave('coreDetails')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
-    } finally {
-      setSaving(false)
-    }
+      return next
+    })
   }
 
-  async function saveMusicEvent() {
-    setError(null)
+  const persistCoreDetails = useCallback(async () => {
     const travelerId = requireTravelerId()
-    if (!travelerId) return
-
-    if (!form.concertName.trim()) {
-      setError('Event name is required.')
-      return
+    if (!travelerId) throw new Error('Sign in to save changes to this trip.')
+    if (!form.title.trim() || !form.city.trim() || !form.startDate || !form.endDate) {
+      throw new Error('Trip title, city, and dates are required.')
     }
 
-    setSaving(true)
-    try {
-      const scheduleItems = lineupRowsToScheduleItems(
-        form.scheduleRows,
-        form.eventStartDate
-      )
-
-      const concertBody = {
-        name: form.concertName.trim(),
-        artist: form.concertArtist.trim() || null,
-        venue: form.concertVenue.trim() || null,
-        city: form.city.trim() || null,
+    const res = await fetch(`/api/trip/${tripId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        travelerId,
+        title: formatTripTitle(form.title.trim()),
+        purpose: form.purpose.trim() || null,
+        city: form.city.trim(),
         state: form.state.trim() || null,
         country: form.country.trim() || null,
-        url: form.concertUrl.trim() || null,
-        description: form.concertDescription.trim() || null,
-        eventStartDate: form.eventStartDate || null,
-        eventEndDate: form.eventEndDate || form.eventStartDate || null,
-        eventStartTime: form.eventStartTime.trim() || null,
-        eventEndTime: form.eventEndTime.trim() || null,
-        isFestival: form.isFestival,
-      }
-
-      let savedConcertId = concertId
-      if (savedConcertId) {
-        const res = await fetch(`/api/concerts/${savedConcertId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(concertBody),
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(data.error || 'Failed to update concert')
-
-        if (scheduleItems.length) {
-          const schedRes = await fetch(`/api/concerts/${savedConcertId}/schedule`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: scheduleItems }),
-          })
-          if (!schedRes.ok) {
-            const sd = await schedRes.json().catch(() => ({}))
-            throw new Error(sd.error || 'Failed to save schedule')
-          }
-        }
-      } else {
-        const res = await fetch('/api/concerts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...concertBody, scheduleItems }),
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(data.error || 'Failed to create concert')
-        savedConcertId = data.id as string
-        setConcertId(savedConcertId)
-
-        const anchorRes = await fetch(`/api/trip/${tripId}/concert-anchor`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ travelerId, concertId: savedConcertId }),
-        })
-        const anchorData = await anchorRes.json().catch(() => ({}))
-        if (!anchorRes.ok) {
-          throw new Error(anchorData.error || 'Failed to link concert to trip')
-        }
-      }
-
-      router.refresh()
-      advanceAfterSave('musicEvent')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save music event')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function saveFlightInfo() {
+        startDate: dateOnlyToNoonISO(form.startDate),
+        endDate: dateOnlyToNoonISO(form.endDate),
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Failed to save core details')
     setError(null)
-    const travelerId = requireTravelerId()
-    if (!travelerId) return
+    router.refresh()
+  }, [form, tripId, router])
 
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/trip/${tripId}/flights`, {
-        method: 'PUT',
+  const persistMusicEvent = useCallback(async () => {
+    if (!showMusicStep) return
+    const travelerId = requireTravelerId()
+    if (!travelerId) throw new Error('Sign in to save changes to this trip.')
+    if (!form.concertName.trim()) throw new Error('Event name is required.')
+
+    const scheduleItems = lineupRowsToScheduleItems(form.scheduleRows, form.eventStartDate)
+    const concertBody = {
+      name: form.concertName.trim(),
+      artist: form.concertArtist.trim() || null,
+      venue: form.concertVenue.trim() || null,
+      city: form.city.trim() || null,
+      state: form.state.trim() || null,
+      country: form.country.trim() || null,
+      url: form.concertUrl.trim() || null,
+      description: form.concertDescription.trim() || null,
+      eventStartDate: form.eventStartDate || null,
+      eventEndDate: form.eventEndDate || form.eventStartDate || null,
+      eventStartTime: form.eventStartTime.trim() || null,
+      eventEndTime: form.eventEndTime.trim() || null,
+      isFestival: form.isFestival,
+    }
+
+    let savedConcertId = concertId
+    if (savedConcertId) {
+      const res = await fetch(`/api/concerts/${savedConcertId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          travelerId,
-          flights: form.flightRows.filter(flightRowHasData),
-          travelNotes: form.flightNotes.trim() || null,
-        }),
+        body: JSON.stringify(concertBody),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Failed to save flights')
+      if (!res.ok) throw new Error(data.error || 'Failed to update concert')
 
-      patchForm({
-        flightCount: Array.isArray(data.flights) ? data.flights.length : form.flightRows.length,
+      if (scheduleItems.length) {
+        const schedRes = await fetch(`/api/concerts/${savedConcertId}/schedule`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: scheduleItems }),
+        })
+        if (!schedRes.ok) {
+          const sd = await schedRes.json().catch(() => ({}))
+          throw new Error(sd.error || 'Failed to save schedule')
+        }
+      }
+    } else {
+      const res = await fetch('/api/concerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...concertBody, scheduleItems }),
       })
-      router.refresh()
-      advanceAfterSave('flightInfo')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save travel info')
-    } finally {
-      setSaving(false)
-    }
-  }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to create concert')
+      savedConcertId = data.id as string
+      setConcertId(savedConcertId)
 
-  function advanceAfterSave(current: TripSetupStepId) {
-    const idx = steps.findIndex((s) => s.id === current)
-    if (idx >= 0 && idx < steps.length - 1) {
-      setActiveStep(steps[idx + 1].id)
-      setError(null)
+      const anchorRes = await fetch(`/api/trip/${tripId}/concert-anchor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ travelerId, concertId: savedConcertId }),
+      })
+      const anchorData = await anchorRes.json().catch(() => ({}))
+      if (!anchorRes.ok) {
+        throw new Error(anchorData.error || 'Failed to link concert to trip')
+      }
     }
-  }
+
+    setError(null)
+    router.refresh()
+  }, [concertId, form, router, showMusicStep, tripId])
+
+  const persistFlightInfo = useCallback(async () => {
+    const travelerId = requireTravelerId()
+    if (!travelerId) throw new Error('Sign in to save changes to this trip.')
+
+    const res = await fetch(`/api/trip/${tripId}/flights`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        travelerId,
+        flights: form.flightRows.filter(flightRowHasData),
+        travelNotes: form.flightNotes.trim() || null,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Failed to save flights')
+
+    const locRes = await fetch(`/api/trip/${tripId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        travelerId,
+        startingLocation: form.startingLocation.trim() || null,
+      }),
+    })
+    const locData = await locRes.json().catch(() => ({}))
+    if (!locRes.ok) throw new Error(locData.error || 'Failed to save leaving from')
+
+    patchForm({
+      flightCount: Array.isArray(data.flights) ? data.flights.length : form.flightRows.length,
+    })
+    setError(null)
+    router.refresh()
+  }, [form, router, tripId])
+
+  const coreWatchKey = JSON.stringify({
+    title: form.title,
+    purpose: form.purpose,
+    city: form.city,
+    state: form.state,
+    country: form.country,
+    startDate: form.startDate,
+    endDate: form.endDate,
+  })
+
+  const musicWatchKey = JSON.stringify({
+    concertName: form.concertName,
+    concertArtist: form.concertArtist,
+    concertVenue: form.concertVenue,
+    concertUrl: form.concertUrl,
+    concertDescription: form.concertDescription,
+    eventStartDate: form.eventStartDate,
+    eventEndDate: form.eventEndDate,
+    eventStartTime: form.eventStartTime,
+    eventEndTime: form.eventEndTime,
+    isFestival: form.isFestival,
+    scheduleRows: form.scheduleRows,
+  })
+
+  const flightWatchKey = JSON.stringify({
+    flightRows: form.flightRows,
+    flightNotes: form.flightNotes,
+    startingLocation: form.startingLocation,
+  })
+
+  const coreAutosave = useTripSetupAutosave({
+    enabled: activeStep === 'coreDetails',
+    watchKey: coreWatchKey,
+    onSave: persistCoreDetails,
+  })
+
+  const musicAutosave = useTripSetupAutosave({
+    enabled: activeStep === 'musicEvent' && showMusicStep,
+    watchKey: musicWatchKey,
+    onSave: persistMusicEvent,
+  })
+
+  const flightAutosave = useTripSetupAutosave({
+    enabled: activeStep === 'flightInfo',
+    watchKey: flightWatchKey,
+    onSave: persistFlightInfo,
+  })
+
+  const activeAutosave =
+    activeStep === 'coreDetails'
+      ? coreAutosave
+      : activeStep === 'musicEvent'
+        ? musicAutosave
+        : activeStep === 'flightInfo'
+          ? flightAutosave
+          : null
 
   function renderActiveStep() {
     switch (activeStep) {
       case 'coreDetails':
         return (
-          <CoreDetailsStep
-            form={form}
-            onChange={patchForm}
-            onSave={saveCoreDetails}
-            saving={saving}
-            error={error}
-          />
+          <>
+            <CoreDetailsStep
+              form={form}
+              setupContext={setupContext}
+              onChange={patchForm}
+              error={error}
+            />
+            <AutosaveStatusBar
+              status={coreAutosave.status}
+              errorMessage={coreAutosave.errorMessage}
+              onRetry={() => void coreAutosave.saveNow()}
+            />
+          </>
         )
       case 'musicEvent':
         return (
-          <MusicEventStep
-            form={form}
-            onChange={patchForm}
-            onSave={saveMusicEvent}
-            saving={saving}
-            error={error}
-            hasExistingConcert={Boolean(concertId)}
-          />
+          <>
+            <MusicEventStep
+              form={form}
+              setupContext={{ ...setupContext, concertId }}
+              onChange={patchForm}
+              error={error}
+            />
+            <AutosaveStatusBar
+              status={musicAutosave.status}
+              errorMessage={musicAutosave.errorMessage}
+              onRetry={() => void musicAutosave.saveNow()}
+            />
+          </>
         )
       case 'flightInfo':
         return (
-          <FlightInfoStep
-            flightRows={form.flightRows}
-            flightNotes={form.flightNotes}
-            legacyFlightItems={initial.logistics}
-            onChangeFlights={(flightRows) => patchForm({ flightRows })}
-            onChangeNotes={(flightNotes) => patchForm({ flightNotes })}
-            onSave={saveFlightInfo}
-            saving={saving}
-            error={error}
-          />
+          <>
+            <FlightInfoStep
+              flightRows={form.flightRows}
+              flightNotes={form.flightNotes}
+              startingLocation={form.startingLocation}
+              legacyFlightItems={initial.logistics}
+              onChangeFlights={(flightRows) => patchForm({ flightRows })}
+              onChangeNotes={(flightNotes) => patchForm({ flightNotes })}
+              onChangeStartingLocation={(startingLocation) => patchForm({ startingLocation })}
+              error={error}
+            />
+            <AutosaveStatusBar
+              status={flightAutosave.status}
+              errorMessage={flightAutosave.errorMessage}
+              onRetry={() => void flightAutosave.saveNow()}
+            />
+          </>
         )
       case 'lodging':
         return (
-          <LodgingStep
-            tripId={tripId}
-            lodging={initial.lodging}
-            googleApiKey={googleApiKey}
-          />
+          <LodgingStep tripId={tripId} lodging={initial.lodging} googleApiKey={googleApiKey} />
         )
       case 'poi':
         return (
@@ -469,7 +538,9 @@ export default function TripSetupWizard({
           </p>
         ) : null}
         <p className="text-sm text-gray-500 mt-2">
-          Set up your trip step by step — core details, travel, lodging, then places to go.
+          {setupContext.setupOrigin === 'CONCERT_INGEST'
+            ? 'Continue setup — core details, flights, stay, then things to do.'
+            : 'Set up your trip — core details, flights, stay, then things to do.'}
         </p>
       </div>
 
@@ -545,6 +616,10 @@ export default function TripSetupWizard({
                 />
               </div>
             </div>
+
+            {activeAutosave?.status === 'saving' ? (
+              <p className="mt-3 text-xs text-gray-500">Saving changes…</p>
+            ) : null}
           </div>
         </div>
 

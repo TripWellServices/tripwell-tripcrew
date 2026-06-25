@@ -7,6 +7,8 @@ import { scheduleItemToLineupRow } from '@/lib/concert-lineup'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
 import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
+import { resolveTripSetupContext } from '@/lib/trip/resolveTripSetupContext'
+import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +27,17 @@ function dateInputValue(d: Date | string | null | undefined): string {
   return `${y}-${m}-${day}`
 }
 
+function defaultLeavingFrom(traveler: {
+  homeAddress: string | null
+  hometownCity: string | null
+  homeState: string | null
+} | null): string | null {
+  if (!traveler) return null
+  if (traveler.homeAddress?.trim()) return traveler.homeAddress.trim()
+  const cityLine = [traveler.hometownCity, traveler.homeState].filter(Boolean).join(', ')
+  return cityLine.trim() || null
+}
+
 export default async function AdminPage({ params, searchParams }: PageProps) {
   const { tripId } = await params
   const { ingested } = await searchParams
@@ -37,6 +50,18 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
     redirect('/')
   }
 
+  const traveler = trip.travelerId
+    ? await prisma.traveler.findUnique({
+        where: { id: trip.travelerId },
+        select: {
+          homeAddress: true,
+          hometownCity: true,
+          homeState: true,
+        },
+      })
+    : null
+
+  const setupContext = resolveTripSetupContext(trip, { showIngestBanner })
   const catalogueCityId = await resolveCityId(trip.city, trip.state, trip.country)
 
   const primaryAnchor = trip.concertAnchors?.[0]
@@ -72,6 +97,8 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
         tripId={trip.id}
         googleApiKey={googleApiKey}
         catalogueCityId={catalogueCityId}
+        setupContext={setupContext}
+        defaultLeavingFrom={defaultLeavingFrom(traveler)}
         initial={{
           title: trip.title,
           purpose: trip.purpose,
@@ -80,7 +107,6 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
           country: trip.country,
           startDate: trip.startDate.toISOString(),
           endDate: trip.endDate.toISOString(),
-          transportMode: trip.transportMode,
           startingLocation: trip.startingLocation,
           lodging: trip.lodging,
           dining: trip.dining,

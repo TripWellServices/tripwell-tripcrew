@@ -1,6 +1,6 @@
 'use client'
 
-import type { TripSetupFormState } from '@/app/components/trip/setup/trip-setup-wizard-steps'
+import type { TripSetupContextProps, TripSetupFormState } from '@/app/components/trip/setup/trip-setup-wizard-steps'
 import type { LineupRow } from '@/app/components/trip/setup/trip-setup-wizard-steps'
 import { emptyLineupRow } from '@/lib/concert-lineup'
 
@@ -8,20 +8,16 @@ const EMPTY_LINEUP = emptyLineupRow()
 
 type MusicEventStepProps = {
   form: TripSetupFormState
+  setupContext: TripSetupContextProps
   onChange: (patch: Partial<TripSetupFormState>) => void
-  onSave: () => Promise<void>
-  saving: boolean
   error: string | null
-  hasExistingConcert: boolean
 }
 
 export default function MusicEventStep({
   form,
+  setupContext,
   onChange,
-  onSave,
-  saving,
   error,
-  hasExistingConcert,
 }: MusicEventStepProps) {
   function updateLineupRow(index: number, patch: Partial<LineupRow>) {
     onChange({
@@ -30,6 +26,8 @@ export default function MusicEventStep({
       ),
     })
   }
+
+  const linked = Boolean(setupContext.concertId)
 
   return (
     <div className="space-y-5">
@@ -46,11 +44,15 @@ export default function MusicEventStep({
         </p>
       ) : null}
 
-      {!hasExistingConcert ? (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          No concert linked yet — fill in the event and save to attach it to this trip.
+      {linked ? (
+        <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+          Editing {form.concertName.trim() || setupContext.concertName} — linked to this trip.
         </p>
-      ) : null}
+      ) : (
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Save to create the event and link it to this trip.
+        </p>
+      )}
 
       <label className="block">
         <span className="block text-sm font-medium text-gray-700 mb-1">
@@ -241,15 +243,6 @@ export default function MusicEventStep({
           + Add headliner
         </button>
       </div>
-
-      <button
-        type="button"
-        onClick={() => void onSave()}
-        disabled={saving || !form.concertName.trim()}
-        className="px-5 py-2.5 bg-sky-600 text-white text-sm font-semibold rounded-lg hover:bg-sky-700 disabled:opacity-50"
-      >
-        {saving ? 'Saving…' : 'Save music event'}
-      </button>
     </div>
   )
 }

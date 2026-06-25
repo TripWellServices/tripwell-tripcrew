@@ -15,6 +15,11 @@ enum TripType {
   MULTI_DAY
 }
 
+enum TripSetupOrigin {
+  CONCERT_INGEST
+  GENERIC
+}
+
 enum WhoWith {
   SOLO
   SPOUSE
@@ -214,6 +219,7 @@ model Trip {
   travelerId String?
 
   tripType TripType @default(MULTI_DAY)
+  setupOrigin TripSetupOrigin @default(GENERIC)
   title   String?
   purpose String   @default("")
 

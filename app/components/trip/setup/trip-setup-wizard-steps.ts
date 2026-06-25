@@ -1,5 +1,6 @@
 import type { ConcertLineupRow } from '@/lib/concert-lineup'
 import type { TripFlightFormRow } from '@/lib/trip-flight'
+import type { TripSetupOrigin } from '@prisma/client'
 
 export type LineupRow = ConcertLineupRow
 
@@ -23,7 +24,7 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
   {
     id: 'coreDetails',
     title: 'Core details',
-    description: 'Trip title, purpose, destination, dates & transport',
+    description: 'Trip title, destination, and dates',
   },
   {
     id: 'musicEvent',
@@ -33,7 +34,7 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
   {
     id: 'flightInfo',
     title: 'Flights',
-    description: 'Outbound, return, and other flight legs',
+    description: 'Leaving from, outbound, return, and other legs',
   },
   {
     id: 'lodging',
@@ -47,17 +48,27 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
   },
 ]
 
+/** Serializable setup context passed from server — wizard must not re-derive path. */
+export type TripSetupContextProps = {
+  setupOrigin: TripSetupOrigin
+  isConcertTrip: boolean
+  showMusicStep: boolean
+  concertAnchorId: string | null
+  concertId: string | null
+  concertName: string | null
+  inferredTitle: string | null
+}
+
 export type TripSetupFormState = {
   title: string
+  titleManuallyEdited: boolean
   purpose: string
   city: string
   state: string
   country: string
   startDate: string
   endDate: string
-  transportMode: string
   startingLocation: string
-  includesMusicEvent: boolean
   concertName: string
   concertArtist: string
   concertVenue: string
@@ -77,10 +88,8 @@ export type TripSetupFormState = {
   logisticsCount: number
 }
 
-export function visibleSetupSteps(includesMusicEvent: boolean): TripSetupStepInfo[] {
-  return BASE_SETUP_STEPS.filter(
-    (s) => s.id !== 'musicEvent' || includesMusicEvent
-  )
+export function visibleSetupSteps(showMusicStep: boolean): TripSetupStepInfo[] {
+  return BASE_SETUP_STEPS.filter((s) => s.id !== 'musicEvent' || showMusicStep)
 }
 
 export function computeSetupStepStatus(
@@ -107,7 +116,12 @@ export function computeSetupStepStatus(
           r.arrivalAirportCode.trim()
       )
       if (filled.length >= 2) return 'complete'
-      if (filled.length > 0 || form.flightNotes.trim() || form.logisticsCount > 0) {
+      if (
+        filled.length > 0 ||
+        form.flightNotes.trim() ||
+        form.startingLocation.trim() ||
+        form.logisticsCount > 0
+      ) {
         return 'partial'
       }
       return 'empty'
@@ -123,22 +137,9 @@ export function computeSetupStepStatus(
 
 export function countCompletedSetupSteps(
   form: TripSetupFormState,
-  includesMusicEvent: boolean
+  showMusicStep: boolean
 ): number {
-  return visibleSetupSteps(includesMusicEvent).filter(
+  return visibleSetupSteps(showMusicStep).filter(
     (s) => computeSetupStepStatus(s.id, form) === 'complete'
   ).length
-}
-
-export function detectMusicTrip(input: {
-  title?: string
-  purpose?: string
-}): boolean {
-  const hay = `${input.title ?? ''} ${input.purpose ?? ''}`
-  return /\b(festival|concert|osheaga|music|live\s+music|show)\b/i.test(hay)
-}
-
-/** @deprecated Use detectMusicTrip */
-export function detectMusicTripFromPurpose(purpose: string): boolean {
-  return detectMusicTrip({ purpose })
 }
