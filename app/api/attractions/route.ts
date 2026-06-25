@@ -78,6 +78,8 @@ export async function POST(request: NextRequest) {
       distanceFromLodging,
       driveTimeMinutes,
       description,
+      whyMustDo,
+      bestCombinedWith,
     } = body
 
     if (!title?.trim()) {
@@ -107,6 +109,9 @@ export async function POST(request: NextRequest) {
         driveTimeMinutes:
           typeof driveTimeMinutes === 'number' ? driveTimeMinutes : null,
         description: typeof description === 'string' ? description.trim() || null : null,
+        whyMustDo: typeof whyMustDo === 'string' ? whyMustDo.trim() || null : null,
+        bestCombinedWith:
+          typeof bestCombinedWith === 'string' ? bestCombinedWith.trim() || null : null,
       },
     })
 

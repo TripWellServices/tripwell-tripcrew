@@ -71,6 +71,8 @@ export type LodgingCardLodging = {
   phone?: string | null
   imageUrl?: string | null
   rating?: number | null
+  lat?: number | null
+  lng?: number | null
 }
 
 interface LodgingCardProps {

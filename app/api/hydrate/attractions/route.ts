@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { placeId, tripId } = await request.json()
+    const { placeId, tripId, cityId, whyMustDo, bestCombinedWith } = await request.json()
 
     if (!placeId || !tripId) {
       return NextResponse.json(
@@ -82,6 +82,14 @@ export async function POST(request: NextRequest) {
     const googlePatch = googlePlaceMetadataPatch(place)
     const metadata = mergeExperienceMetadata(existing?.metadata, googlePatch)
     const description = pickDescriptionAfterHydrate(existing?.description, place)
+    const plannerWhy =
+      typeof whyMustDo === 'string' && whyMustDo.trim()
+        ? whyMustDo.trim()
+        : existing?.whyMustDo ?? null
+    const plannerCombined =
+      typeof bestCombinedWith === 'string' && bestCombinedWith.trim()
+        ? bestCombinedWith.trim()
+        : existing?.bestCombinedWith ?? null
 
     const attraction = await prisma.attraction.upsert({
       where: {
@@ -100,10 +108,13 @@ export async function POST(request: NextRequest) {
         distanceFromLodging,
         driveTimeMinutes,
         description,
+        whyMustDo: plannerWhy,
+        bestCombinedWith: plannerCombined,
         metadata: metadata as Prisma.InputJsonValue,
       },
       create: {
         tripId,
+        cityId: typeof cityId === 'string' && cityId.trim() ? cityId.trim() : null,
         googlePlaceId: placeId,
         title: place.name ?? 'Attraction',
         category,
@@ -117,6 +128,8 @@ export async function POST(request: NextRequest) {
         distanceFromLodging,
         driveTimeMinutes,
         description,
+        whyMustDo: plannerWhy,
+        bestCombinedWith: plannerCombined,
         metadata: metadata as Prisma.InputJsonValue,
       },
     })

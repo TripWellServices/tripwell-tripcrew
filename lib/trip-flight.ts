@@ -144,3 +144,20 @@ export function parseDatetimeLocal(value: string): Date | null {
 export function normalizeAirportCode(value: string): string {
   return value.trim().toUpperCase().slice(0, 4)
 }
+
+/** DB payload for TripFlight.create from a form row. */
+export function formRowToDbData(row: TripFlightFormRow, sortOrder: number) {
+  return {
+    direction: row.direction,
+    airlineName: row.airlineName.trim() || null,
+    airlineCode: normalizeAirportCode(row.airlineCode) || null,
+    flightNumber: row.flightNumber.trim() || null,
+    departureAirportCode: normalizeAirportCode(row.departureAirportCode) || null,
+    arrivalAirportCode: normalizeAirportCode(row.arrivalAirportCode) || null,
+    departureTime: parseDatetimeLocal(row.departureTime),
+    arrivalTime: parseDatetimeLocal(row.arrivalTime),
+    confirmationCode: row.confirmationCode.trim() || null,
+    notes: row.notes.trim() || null,
+    sortOrder,
+  }
+}

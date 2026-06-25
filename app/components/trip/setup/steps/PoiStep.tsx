@@ -11,12 +11,19 @@ type SavedItem = {
   title: string
   category?: string | null
   address?: string | null
+  whyMustDo?: string | null
+  bestCombinedWith?: string | null
   kind: 'mustDo' | 'dining' | 'experience'
 }
 
 type PoiStepProps = {
   tripId: string
   catalogueCityId: string | null
+  tripCity?: string | null
+  tripState?: string | null
+  tripCountry?: string | null
+  lodgingLat?: number | null
+  lodgingLng?: number | null
   dining: Array<{
     id: string
     title: string
@@ -28,6 +35,8 @@ type PoiStepProps = {
     title: string
     category?: string | null
     address?: string | null
+    whyMustDo?: string | null
+    bestCombinedWith?: string | null
   }>
   adventures: Array<{
     id: string
@@ -52,15 +61,27 @@ function candidateKey(c: ThingsToDoCandidate): string {
   return `${c.bucket}:${c.title}`
 }
 
+function buildPlaceSearchQuery(candidate: ThingsToDoCandidate, cityLabel: string): string {
+  if (candidate.placeQuery?.trim()) return candidate.placeQuery.trim()
+  const parts = [candidate.title, cityLabel].filter(Boolean)
+  return parts.join(' ')
+}
+
 export default function PoiStep({
   tripId,
   catalogueCityId,
+  tripCity,
+  tripState,
+  tripCountry,
+  lodgingLat,
+  lodgingLng,
   dining,
   attractions,
   adventures,
   lodgingSet,
 }: PoiStepProps) {
   const router = useRouter()
+  const cityLabel = [tripCity, tripState, tripCountry].filter(Boolean).join(', ')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [loading, setLoading] = useState(false)
   const [savingKey, setSavingKey] = useState<string | null>(null)
@@ -85,6 +106,8 @@ export default function PoiStep({
         title: a.title,
         category: a.category,
         address: a.address,
+        whyMustDo: a.whyMustDo,
+        bestCombinedWith: a.bestCombinedWith,
         kind: 'mustDo' as const,
       })),
       ...dining.map((d) => ({
@@ -104,6 +127,71 @@ export default function PoiStep({
     ],
     [attractions, dining, adventures]
   )
+
+  async function resolveGooglePlaceId(candidate: ThingsToDoCandidate): Promise<string | null> {
+    const query = buildPlaceSearchQuery(candidate, cityLabel)
+    if (!query.trim()) return null
+
+    const body: Record<string, unknown> = { query }
+    if (lodgingLat != null && lodgingLng != null) {
+      body.locationBias = { lat: lodgingLat, lng: lodgingLng, radiusMeters: 25_000 }
+    }
+
+    const res = await fetch('/api/places/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !Array.isArray(data.results) || !data.results.length) return null
+    return typeof data.results[0]?.place_id === 'string' ? data.results[0].place_id : null
+  }
+
+  async function saveMustDo(candidate: ThingsToDoCandidate) {
+    const category = candidate.type ?? candidate.subtitle ?? 'Must do'
+    const payload = {
+      tripId,
+      cityId: catalogueCityId,
+      title: candidate.title,
+      category,
+      address: candidate.detail ?? null,
+      website: candidate.url ?? null,
+      description: candidate.detail ?? candidate.reason ?? null,
+      whyMustDo: candidate.whyMustDo ?? candidate.reason ?? null,
+      bestCombinedWith: candidate.bestCombinedWith ?? null,
+    }
+
+    const placeId = await resolveGooglePlaceId(candidate)
+    if (placeId) {
+      const hydrateRes = await fetch('/api/hydrate/attractions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placeId,
+          tripId,
+          cityId: catalogueCityId,
+          whyMustDo: payload.whyMustDo,
+          bestCombinedWith: payload.bestCombinedWith,
+        }),
+      })
+      if (hydrateRes.ok) return
+
+      const hydrateData = await hydrateRes.json().catch(() => ({}))
+      if (hydrateRes.status !== 500) {
+        throw new Error(hydrateData.error || 'Failed to hydrate place')
+      }
+    }
+
+    const res = await fetch('/api/attractions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Failed to save')
+    }
+  }
 
   async function findSuggestions() {
     setError(null)
@@ -138,23 +226,7 @@ export default function PoiStep({
     setError(null)
     try {
       if (candidate.bucket === 'mustDos') {
-        const res = await fetch('/api/attractions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tripId,
-            cityId: catalogueCityId,
-            title: candidate.title,
-            category: candidate.subtitle ?? 'Must do',
-            address: candidate.detail ?? null,
-            website: candidate.url ?? null,
-            description: candidate.reason ?? null,
-          }),
-        })
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          throw new Error(data.error || 'Failed to save')
-        }
+        await saveMustDo(candidate)
       } else if (candidate.bucket === 'dining') {
         const res = await fetch('/api/dining', {
           method: 'POST',
@@ -201,57 +273,125 @@ export default function PoiStep({
     }
   }
 
+  function renderMustDoCard(item: ThingsToDoCandidate) {
+    const key = candidateKey(item)
+    const saved = savedTitles.has(key)
+    return (
+      <li
+        key={key}
+        className="border border-gray-200 rounded-lg p-4 bg-white flex flex-col"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <h5 className="font-semibold text-gray-900">{item.title}</h5>
+          {item.type ? (
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+              {item.type}
+            </span>
+          ) : null}
+        </div>
+        {item.subtitle && item.subtitle !== item.type ? (
+          <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
+        ) : null}
+        {item.detail ? <p className="text-sm text-gray-600 mt-1">{item.detail}</p> : null}
+        {item.whyMustDo ? (
+          <p className="text-sm text-gray-800 mt-2">
+            <span className="font-medium text-gray-900">Why must-do: </span>
+            {item.whyMustDo}
+          </p>
+        ) : item.reason ? (
+          <p className="text-sm text-gray-800 mt-2">
+            <span className="font-medium text-gray-900">Why must-do: </span>
+            {item.reason}
+          </p>
+        ) : null}
+        {item.bestCombinedWith ? (
+          <p className="text-xs text-gray-600 mt-2">
+            <span className="font-medium">Best combined with: </span>
+            {item.bestCombinedWith}
+          </p>
+        ) : null}
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            disabled={saved || savingKey === key}
+            onClick={() => void saveCandidate(item)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
+          >
+            {saved ? 'Saved' : savingKey === key ? 'Saving…' : 'Save to trip list'}
+          </button>
+          {item.url ? (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Link
+            </a>
+          ) : null}
+        </div>
+      </li>
+    )
+  }
+
   function renderBucket(
     title: string,
     items: ThingsToDoCandidate[] | undefined,
-    accent: string
+    accent: string,
+    isMustDo = false
   ) {
     if (!items?.length) return null
     return (
       <div>
         <h4 className={`text-sm font-semibold ${accent} mb-2`}>{title}</h4>
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {items.map((item) => {
-            const key = candidateKey(item)
-            const saved = savedTitles.has(key)
-            return (
-              <li
-                key={key}
-                className="border border-gray-200 rounded-lg p-4 bg-white flex flex-col"
-              >
-                <h5 className="font-semibold text-gray-900">{item.title}</h5>
-                {item.subtitle ? (
-                  <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
-                ) : null}
-                {item.detail ? (
-                  <p className="text-sm text-gray-600 mt-1">{item.detail}</p>
-                ) : null}
-                {item.reason ? (
-                  <p className="text-xs text-gray-500 mt-2 italic">{item.reason}</p>
-                ) : null}
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={saved || savingKey === key}
-                    onClick={() => void saveCandidate(item)}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
+          {items.map((item) =>
+            isMustDo ? (
+              renderMustDoCard(item)
+            ) : (
+              (() => {
+                const key = candidateKey(item)
+                const saved = savedTitles.has(key)
+                return (
+                  <li
+                    key={key}
+                    className="border border-gray-200 rounded-lg p-4 bg-white flex flex-col"
                   >
-                    {saved ? 'Saved' : savingKey === key ? 'Saving…' : 'Save to trip list'}
-                  </button>
-                  {item.url ? (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      Link
-                    </a>
-                  ) : null}
-                </div>
-              </li>
+                    <h5 className="font-semibold text-gray-900">{item.title}</h5>
+                    {item.subtitle ? (
+                      <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
+                    ) : null}
+                    {item.detail ? (
+                      <p className="text-sm text-gray-600 mt-1">{item.detail}</p>
+                    ) : null}
+                    {item.reason ? (
+                      <p className="text-xs text-gray-500 mt-2 italic">{item.reason}</p>
+                    ) : null}
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={saved || savingKey === key}
+                        onClick={() => void saveCandidate(item)}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
+                      >
+                        {saved ? 'Saved' : savingKey === key ? 'Saving…' : 'Save to trip list'}
+                      </button>
+                      {item.url ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Link
+                        </a>
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })()
             )
-          })}
+          )}
         </ul>
       </div>
     )
@@ -262,14 +402,15 @@ export default function PoiStep({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Things to do</h3>
         <p className="text-sm text-gray-600">
-          Find top picks for your concert trip — save them to your trip list, then build your
-          itinerary on the Plan tab.
+          Angela suggests a top 5 blend for {cityLabel || 'your trip city'} — save picks to your trip
+          list, then build your itinerary on the Plan tab.
         </p>
       </div>
 
       {!lodgingSet ? (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Set your stay first — we use lodging location to tune nearby suggestions.
+          Set your stay first — we use lodging location to tune nearby suggestions and Google place
+          matching.
         </p>
       ) : null}
 
@@ -322,13 +463,13 @@ export default function PoiStep({
           disabled={loading}
           className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50"
         >
-          {loading ? 'Finding…' : 'Find top things for this trip'}
+          {loading ? 'Finding…' : 'Find top 5 must-dos for this trip'}
         </button>
       </div>
 
       {suggestions ? (
         <div className="space-y-6">
-          {renderBucket('Must Dos', suggestions.mustDos, 'text-blue-800')}
+          {renderBucket('Top 5 Must Dos', suggestions.mustDos, 'text-blue-800', true)}
           {renderBucket('Dining', suggestions.dining, 'text-emerald-800')}
           {renderBucket('Experiences', suggestions.experiences, 'text-purple-800')}
         </div>
@@ -368,6 +509,14 @@ export default function PoiStep({
                 <h5 className="font-semibold text-gray-900 mt-0.5">{item.title}</h5>
                 {item.category ? (
                   <p className="text-xs text-gray-500 mt-0.5">{item.category}</p>
+                ) : null}
+                {item.whyMustDo ? (
+                  <p className="text-xs text-gray-700 mt-1 line-clamp-2">{item.whyMustDo}</p>
+                ) : null}
+                {item.bestCombinedWith ? (
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                    Pair with: {item.bestCombinedWith}
+                  </p>
                 ) : null}
                 {item.address ? (
                   <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.address}</p>

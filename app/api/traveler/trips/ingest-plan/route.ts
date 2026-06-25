@@ -16,6 +16,8 @@ import {
 import { parseIncomingTripDate } from '@/lib/trip-plan-dates'
 import { TripSetupOrigin, TripType, TransportMode, WhoWith } from '@prisma/client'
 import { inferConcertTripTitle } from '@/lib/trip/inferTripTitle'
+import { formRowToDbData, flightRowHasData } from '@/lib/trip-flight'
+import { parsedTripLegToFormRow } from '@/lib/trip-flight-parse'
 import { enrichCityCatalogIfNeeded } from '@/lib/city-guide-enrich'
 import { upsertCityByName } from '@/lib/city-upsert'
 import {
@@ -348,7 +350,22 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      for (const leg of legs) {
+      const flightLegs = legs.filter((leg) => leg.kind === 'flight')
+      const nonFlightLegs = legs.filter((leg) => leg.kind !== 'flight')
+
+      for (let i = 0; i < flightLegs.length; i++) {
+        const row = parsedTripLegToFormRow(flightLegs[i], i, flightLegs.length)
+        if (flightRowHasData(row)) {
+          await tx.tripFlight.create({
+            data: {
+              tripId: t.id,
+              ...formRowToDbData(row, i),
+            },
+          })
+        }
+      }
+
+      for (const leg of nonFlightLegs) {
         const { title, detail } = legToLogisticItem(leg)
         await tx.logisticItem.create({
           data: { tripId: t.id, title, detail },

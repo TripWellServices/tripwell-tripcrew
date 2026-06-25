@@ -3,8 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getTripAccess } from '@/lib/trip/assertTripAccess'
 import {
   flightRowHasData,
-  normalizeAirportCode,
-  parseDatetimeLocal,
+  formRowToDbData,
   type TripFlightFormRow,
 } from '@/lib/trip-flight'
 import type { TripFlightDirection } from '@prisma/client'
@@ -40,19 +39,7 @@ function rowFromBody(raw: unknown, fallbackDirection: TripFlightDirection): Trip
 }
 
 function toDbData(row: TripFlightFormRow, sortOrder: number) {
-  return {
-    direction: row.direction,
-    airlineName: row.airlineName.trim() || null,
-    airlineCode: normalizeAirportCode(row.airlineCode) || null,
-    flightNumber: row.flightNumber.trim() || null,
-    departureAirportCode: normalizeAirportCode(row.departureAirportCode) || null,
-    arrivalAirportCode: normalizeAirportCode(row.arrivalAirportCode) || null,
-    departureTime: parseDatetimeLocal(row.departureTime),
-    arrivalTime: parseDatetimeLocal(row.arrivalTime),
-    confirmationCode: row.confirmationCode.trim() || null,
-    notes: row.notes.trim() || null,
-    sortOrder,
-  }
+  return formRowToDbData(row, sortOrder)
 }
 
 export async function GET(

@@ -507,6 +507,8 @@ model Dining {
   lat                 Float?
   lng                 Float?
   description         String?   @db.Text
+  whyMustDo           String?   @db.Text
+  bestCombinedWith    String?   @db.Text
   metadata            Json?
   distanceFromLodging Float?
   driveTimeMinutes    Int?
@@ -549,6 +551,8 @@ model Attraction {
   lat                  Float?
   lng                  Float?
   description          String?   @db.Text
+  whyMustDo            String?   @db.Text
+  bestCombinedWith     String?   @db.Text
   metadata             Json?
   distanceFromLodging  Float?
   driveTimeMinutes     Int?

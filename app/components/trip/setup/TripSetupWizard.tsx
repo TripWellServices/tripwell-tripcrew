@@ -486,6 +486,7 @@ export default function TripSetupWizard({
         return (
           <>
             <FlightInfoStep
+              tripId={tripId}
               flightRows={form.flightRows}
               flightNotes={form.flightNotes}
               startingLocation={form.startingLocation}
@@ -511,6 +512,11 @@ export default function TripSetupWizard({
           <PoiStep
             tripId={tripId}
             catalogueCityId={catalogueCityId}
+            tripCity={form.city}
+            tripState={form.state}
+            tripCountry={form.country}
+            lodgingLat={initial.lodging?.lat ?? null}
+            lodgingLng={initial.lodging?.lng ?? null}
             dining={initial.dining}
             attractions={initial.attractions}
             adventures={initial.adventures}
