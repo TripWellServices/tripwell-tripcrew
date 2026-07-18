@@ -243,7 +243,6 @@ export async function getTravelerTripCrews(travelerId: string) {
           include: {
             trips: {
               orderBy: { createdAt: 'desc' },
-              take: 3, // Latest 3 trips
               select: {
                 id: true,
                 title: true,

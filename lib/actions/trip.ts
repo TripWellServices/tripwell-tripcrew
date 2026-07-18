@@ -149,9 +149,12 @@ export async function upsertTrip(data: {
   }
 }
 
-export async function getTrip(tripId: string) {
-  try {
-    const trip = await prisma.trip.findUnique({
+export type GetTripResult =
+  | { success: true; trip: NonNullable<Awaited<ReturnType<typeof fetchTripById>>> }
+  | { success: false; error: string; code: 'NOT_FOUND' | 'SERVER_ERROR' }
+
+async function fetchTripById(tripId: string) {
+  return prisma.trip.findUnique({
       where: { id: tripId },
       include: {
         crew: {
@@ -213,10 +216,61 @@ export async function getTrip(tripId: string) {
         dining: {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
+          // Explicit select: production was missing whyMustDo/bestCombinedWith until migration 20260718230000.
+          select: {
+            id: true,
+            tripId: true,
+            tripWellEnterpriseId: true,
+            cityId: true,
+            title: true,
+            category: true,
+            address: true,
+            phone: true,
+            website: true,
+            googlePlaceId: true,
+            imageUrl: true,
+            rating: true,
+            lat: true,
+            lng: true,
+            description: true,
+            metadata: true,
+            distanceFromLodging: true,
+            driveTimeMinutes: true,
+            createdAt: true,
+            updatedAt: true,
+            createdById: true,
+            wishlistId: true,
+            savedByTravelerId: true,
+          },
         },
         attractions: {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            tripId: true,
+            tripWellEnterpriseId: true,
+            cityId: true,
+            title: true,
+            category: true,
+            address: true,
+            phone: true,
+            website: true,
+            googlePlaceId: true,
+            imageUrl: true,
+            rating: true,
+            lat: true,
+            lng: true,
+            description: true,
+            metadata: true,
+            distanceFromLodging: true,
+            driveTimeMinutes: true,
+            createdAt: true,
+            updatedAt: true,
+            createdById: true,
+            wishlistId: true,
+            savedByTravelerId: true,
+          },
         },
         adventures: {
           where: { tripId },
@@ -246,15 +300,20 @@ export async function getTrip(tripId: string) {
         },
       },
     })
+}
+
+export async function getTrip(tripId: string): Promise<GetTripResult> {
+  try {
+    const trip = await fetchTripById(tripId)
 
     if (!trip) {
-      throw new Error('Trip not found')
+      return { success: false, error: 'Trip not found', code: 'NOT_FOUND' }
     }
 
     return { success: true, trip }
   } catch (error: unknown) {
     console.error('Get Trip error:', error)
     const message = error instanceof Error ? error.message : 'Failed to get trip'
-    return { success: false, error: message }
+    return { success: false, error: message, code: 'SERVER_ERROR' }
   }
 }

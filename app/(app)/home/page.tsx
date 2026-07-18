@@ -150,6 +150,8 @@ export default function TravelCockpitPage() {
       })
   }, [personalTrips])
 
+  const pastPersonalTripsCount = personalTrips.length - upcomingPersonalTrips.length
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -187,7 +189,19 @@ export default function TravelCockpitPage() {
             My upcoming trips
           </h2>
           {upcomingPersonalTrips.length === 0 ? (
-            <p className="text-gray-600 text-sm flex-1">No personal trips yet.</p>
+            <div className="flex-1 text-sm text-gray-600">
+              {personalTrips.length === 0 ? (
+                <p>No personal trips yet.</p>
+              ) : (
+                <>
+                  <p>No upcoming personal trips.</p>
+                  <p className="text-gray-500 mt-1">
+                    {pastPersonalTripsCount}{' '}
+                    {pastPersonalTripsCount === 1 ? 'past trip' : 'past trips'} on your account.
+                  </p>
+                </>
+              )}
+            </div>
           ) : (
             <ul className="space-y-2 flex-1">
               {upcomingPersonalTrips.slice(0, 4).map((trip) => (
@@ -225,7 +239,11 @@ export default function TravelCockpitPage() {
             TripCrew trips
           </h2>
           {upcomingCrewTrips.length === 0 ? (
-            <p className="text-gray-600 text-sm flex-1">No crew trips on the calendar yet.</p>
+            <p className="text-gray-600 text-sm flex-1">
+              {tripCrews.some((c) => (c._count?.trips ?? 0) > 0)
+                ? 'No upcoming crew trips on the calendar.'
+                : 'No crew trips on the calendar yet.'}
+            </p>
           ) : (
             <ul className="space-y-2 flex-1">
               {upcomingCrewTrips.slice(0, 4).map(({ trip, crewName }) => (
@@ -261,7 +279,9 @@ export default function TravelCockpitPage() {
         </section>
       </div>
 
-      {upcomingPersonalTrips.length === 0 && upcomingCrewTrips.length === 0 ? (
+      {upcomingPersonalTrips.length === 0 &&
+      upcomingCrewTrips.length === 0 &&
+      personalTrips.length === 0 ? (
         <p className="mt-6 text-sm text-gray-500">
           Start with a concert — use{' '}
           <Link href={concertsIngestPath()} className="text-sky-600 font-medium hover:underline">

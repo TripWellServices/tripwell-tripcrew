@@ -13,11 +13,14 @@ interface LayoutProps {
 
 export default async function TripLayout({ children, params }: LayoutProps) {
   const { tripId } = await params
-  const { success, trip } = await getTrip(tripId)
+  const result = await getTrip(tripId)
 
-  if (!success || !trip) {
-    notFound()
+  if (!result.success) {
+    if (result.code === 'NOT_FOUND') notFound()
+    throw new Error(result.error)
   }
+
+  const { trip } = result
 
   const crewId = trip.crew?.id ?? ''
   const crewName = trip.crew?.name ?? 'Crew'

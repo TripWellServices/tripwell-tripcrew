@@ -26,11 +26,14 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
 
   // Use server action for safe hydration
-  const { success, trip, error } = await getTrip(params.tripId)
+  const result = await getTrip(params.tripId)
 
-  if (!success || !trip) {
-    notFound()
+  if (!result.success) {
+    if (result.code === 'NOT_FOUND') notFound()
+    throw new Error(result.error)
   }
+
+  const { trip } = result
 
   const catalogueCityId = await resolveCityId(trip.city, trip.state, trip.country)
 

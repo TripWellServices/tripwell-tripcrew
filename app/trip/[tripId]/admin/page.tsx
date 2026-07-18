@@ -44,11 +44,14 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
   const showIngestBanner = ingested === '1'
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
 
-  const { success, trip } = await getTrip(tripId)
+  const result = await getTrip(tripId)
 
-  if (!success || !trip) {
-    redirect('/')
+  if (!result.success) {
+    if (result.code === 'NOT_FOUND') redirect('/')
+    throw new Error(result.error)
   }
+
+  const { trip } = result
 
   const traveler = trip.travelerId
     ? await prisma.traveler.findUnique({
