@@ -48,9 +48,13 @@ export default function MusicEventStep({
         <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
           Editing {form.concertName.trim() || setupContext.concertName} — linked to this trip.
         </p>
+      ) : setupContext.isConcertTrip ? (
+        <p className="text-sm text-purple-800 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+          This trip looks like a concert or festival — add the event name below and save to link it.
+        </p>
       ) : (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Save to create the event and link it to this trip.
+          Optional — skip if this trip is not for a show. Save to create and link an event.
         </p>
       )}
 

@@ -26,6 +26,7 @@ type FlightInfoStepProps = {
   onChangeFlights: (rows: TripFlightFormRow[]) => void
   onChangeNotes: (notes: string) => void
   onChangeStartingLocation: (value: string) => void
+  onAfterApply?: () => void
   error: string | null
 }
 
@@ -33,6 +34,17 @@ function directionLabel(direction: TripFlightDirection): string {
   if (direction === 'OUTBOUND') return 'Outbound flight'
   if (direction === 'RETURN') return 'Return flight'
   return 'Additional flight'
+}
+
+function formatParsedSummary(row: TripFlightFormRow): string {
+  const parts = [
+    row.departureAirportCode && row.arrivalAirportCode
+      ? `${row.departureAirportCode} → ${row.arrivalAirportCode}`
+      : null,
+    [row.airlineName, row.flightNumber].filter(Boolean).join(' ').trim() || null,
+    row.confirmationCode ? `confirmation ${row.confirmationCode}` : null,
+  ].filter(Boolean)
+  return parts.join(', ')
 }
 
 function FlightCard({
@@ -171,6 +183,13 @@ function FlightCard({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
           />
         </label>
+
+        {row.notes.trim() ? (
+          <div className="sm:col-span-2 text-xs text-gray-600 bg-white border border-gray-100 rounded-lg px-3 py-2">
+            <span className="font-medium text-gray-700">Notes: </span>
+            {row.notes}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -185,12 +204,18 @@ export default function FlightInfoStep({
   onChangeFlights,
   onChangeNotes,
   onChangeStartingLocation,
+  onAfterApply,
   error,
 }: FlightInfoStepProps) {
   const [parseTab, setParseTab] = useState<'paste' | 'upload'>('paste')
   const [pasteText, setPasteText] = useState('')
+  const [showPasteSource, setShowPasteSource] = useState(true)
   const [parseBusy, setParseBusy] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [parseDraft, setParseDraft] = useState<TripFlightFormRow[] | null>(null)
+  const [parseDraftStartingLocation, setParseDraftStartingLocation] = useState<string | null>(
+    null
+  )
   const [parseSuccess, setParseSuccess] = useState<string | null>(null)
 
   const otherItems = legacyFlightItems.filter(
@@ -206,6 +231,18 @@ export default function FlightInfoStep({
 
   function addFlight() {
     onChangeFlights([...flightRows, emptyFlightRow('OTHER')])
+  }
+
+  function applyParseDraft() {
+    if (!parseDraft?.length) return
+    onChangeFlights(parseDraft)
+    if (parseDraftStartingLocation?.trim()) {
+      onChangeStartingLocation(parseDraftStartingLocation.trim())
+    }
+    setParseDraft(null)
+    setParseDraftStartingLocation(null)
+    setParseSuccess('Applied to flight form — edits auto-save.')
+    onAfterApply?.()
   }
 
   async function runParse(body: FormData | { text: string }) {
@@ -245,13 +282,14 @@ export default function FlightInfoStep({
         throw new Error('No flight details found — try a clearer paste or photo.')
       }
 
-      onChangeFlights(parsedRows)
-      if (typeof data.startingLocation === 'string' && data.startingLocation.trim()) {
-        onChangeStartingLocation(data.startingLocation.trim())
-      }
-      setParseSuccess(
-        `Parsed ${withData.length} flight leg${withData.length === 1 ? '' : 's'} — review below and edits auto-save.`
+      setParseDraft(parsedRows)
+      setParseDraftStartingLocation(
+        typeof data.startingLocation === 'string' ? data.startingLocation.trim() : null
       )
+      setPasteText('')
+      setShowPasteSource(false)
+      const summary = withData.map(formatParsedSummary).join('; ')
+      setParseSuccess(`Parsed for review — ${summary}`)
     } catch (err) {
       setParseError(err instanceof Error ? err.message : 'Parse failed')
     } finally {
@@ -278,7 +316,8 @@ export default function FlightInfoStep({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Flights</h3>
         <p className="text-sm text-gray-600">
-          Where you leave from, structured flight legs, and other travel notes.
+          Where you leave from, structured flight legs, and other travel notes. Parse first, apply
+          to the form, then edits auto-save.
         </p>
       </div>
 
@@ -312,76 +351,91 @@ export default function FlightInfoStep({
       ) : null}
 
       <div className="rounded-lg border border-sky-200 bg-sky-50/50 p-4 space-y-3">
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900">Paste or upload confirmation</h4>
-          <p className="text-xs text-gray-600 mt-0.5">
-            Expedia email, airline confirmation, or screenshot — we extract flight number, airports,
-            and confirmation code for you to review.
-          </p>
-        </div>
-
-        <div className="flex gap-2 border-b border-sky-100 pb-2">
-          <button
-            type="button"
-            onClick={() => setParseTab('paste')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md ${
-              parseTab === 'paste'
-                ? 'bg-white text-sky-800 border border-sky-200'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Paste text
-          </button>
-          <button
-            type="button"
-            onClick={() => setParseTab('upload')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md ${
-              parseTab === 'upload'
-                ? 'bg-white text-sky-800 border border-sky-200'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Upload photo
-          </button>
-        </div>
-
-        {parseTab === 'paste' ? (
-          <div className="space-y-2">
-            <textarea
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              rows={5}
-              placeholder="Paste your Expedia or airline confirmation email…"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-            />
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900">Paste or upload confirmation</h4>
+            <p className="text-xs text-gray-600 mt-0.5">
+              Expedia email, airline confirmation, or screenshot — parsed results stay in review
+              until you apply them.
+            </p>
+          </div>
+          {!showPasteSource && parseDraft ? (
             <button
               type="button"
-              onClick={() => void parsePaste()}
-              disabled={parseBusy || pasteText.trim().length < 10}
-              className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50"
+              onClick={() => setShowPasteSource(true)}
+              className="text-xs text-sky-700 font-medium hover:underline shrink-0"
             >
-              {parseBusy ? 'Parsing…' : 'Parse flights'}
+              Edit source
             </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => void parseUpload(e)}
-              disabled={parseBusy}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-white file:text-sky-800 file:font-medium"
-            />
-            <textarea
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              rows={2}
-              placeholder="Optional: add extra text to help the parser"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-            />
-            {parseBusy ? <p className="text-xs text-gray-500">Parsing screenshot…</p> : null}
-          </div>
-        )}
+          ) : null}
+        </div>
+
+        {showPasteSource ? (
+          <>
+            <div className="flex gap-2 border-b border-sky-100 pb-2">
+              <button
+                type="button"
+                onClick={() => setParseTab('paste')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md ${
+                  parseTab === 'paste'
+                    ? 'bg-white text-sky-800 border border-sky-200'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Paste text
+              </button>
+              <button
+                type="button"
+                onClick={() => setParseTab('upload')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md ${
+                  parseTab === 'upload'
+                    ? 'bg-white text-sky-800 border border-sky-200'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Upload photo
+              </button>
+            </div>
+
+            {parseTab === 'paste' ? (
+              <div className="space-y-2">
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={5}
+                  placeholder="Paste your Expedia or airline confirmation email…"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => void parsePaste()}
+                  disabled={parseBusy || pasteText.trim().length < 10}
+                  className="px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 disabled:opacity-50"
+                >
+                  {parseBusy ? 'Parsing…' : 'Parse flights'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => void parseUpload(e)}
+                  disabled={parseBusy}
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-white file:text-sky-800 file:font-medium"
+                />
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={2}
+                  placeholder="Optional: add extra text to help the parser"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                />
+                {parseBusy ? <p className="text-xs text-gray-500">Parsing screenshot…</p> : null}
+              </div>
+            )}
+          </>
+        ) : null}
 
         {parseError ? (
           <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -392,6 +446,39 @@ export default function FlightInfoStep({
           <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
             {parseSuccess}
           </p>
+        ) : null}
+
+        {parseDraft ? (
+          <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-3">
+            <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">
+              Parsed draft — not saved yet
+            </p>
+            <ul className="space-y-1 text-sm text-gray-800">
+              {parseDraft.filter(flightRowHasData).map((row, i) => (
+                <li key={`draft-${i}`}>{formatParsedSummary(row)}</li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={applyParseDraft}
+                className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700"
+              >
+                Apply parsed flights
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setParseDraft(null)
+                  setParseDraftStartingLocation(null)
+                  setParseSuccess(null)
+                }}
+                className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50"
+              >
+                Discard draft
+              </button>
+            </div>
+          </div>
         ) : null}
       </div>
 

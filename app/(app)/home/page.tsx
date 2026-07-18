@@ -11,7 +11,7 @@ import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { onAuthStateChanged } from 'firebase/auth'
 import Link from 'next/link'
-import { concertsIngestPath } from '@/lib/experience-routes'
+import { concertsIngestPath, tripSetupIngestPath } from '@/lib/experience-routes'
 
 interface Trip {
   id: string
@@ -283,11 +283,14 @@ export default function TravelCockpitPage() {
       upcomingCrewTrips.length === 0 &&
       personalTrips.length === 0 ? (
         <p className="mt-6 text-sm text-gray-500">
-          Start with a concert — use{' '}
+          <Link href={tripSetupIngestPath()} className="text-sky-600 font-medium hover:underline">
+            Start a trip
+          </Link>
+          {' '}or plan around a concert via{' '}
           <Link href={concertsIngestPath()} className="text-sky-600 font-medium hover:underline">
             Experiences → Concerts
-          </Link>{' '}
-          in the sidebar.
+          </Link>
+          .
         </p>
       ) : null}
     </div>

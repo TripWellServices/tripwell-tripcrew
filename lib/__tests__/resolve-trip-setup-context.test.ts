@@ -7,6 +7,7 @@ describe('resolveTripSetupContext', () => {
     const ctx = resolveTripSetupContext({
       setupOrigin: 'CONCERT_INGEST',
       title: 'Osheaga Music Festival Trip to Montreal',
+      purpose: 'Festival weekend',
       city: 'Montreal',
       state: 'QC',
       country: 'Canada',
@@ -28,20 +29,37 @@ describe('resolveTripSetupContext', () => {
     const ctx = resolveTripSetupContext({
       setupOrigin: 'GENERIC',
       title: 'Beach week',
+      purpose: 'Relaxing by the ocean',
       city: 'Miami',
       state: 'FL',
       country: 'United States',
       concertAnchors: [],
     })
 
-    assert.equal(ctx.showMusicStep, false)
+    assert.equal(ctx.showMusicStep, true)
     assert.equal(ctx.isConcertTrip, false)
+  })
+
+  it('detects concert from trip title text', () => {
+    const ctx = resolveTripSetupContext({
+      setupOrigin: 'GENERIC',
+      title: 'Osheaga Music Festival Trip to Montreal',
+      purpose: 'Friends weekend',
+      city: 'Montreal',
+      state: 'QC',
+      country: 'Canada',
+      concertAnchors: [],
+    })
+
+    assert.equal(ctx.isConcertTrip, true)
+    assert.equal(ctx.showMusicStep, true)
   })
 
   it('shows music step when legacy anchor exists', () => {
     const ctx = resolveTripSetupContext({
       setupOrigin: 'GENERIC',
       title: 'Trip',
+      purpose: null,
       city: 'Boston',
       state: 'MA',
       country: 'United States',

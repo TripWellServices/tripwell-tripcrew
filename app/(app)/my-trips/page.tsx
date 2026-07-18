@@ -7,7 +7,7 @@ import { getFirebaseAuth } from '@/lib/firebase'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { onAuthStateChanged } from 'firebase/auth'
 import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
-import { concertsIngestPath } from '@/lib/experience-routes'
+import { tripSetupIngestPath, concertsIngestPath } from '@/lib/experience-routes'
 
 interface PersonalTrip {
   id: string
@@ -73,7 +73,9 @@ export default function MyTripsPage() {
     <div className="max-w-3xl mx-auto px-6 py-10">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
-        <p className="text-gray-500 text-sm mt-1">Your personal concert trips — push to TripCrew when ready.</p>
+        <p className="text-gray-500 text-sm mt-1">
+          Your personal trips — push to TripCrew when ready.
+        </p>
       </div>
 
       {error ? (
@@ -84,10 +86,18 @@ export default function MyTripsPage() {
 
       {trips.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-          <p className="text-gray-600 mb-4">No trips yet. Start with a concert.</p>
-          <Link href={concertsIngestPath()} className="text-sky-600 font-medium hover:underline">
-            Ingest a concert trip
-          </Link>
+          <p className="text-gray-600 mb-4">No trips yet.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href={tripSetupIngestPath()}
+              className="text-sky-600 font-medium hover:underline"
+            >
+              Start a trip
+            </Link>
+            <Link href={concertsIngestPath()} className="text-gray-600 hover:underline text-sm">
+              or ingest a concert
+            </Link>
+          </div>
         </div>
       ) : (
         <ul className="space-y-4">

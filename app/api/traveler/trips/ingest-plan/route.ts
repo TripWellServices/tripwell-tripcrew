@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
       wishlistPoi: wishlistPoiRaw,
       notes,
       startingLocation: startingLocationRaw,
+      setupOrigin: setupOriginRaw,
+      purpose: purposeRaw,
     } = body as {
       travelerId?: string
       tripName?: string
@@ -97,6 +99,8 @@ export async function POST(request: NextRequest) {
       wishlistPoi?: IngestWishlistPoi[] | null
       notes?: string | null
       startingLocation?: string | null
+      setupOrigin?: TripSetupOrigin | string | null
+      purpose?: string | null
     }
 
     if (!travelerId) {
@@ -221,9 +225,17 @@ export async function POST(request: NextRequest) {
         })
       : tripName
     const purposeParts: string[] = []
-    if (notes?.trim()) purposeParts.push(notes.trim())
+    if (typeof purposeRaw === 'string' && purposeRaw.trim()) {
+      purposeParts.push(purposeRaw.trim())
+    } else if (notes?.trim()) purposeParts.push(notes.trim())
     else if (concertCore?.description?.trim()) purposeParts.push(concertCore.description.trim())
     const purpose = purposeParts.join('. ')
+
+    const setupOrigin =
+      setupOriginRaw === TripSetupOrigin.GENERIC ||
+      setupOriginRaw === 'GENERIC'
+        ? TripSetupOrigin.GENERIC
+        : TripSetupOrigin.CONCERT_INGEST
 
     const { daysTotal, season } = computeTripMetadata(start, end)
     const sameCalendarDay =
@@ -286,7 +298,7 @@ export async function POST(request: NextRequest) {
         data: {
           crewId: null,
           travelerId,
-          setupOrigin: TripSetupOrigin.CONCERT_INGEST,
+          setupOrigin,
           title,
           purpose,
           startDate: start,
@@ -452,7 +464,7 @@ export async function POST(request: NextRequest) {
         tripId,
         concertId: savedConcertId,
         anchorId: savedAnchorId,
-        setupOrigin: TripSetupOrigin.CONCERT_INGEST,
+        setupOrigin,
       },
       { status: 201 }
     )

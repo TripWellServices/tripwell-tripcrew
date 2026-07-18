@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ScheduleRow } from '@/app/components/trip/setup/trip-setup-wizard-steps'
 import {
   emptyLineupRow,
@@ -18,6 +18,7 @@ import type { LodgingCardLodging } from '@/app/components/trip/LodgingCard'
 import CoreDetailsStep from '@/app/components/trip/setup/steps/CoreDetailsStep'
 import FlightInfoStep from '@/app/components/trip/setup/steps/FlightInfoStep'
 import LodgingStep from '@/app/components/trip/setup/steps/LodgingStep'
+import EssentialsStep from '@/app/components/trip/setup/steps/EssentialsStep'
 import MusicEventStep from '@/app/components/trip/setup/steps/MusicEventStep'
 import PoiStep from '@/app/components/trip/setup/steps/PoiStep'
 import {
@@ -100,6 +101,7 @@ export type TripSetupWizardProps = {
     startingLocation: string | null
     lodging: LodgingCardLodging | null
     dining: PoiItem[]
+    essentials: PoiItem[]
     attractions: PoiItem[]
     adventures: AdventureItem[]
     flights: TripFlightItem[]
@@ -192,6 +194,7 @@ function buildInitialForm(
       initial.logistics.find((i) => i.title.trim().toLowerCase() === 'travel notes')?.detail ??
       '',
     lodgingSet: Boolean(initial.lodging),
+    essentialsCount: initial.essentials.length,
     poiCount:
       initial.dining.length + initial.attractions.length + initial.adventures.length,
     flightCount: initial.flights.length,
@@ -216,6 +219,22 @@ export default function TripSetupWizard({
     setupContext.concertId ?? initial.concertId
   )
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      lodgingSet: Boolean(initial.lodging),
+      essentialsCount: initial.essentials.length,
+      poiCount:
+        initial.dining.length + initial.attractions.length + initial.adventures.length,
+    }))
+  }, [
+    initial.lodging,
+    initial.essentials.length,
+    initial.dining.length,
+    initial.attractions.length,
+    initial.adventures.length,
+  ])
 
   const showMusicStep = setupContext.showMusicStep
   const steps = useMemo(() => visibleSetupSteps(showMusicStep), [showMusicStep])
@@ -361,17 +380,27 @@ export default function TripSetupWizard({
     const travelerId = requireTravelerId()
     if (!travelerId) throw new Error('Sign in to save changes to this trip.')
 
-    const res = await fetch(`/api/trip/${tripId}/flights`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        travelerId,
-        flights: form.flightRows.filter(flightRowHasData),
-        travelNotes: form.flightNotes.trim() || null,
-      }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.error || 'Failed to save flights')
+    const rowsToSave = form.flightRows.filter(flightRowHasData)
+    const travelNotes = form.flightNotes.trim()
+
+    // Never PUT an empty flights array — server guard exists, but skip the call entirely.
+    if (rowsToSave.length > 0 || travelNotes) {
+      const res = await fetch(`/api/trip/${tripId}/flights`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          travelerId,
+          flights: rowsToSave,
+          travelNotes: travelNotes || null,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to save flights')
+
+      patchForm({
+        flightCount: Array.isArray(data.flights) ? data.flights.length : rowsToSave.length,
+      })
+    }
 
     const locRes = await fetch(`/api/trip/${tripId}`, {
       method: 'PATCH',
@@ -384,9 +413,6 @@ export default function TripSetupWizard({
     const locData = await locRes.json().catch(() => ({}))
     if (!locRes.ok) throw new Error(locData.error || 'Failed to save leaving from')
 
-    patchForm({
-      flightCount: Array.isArray(data.flights) ? data.flights.length : form.flightRows.length,
-    })
     setError(null)
     router.refresh()
   }, [form, router, tripId])
@@ -421,22 +447,30 @@ export default function TripSetupWizard({
     startingLocation: form.startingLocation,
   })
 
+  const flightHasSaveableData =
+    form.flightRows.some(flightRowHasData) ||
+    Boolean(form.flightNotes.trim()) ||
+    form.flightCount > 0
+
   const coreAutosave = useTripSetupAutosave({
     enabled: activeStep === 'coreDetails',
     watchKey: coreWatchKey,
     onSave: persistCoreDetails,
+    mode: 'debounced',
   })
 
   const musicAutosave = useTripSetupAutosave({
     enabled: activeStep === 'musicEvent' && showMusicStep,
     watchKey: musicWatchKey,
     onSave: persistMusicEvent,
+    mode: 'debounced',
   })
 
   const flightAutosave = useTripSetupAutosave({
-    enabled: activeStep === 'flightInfo',
+    enabled: activeStep === 'flightInfo' && flightHasSaveableData,
     watchKey: flightWatchKey,
     onSave: persistFlightInfo,
+    mode: 'debounced',
   })
 
   const activeAutosave =
@@ -458,6 +492,7 @@ export default function TripSetupWizard({
               setupContext={setupContext}
               onChange={patchForm}
               error={error}
+              tripId={tripId}
             />
             <AutosaveStatusBar
               status={coreAutosave.status}
@@ -494,6 +529,7 @@ export default function TripSetupWizard({
               onChangeFlights={(flightRows) => patchForm({ flightRows })}
               onChangeNotes={(flightNotes) => patchForm({ flightNotes })}
               onChangeStartingLocation={(startingLocation) => patchForm({ startingLocation })}
+              onAfterApply={() => void flightAutosave.saveNow()}
               error={error}
             />
             <AutosaveStatusBar
@@ -505,7 +541,28 @@ export default function TripSetupWizard({
         )
       case 'lodging':
         return (
-          <LodgingStep tripId={tripId} lodging={initial.lodging} googleApiKey={googleApiKey} />
+          <LodgingStep
+            tripId={tripId}
+            lodging={initial.lodging}
+            googleApiKey={googleApiKey}
+            onLodgingSaved={() => {
+              patchForm({ lodgingSet: true })
+              router.refresh()
+            }}
+          />
+        )
+      case 'essentials':
+        return (
+          <EssentialsStep
+            tripId={tripId}
+            lodgingLat={initial.lodging?.lat ?? null}
+            lodgingLng={initial.lodging?.lng ?? null}
+            lodgingSet={form.lodgingSet || Boolean(initial.lodging)}
+            essentials={initial.essentials}
+            onEssentialsSaved={() => {
+              router.refresh()
+            }}
+          />
         )
       case 'poi':
         return (
@@ -535,7 +592,7 @@ export default function TripSetupWizard({
           href={`/trip/${tripId}/plan`}
           className="text-sm text-gray-500 hover:text-gray-800 mb-3 inline-block"
         >
-          ← View day plan
+          ← Build itinerary
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">{headerTitle}</h1>
         {dateLabel ? (
@@ -545,8 +602,8 @@ export default function TripSetupWizard({
         ) : null}
         <p className="text-sm text-gray-500 mt-2">
           {setupContext.setupOrigin === 'CONCERT_INGEST'
-            ? 'Continue setup — core details, flights, stay, then things to do.'
-            : 'Set up your trip — core details, flights, stay, then things to do.'}
+            ? 'Continue setup — core details, flights, stay, essentials, then things to do.'
+            : 'Set up your trip — core details, flights, stay, essentials, then things to do.'}
         </p>
       </div>
 

@@ -34,8 +34,10 @@ Rules:
 - Split combined flight numbers: AA1234 -> airlineCode AA, flightNumber 1234.
 - departureTime/arrivalTime as ISO 8601 or YYYY-MM-DDTHH:mm when possible.
 - Do not invent confirmation codes or flight numbers not present in the source.
+- For one-way trips with a single leg, return exactly ONE flight row — do not duplicate legs.
 - For round trips: first leg OUTBOUND, return leg RETURN when obvious; otherwise null direction.
-- confirmationCode is the booking/record locator (PNR), shared across legs if one code applies to all.`
+- confirmationCode is the booking/record locator (PNR), shared across legs if one code applies to all.
+- Put extra metadata in notes when not mapped to fields: Expedia/itinerary numbers, operated-by carrier, cabin/fare class, duration (e.g. "1h 42m"), booking provider.`
 
 export type FlightParseResult = {
   flights: TripFlightFormRow[]
@@ -176,20 +178,39 @@ export function normalizeAiFlightParse(raw: unknown): FlightParseResult {
   }
 }
 
-/** Ensure wizard always has outbound + return slots when parsing fewer than 2 legs. */
+/** Ensure wizard has outbound + return slots; avoid duplicating a single parsed leg. */
 export function ensureOutboundReturnShape(rows: TripFlightFormRow[]): TripFlightFormRow[] {
   if (!rows.length) {
     return [emptyFlightRow('OUTBOUND'), emptyFlightRow('RETURN')]
+  }
+
+  const filled = rows.filter(
+    (r) =>
+      r.airlineName.trim() ||
+      r.flightNumber.trim() ||
+      r.departureAirportCode.trim() ||
+      r.arrivalAirportCode.trim() ||
+      r.departureTime.trim() ||
+      r.arrivalTime.trim() ||
+      r.confirmationCode.trim()
+  )
+
+  if (filled.length === 1) {
+    const only = filled[0]
+    return [
+      { ...only, direction: 'OUTBOUND' },
+      emptyFlightRow('RETURN'),
+    ]
   }
 
   const hasOutbound = rows.some((r) => r.direction === 'OUTBOUND')
   const hasReturn = rows.some((r) => r.direction === 'RETURN')
   const result = [...rows]
 
-  if (!hasOutbound) {
-    result.unshift({ ...rows[0], direction: 'OUTBOUND' })
+  if (!hasOutbound && filled.length > 0) {
+    result.unshift({ ...filled[0], direction: 'OUTBOUND' })
   }
-  if (!hasReturn && rows.length === 1) {
+  if (!hasReturn && filled.length <= 1) {
     result.push(emptyFlightRow('RETURN'))
   }
 

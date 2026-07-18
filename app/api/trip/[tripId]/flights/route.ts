@@ -6,6 +6,7 @@ import {
   formRowToDbData,
   type TripFlightFormRow,
 } from '@/lib/trip-flight'
+import { shouldRejectEmptyFlightReplace } from '@/lib/trip-flight-save-guard'
 import type { TripFlightDirection } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -77,10 +78,11 @@ export async function PUT(
 ) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { travelerId, flights: flightsRaw, travelNotes } = body as {
+    const { travelerId, flights: flightsRaw, travelNotes, clearFlights } = body as {
       travelerId?: string
       flights?: unknown[]
       travelNotes?: string | null
+      clearFlights?: boolean
     }
 
     if (!travelerId?.trim()) {
@@ -102,6 +104,17 @@ export async function PUT(
       : []
 
     const rowsToSave = incomingRows.filter(flightRowHasData)
+
+    if (shouldRejectEmptyFlightReplace(rowsToSave, clearFlights === true)) {
+      const existing = await prisma.tripFlight.findMany({
+        where: { tripId: params.tripId },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      })
+      return NextResponse.json({
+        flights: existing,
+        skippedEmptyReplace: true,
+      })
+    }
 
     const saved = await prisma.$transaction(async (tx) => {
       await tx.tripFlight.deleteMany({ where: { tripId: params.tripId } })

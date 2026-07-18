@@ -10,6 +10,8 @@ type UseTripSetupAutosaveOptions = {
   onSave: () => Promise<void>
   /** Serialized snapshot of fields that trigger save */
   watchKey: string
+  /** When manual, only saveNow() persists — no debounced effect */
+  mode?: 'debounced' | 'manual'
 }
 
 export function useTripSetupAutosave({
@@ -17,6 +19,7 @@ export function useTripSetupAutosave({
   debounceMs = 800,
   onSave,
   watchKey,
+  mode = 'debounced',
 }: UseTripSetupAutosaveOptions) {
   const [status, setStatus] = useState<AutosaveStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -25,7 +28,7 @@ export function useTripSetupAutosave({
   onSaveRef.current = onSave
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || mode === 'manual') return
     if (skipNext.current) {
       skipNext.current = false
       return
@@ -45,7 +48,7 @@ export function useTripSetupAutosave({
     }, debounceMs)
 
     return () => clearTimeout(timer)
-  }, [enabled, debounceMs, watchKey])
+  }, [enabled, debounceMs, mode, watchKey])
 
   async function saveNow() {
     setStatus('saving')
@@ -67,12 +70,14 @@ export function AutosaveStatusBar({
   status,
   errorMessage,
   onRetry,
+  hint,
 }: {
   status: AutosaveStatus
   errorMessage: string | null
   onRetry?: () => void
+  hint?: string
 }) {
-  if (status === 'idle') return null
+  if (status === 'idle' && !hint) return null
 
   return (
     <div
@@ -85,6 +90,7 @@ export function AutosaveStatusBar({
       }`}
     >
       <span>
+        {status === 'idle' && hint}
         {status === 'saving' && 'Saving…'}
         {status === 'saved' && 'Saved'}
         {status === 'error' && (errorMessage || 'Could not save')}

@@ -1,16 +1,19 @@
 'use client'
 
+import { useState } from 'react'
 import DestinationFields from '@/app/components/trip/setup/DestinationFields'
 import type {
   TripSetupContextProps,
   TripSetupFormState,
 } from '@/app/components/trip/setup/trip-setup-wizard-steps'
+import { LocalStorageAPI } from '@/lib/localStorage'
 
 type CoreDetailsStepProps = {
   form: TripSetupFormState
   setupContext: TripSetupContextProps
   onChange: (patch: Partial<TripSetupFormState>) => void
   error: string | null
+  tripId: string
 }
 
 export default function CoreDetailsStep({
@@ -18,11 +21,61 @@ export default function CoreDetailsStep({
   setupContext,
   onChange,
   error,
+  tripId,
 }: CoreDetailsStepProps) {
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+
   const showInferredHint =
     setupContext.isConcertTrip &&
     setupContext.inferredTitle &&
     !form.titleManuallyEdited
+
+  async function generatePurpose() {
+    setGenerateError(null)
+    const travelerId = LocalStorageAPI.getTravelerId()
+    if (!travelerId) {
+      setGenerateError('Sign in to generate purpose text.')
+      return
+    }
+
+    setGenerating(true)
+    try {
+      const res = await fetch(`/api/trip/${tripId}/generate-purpose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          travelerId,
+          context: {
+            title: form.title,
+            purpose: form.purpose,
+            city: form.city,
+            state: form.state,
+            country: form.country,
+            startDate: form.startDate,
+            endDate: form.endDate,
+            setupOrigin: setupContext.setupOrigin,
+            concertName: setupContext.concertName,
+          },
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Generation failed')
+
+      const patch: Partial<TripSetupFormState> = {}
+      if (typeof data.purpose === 'string' && data.purpose.trim()) {
+        patch.purpose = data.purpose.trim()
+      }
+      if (typeof data.title === 'string' && data.title.trim() && !form.titleManuallyEdited) {
+        patch.title = data.title.trim()
+      }
+      if (Object.keys(patch).length) onChange(patch)
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Generation failed')
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -30,8 +83,10 @@ export default function CoreDetailsStep({
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Core details</h3>
         <p className="text-sm text-gray-600">
           {setupContext.setupOrigin === 'CONCERT_INGEST'
-            ? 'Finish destination and dates for your concert trip — flights, stay, and things to do come next.'
-            : 'Trip title, destination, and dates. Flights, stay, and things to do are on the next steps.'}
+            ? 'Review destination and dates for your concert trip — flights, stay, and essentials come next.'
+            : setupContext.setupOrigin === 'GENERIC'
+              ? 'Review the draft from ingest — edit title and purpose, then save when ready.'
+              : 'Trip title, destination, and dates. Flights, stay, and essentials are on the next steps.'}
         </p>
       </div>
 
@@ -63,19 +118,32 @@ export default function CoreDetailsStep({
         ) : null}
       </label>
 
-      <label className="block">
-        <span className="block text-sm font-medium text-gray-700 mb-1">Trip purpose</span>
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span className="block text-sm font-medium text-gray-700">Trip purpose</span>
+          <button
+            type="button"
+            onClick={() => void generatePurpose()}
+            disabled={generating}
+            className="text-xs font-medium text-sky-700 hover:underline disabled:opacity-50"
+          >
+            {generating ? 'Generating…' : 'AI generate'}
+          </button>
+        </div>
         <textarea
           value={form.purpose}
           onChange={(e) => onChange({ purpose: e.target.value })}
           rows={3}
-          placeholder="e.g. Attending the festival with friends"
+          placeholder="e.g. Festival weekend with friends, centered around Osheaga, staying near downtown Montreal."
           className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
         />
         <span className="block text-xs text-gray-500 mt-1">
           Why you are going — separate from the display title.
         </span>
-      </label>
+        {generateError ? (
+          <p className="text-xs text-red-600 mt-1">{generateError}</p>
+        ) : null}
+      </div>
 
       <DestinationFields
         city={form.city}

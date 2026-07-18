@@ -14,6 +14,10 @@ export function concertsIngestPath(): string {
   return '/experiences/concerts/ingest'
 }
 
+export function tripSetupIngestPath(): string {
+  return '/trip/setup'
+}
+
 export function experiencePaths() {
   const concertsList = concertsListPath()
   const concertsIngest = concertsIngestPath()

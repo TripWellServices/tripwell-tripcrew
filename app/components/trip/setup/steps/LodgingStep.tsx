@@ -9,6 +9,7 @@ type LodgingStepProps = {
   tripId: string
   lodging: LodgingCardLodging | null
   googleApiKey: string
+  onLodgingSaved?: () => void
 }
 
 function selectionFromLodging(lodging: LodgingCardLodging | null): LodgingPlaceSelection | null {
@@ -30,7 +31,12 @@ function selectionFromLodging(lodging: LodgingCardLodging | null): LodgingPlaceS
   }
 }
 
-export default function LodgingStep({ tripId, lodging, googleApiKey }: LodgingStepProps) {
+export default function LodgingStep({
+  tripId,
+  lodging,
+  googleApiKey,
+  onLodgingSaved,
+}: LodgingStepProps) {
   return (
     <div className="space-y-5">
       <div>
@@ -44,7 +50,7 @@ export default function LodgingStep({ tripId, lodging, googleApiKey }: LodgingSt
         googleApiKey={googleApiKey}
         value={selectionFromLodging(lodging)}
         onChange={() => {
-          /* persisted via hydrate/lodging when tripId is set */
+          onLodgingSaved?.()
         }}
         tripId={tripId}
       />

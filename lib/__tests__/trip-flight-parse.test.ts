@@ -79,22 +79,25 @@ describe('trip-flight-parse', () => {
     assert.equal(row.confirmationCode, 'XYZ789')
   })
 
-  it('pads outbound and return slots', () => {
+  it('pads outbound and return slots without duplicating single leg', () => {
     const rows = ensureOutboundReturnShape([
       {
         direction: 'OUTBOUND',
         airlineName: 'United',
         airlineCode: 'UA',
-        flightNumber: '100',
-        departureAirportCode: 'EWR',
+        flightNumber: '8083',
+        departureAirportCode: 'IAD',
         arrivalAirportCode: 'YUL',
-        departureTime: '',
-        arrivalTime: '',
-        confirmationCode: '',
-        notes: '',
+        departureTime: '2026-07-31T09:45',
+        arrivalTime: '2026-07-31T11:27',
+        confirmationCode: 'NSNWG7',
+        notes: 'Expedia itinerary 73439608776468; operated by Air Canada; Economy / Coach (K); 1h 42m',
       },
     ])
     assert.equal(rows.length, 2)
+    assert.equal(rows[0].direction, 'OUTBOUND')
+    assert.equal(rows[0].flightNumber, '8083')
     assert.equal(rows[1].direction, 'RETURN')
+    assert.equal(rows[1].flightNumber, '')
   })
 })

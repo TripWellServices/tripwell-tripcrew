@@ -12,6 +12,7 @@ export type TripSetupStepId =
   | 'musicEvent'
   | 'flightInfo'
   | 'lodging'
+  | 'essentials'
   | 'poi'
 
 export type TripSetupStepInfo = {
@@ -29,7 +30,7 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
   {
     id: 'musicEvent',
     title: 'Music event',
-    description: 'Festival or concert name, venue, schedule',
+    description: 'Festival or concert — add if this trip is for a show',
   },
   {
     id: 'flightInfo',
@@ -40,6 +41,11 @@ export const BASE_SETUP_STEPS: TripSetupStepInfo[] = [
     id: 'lodging',
     title: 'Stay',
     description: 'Where you are staying',
+  },
+  {
+    id: 'essentials',
+    title: 'Groceries / essentials',
+    description: 'Grocery, pharmacy, coffee, and basics near your stay',
   },
   {
     id: 'poi',
@@ -83,6 +89,7 @@ export type TripSetupFormState = {
   flightRows: TripFlightFormRow[]
   flightNotes: string
   lodgingSet: boolean
+  essentialsCount: number
   poiCount: number
   flightCount: number
   logisticsCount: number
@@ -128,6 +135,8 @@ export function computeSetupStepStatus(
     }
     case 'lodging':
       return form.lodgingSet ? 'complete' : 'empty'
+    case 'essentials':
+      return form.essentialsCount > 0 ? 'complete' : form.lodgingSet ? 'partial' : 'empty'
     case 'poi':
       return form.poiCount > 0 ? 'complete' : 'empty'
     default:

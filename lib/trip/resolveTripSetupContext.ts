@@ -1,5 +1,6 @@
 import type { TripSetupOrigin } from '@prisma/client'
 import { inferConcertTripTitle } from '@/lib/trip/inferTripTitle'
+import { tripTextLooksLikeConcert } from '@/lib/trip/detectConcertTrip'
 
 export type TripSetupContext = {
   setupOrigin: TripSetupOrigin
@@ -23,6 +24,7 @@ type ConcertAnchorRow = {
 type TripForSetupContext = {
   setupOrigin: TripSetupOrigin
   title: string | null
+  purpose: string | null
   city: string | null
   state: string | null
   country: string | null
@@ -37,7 +39,9 @@ export function resolveTripSetupContext(
   const anchor = trip.concertAnchors[0] ?? null
   const concert = anchor?.concert ?? null
   const isConcertTrip =
-    trip.setupOrigin === 'CONCERT_INGEST' || Boolean(anchor && concert)
+    trip.setupOrigin === 'CONCERT_INGEST' ||
+    Boolean(anchor && concert) ||
+    tripTextLooksLikeConcert(trip.title, trip.purpose)
   const inferredTitle = concert?.name
     ? inferConcertTripTitle({
         concertName: concert.name,
@@ -50,7 +54,8 @@ export function resolveTripSetupContext(
   return {
     setupOrigin: trip.setupOrigin,
     isConcertTrip,
-    showMusicStep: isConcertTrip,
+    /** Always available — create or link a show even on generic trips. */
+    showMusicStep: true,
     concertAnchorId: anchor?.id ?? null,
     concertId: concert?.id ?? null,
     concertName: concert?.name ?? null,

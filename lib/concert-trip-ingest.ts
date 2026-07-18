@@ -59,6 +59,7 @@ export function eventAnchorToConcertCore(
     eventDate: anchor.eventDate,
     eventStartDate: anchor.eventDate,
     eventEndDate: anchor.eventDate,
+    isFestival: anchor.kind === 'festival',
   }
 }
 

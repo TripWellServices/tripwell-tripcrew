@@ -8,6 +8,7 @@ import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
 import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 import { resolveTripSetupContext } from '@/lib/trip/resolveTripSetupContext'
+import { partitionDiningByEssentials } from '@/lib/trip-essentials'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -87,6 +88,8 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
       )
     ) ?? []
 
+  const { essentials, regularDining } = partitionDiningByEssentials(trip.dining)
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {showIngestBanner ? (
@@ -112,7 +115,8 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
           endDate: trip.endDate.toISOString(),
           startingLocation: trip.startingLocation,
           lodging: trip.lodging,
-          dining: trip.dining,
+          dining: regularDining,
+          essentials,
           attractions: trip.attractions,
           adventures: trip.adventures,
           flights: trip.flights,

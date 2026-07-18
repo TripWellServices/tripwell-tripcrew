@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { placeId, tripId } = await request.json()
+    const { placeId, tripId, categoryLabel } = await request.json()
 
     if (!placeId || !tripId) {
       return NextResponse.json(
@@ -68,13 +68,18 @@ export async function POST(request: NextRequest) {
       driveTimeMinutes = estimateDriveTime(distanceFromLodging)
     }
 
-    const category = place.types
+    const autoCategory = place.types
       ?.find((t: string) =>
         ['restaurant', 'cafe', 'bar', 'meal_takeaway', 'food'].some((cat) =>
           t.includes(cat)
         )
       )
       ?.replace(/_/g, ' ') || 'restaurant'
+
+    const category =
+      typeof categoryLabel === 'string' && categoryLabel.trim()
+        ? categoryLabel.trim()
+        : autoCategory
 
     const existing = await prisma.dining.findUnique({
       where: { googlePlaceId: placeId },
