@@ -474,6 +474,18 @@ model Lodging {
   countryCode          String?   // ISO 3166-1 alpha-2
   defaultCheckInTime   String?   // e.g. "15:00" local convention
   defaultCheckOutTime  String?
+  bookingProvider      String?   // Expedia, Hyatt, Airbnb, etc.
+  confirmationNumber   String?
+  providerItineraryNumber String?
+  nights               Int?
+  adultCount           Int?
+  childCount           Int?
+  roomCount            Int?
+  roomType             String?
+  breakfastIncluded    Boolean?
+  totalCost            Decimal?  @db.Decimal(10, 2)
+  bookingNotes         String?   @db.Text // requests, rewards, misc confirmation metadata
+  nearbyAttractionDrafts Json?   // parsed Expedia nearby POI drafts before Attraction build
   website              String?
   phone                String?
   googlePlaceId        String?

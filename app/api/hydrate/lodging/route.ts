@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${apiKey}`
       : null
 
-    // Create or update lodging entry (only one per trip)
+    // Create or update lodging entry (only one per trip) — preserve booking fields on update.
     const lodging = await prisma.lodging.upsert({
       where: {
         tripId,

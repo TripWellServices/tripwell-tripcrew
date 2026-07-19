@@ -1,0 +1,13 @@
+-- Lodging booking confirmation fields and nearby attraction ingest drafts.
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "bookingProvider" TEXT;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "confirmationNumber" TEXT;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "providerItineraryNumber" TEXT;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "nights" INTEGER;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "adultCount" INTEGER;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "childCount" INTEGER;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "roomCount" INTEGER;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "roomType" TEXT;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "breakfastIncluded" BOOLEAN;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "totalCost" DECIMAL(10,2);
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "bookingNotes" TEXT;
+ALTER TABLE "Lodging" ADD COLUMN IF NOT EXISTS "nearbyAttractionDrafts" JSONB;

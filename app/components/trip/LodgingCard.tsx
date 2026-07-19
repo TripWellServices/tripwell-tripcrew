@@ -73,6 +73,19 @@ export type LodgingCardLodging = {
   rating?: number | null
   lat?: number | null
   lng?: number | null
+  googlePlaceId?: string | null
+  bookingProvider?: string | null
+  confirmationNumber?: string | null
+  providerItineraryNumber?: string | null
+  nights?: number | null
+  adultCount?: number | null
+  childCount?: number | null
+  roomCount?: number | null
+  roomType?: string | null
+  breakfastIncluded?: boolean | null
+  totalCost?: string | number | Decimal | null
+  bookingNotes?: string | null
+  nearbyAttractionDrafts?: JsonValue | null
 }
 
 interface LodgingCardProps {

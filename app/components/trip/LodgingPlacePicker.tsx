@@ -31,6 +31,8 @@ type LodgingPlacePickerProps = {
   /** When set, persist via /api/hydrate/lodging instead of preview-only. */
   tripId?: string
   compact?: boolean
+  /** When set, called after hydrate save instead of full page reload. */
+  onHydrated?: (lodging: LodgingCardLodging) => void
 }
 
 export default function LodgingPlacePicker({
@@ -39,6 +41,7 @@ export default function LodgingPlacePicker({
   onChange,
   tripId,
   compact = false,
+  onHydrated,
 }: LodgingPlacePickerProps) {
   const [isHydrating, setIsHydrating] = useState(false)
   const [showSearch, setShowSearch] = useState(!value)
@@ -67,9 +70,16 @@ export default function LodgingPlacePicker({
           googlePlaceId: placeId,
           imageUrl: lodging.imageUrl,
           rating: lodging.rating,
+          lat: lodging.lat,
+          lng: lodging.lng,
           defaultCheckInTime: lodging.defaultCheckInTime,
           defaultCheckOutTime: lodging.defaultCheckOutTime,
         })
+        if (onHydrated) {
+          onHydrated(lodging)
+          setShowSearch(false)
+          return
+        }
         window.location.reload()
         return
       }
