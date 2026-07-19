@@ -9,6 +9,7 @@ import {
   pickDescriptionAfterHydrate,
   type GooglePlaceResult,
 } from '@/lib/google-places-hydrate'
+import { resolveGooglePlacesApiKey, googlePlacesErrorMessage } from '@/lib/google-places-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY
+    const apiKey = resolveGooglePlacesApiKey()
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Google Places API key not configured' },
@@ -39,8 +40,13 @@ export async function POST(request: NextRequest) {
     const detailsData = await detailsResponse.json()
     if (detailsData.status !== 'OK') {
       return NextResponse.json(
-        { error: 'Place not found' },
-        { status: 404 }
+        {
+          error: googlePlacesErrorMessage(
+            detailsData.status,
+            typeof detailsData.error_message === 'string' ? detailsData.error_message : null
+          ),
+        },
+        { status: detailsData.status === 'REQUEST_DENIED' ? 503 : 404 }
       )
     }
 

@@ -10,6 +10,7 @@ import WeatherCard from '@/app/components/trip/WeatherCard'
 import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
 import TripMemoriesCard from '@/app/components/trip/TripMemoriesCard'
 import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
+import { resolveGooglePlacesApiKey } from '@/lib/google-places-config'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
 import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
@@ -27,7 +28,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   }
 
   const isAdmin = false
-  const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
+  const googleApiKey = resolveGooglePlacesApiKey() || ''
 
   // Use server action for safe hydration
   const result = await getTrip(params.tripId)

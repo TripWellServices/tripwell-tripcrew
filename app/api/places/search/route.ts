@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveGooglePlacesApiKey, googlePlacesErrorMessage } from '@/lib/google-places-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export type TextSearchCandidate = {
  */
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY
+    const apiKey = resolveGooglePlacesApiKey()
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Google Places API key not configured' },
@@ -66,8 +67,13 @@ export async function POST(request: NextRequest) {
     }
     if (data.status !== 'OK' && data.status !== 'OK_WITH_WARNING') {
       return NextResponse.json(
-        { error: data.status === 'INVALID_REQUEST' ? 'Invalid search' : 'Search failed' },
-        { status: 400 }
+        {
+          error: googlePlacesErrorMessage(
+            data.status,
+            typeof data.error_message === 'string' ? data.error_message : null
+          ),
+        },
+        { status: data.status === 'REQUEST_DENIED' ? 503 : 400 }
       )
     }
 

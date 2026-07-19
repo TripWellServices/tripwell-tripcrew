@@ -7,7 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --import tsx --test lib/__tests__/city-upsert.test.ts lib/__tests__/trip-plan-dates.test.ts lib/__tests__/trip-plan-ingest.test.ts lib/__tests__/concert-event-window.test.ts lib/__tests__/concert-lineup.test.ts lib/__tests__/trip-flight.test.ts lib/__tests__/trip-flight-parse.test.ts lib/__tests__/trip-flight-save-guard.test.ts lib/__tests__/trip-essentials.test.ts lib/__tests__/trip-core-csv.test.ts lib/__tests__/detect-concert-trip.test.ts lib/__tests__/trip-poi-suggestions.test.ts lib/__tests__/infer-trip-title.test.ts lib/__tests__/resolve-trip-setup-context.test.ts lib/__tests__/trip-ingest-schedule.test.ts",
+    "test": "node --import tsx --test lib/__tests__/city-upsert.test.ts lib/__tests__/trip-plan-dates.test.ts lib/__tests__/trip-plan-ingest.test.ts lib/__tests__/concert-event-window.test.ts lib/__tests__/concert-lineup.test.ts lib/__tests__/trip-flight.test.ts lib/__tests__/trip-flight-parse.test.ts lib/__tests__/trip-flight-save-guard.test.ts lib/__tests__/trip-essentials.test.ts lib/__tests__/trip-core-csv.test.ts lib/__tests__/detect-concert-trip.test.ts lib/__tests__/trip-poi-suggestions.test.ts lib/__tests__/infer-trip-title.test.ts lib/__tests__/resolve-trip-setup-context.test.ts lib/__tests__/trip-ingest-schedule.test.ts lib/__tests__/google-places-config.test.ts",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",

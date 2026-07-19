@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveGooglePlacesApiKey, googlePlacesErrorMessage } from '@/lib/google-places-config'
 import { parseStructuredAddressFromGoogle } from '@/lib/lodging/parseGoogleAddress'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'placeId is required' }, { status: 400 })
     }
 
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY
+    const apiKey = resolveGooglePlacesApiKey()
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Google Places API key not configured' },
@@ -29,7 +30,15 @@ export async function POST(request: NextRequest) {
 
     const detailsData = await detailsResponse.json()
     if (detailsData.status !== 'OK') {
-      return NextResponse.json({ error: 'Place not found' }, { status: 404 })
+      return NextResponse.json(
+        {
+          error: googlePlacesErrorMessage(
+            detailsData.status,
+            typeof detailsData.error_message === 'string' ? detailsData.error_message : null
+          ),
+        },
+        { status: detailsData.status === 'REQUEST_DENIED' ? 503 : 404 }
+      )
     }
 
     const place = detailsData.result

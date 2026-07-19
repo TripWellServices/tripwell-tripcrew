@@ -1,8 +1,9 @@
 import { Suspense } from 'react'
 import ConcertIngest from '@/app/components/planner/ConcertIngest'
+import { resolveGooglePlacesApiKey } from '@/lib/google-places-config'
 
 export default function ConcertsIngestPage() {
-  const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
+  const googleApiKey = resolveGooglePlacesApiKey() || ''
 
   return (
     <Suspense

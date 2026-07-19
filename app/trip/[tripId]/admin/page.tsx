@@ -5,6 +5,7 @@ import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
 import type { LineupRow } from '@/app/components/trip/setup/trip-setup-wizard-steps'
 import { scheduleItemToLineupRow } from '@/lib/concert-lineup'
 import { getTrip } from '@/lib/actions/trip'
+import { resolveGooglePlacesApiKey } from '@/lib/google-places-config'
 import { resolveCityId } from '@/lib/city-mapper'
 import { resolveTripTitle } from '@/lib/trip/computeTripMetadata'
 import { resolveTripSetupContext } from '@/lib/trip/resolveTripSetupContext'
@@ -44,7 +45,7 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
   const { tripId } = await params
   const { ingested } = await searchParams
   const showIngestBanner = ingested === '1'
-  const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
+  const googleApiKey = resolveGooglePlacesApiKey() || ''
 
   const result = await getTrip(tripId)
 

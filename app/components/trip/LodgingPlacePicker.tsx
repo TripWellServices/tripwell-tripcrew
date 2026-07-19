@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import GoogleSearchBar from '@/app/components/trip/GoogleSearchBar'
 import type { LodgingCardLodging } from '@/app/components/trip/LodgingCard'
+import { GOOGLE_PLACES_ENV_HINT } from '@/lib/google-places-config'
 
 export type LodgingPlaceSelection = {
   title: string
@@ -103,7 +104,8 @@ export default function LodgingPlacePicker({
     <div className="space-y-4">
       {!googleApiKey ? (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Google Places is not configured — lodging search requires GOOGLE_PLACES_API_KEY.
+          Google Places is not configured — lodging search needs a Google Maps/Places API key.{' '}
+          {GOOGLE_PLACES_ENV_HINT}
         </p>
       ) : null}
 
