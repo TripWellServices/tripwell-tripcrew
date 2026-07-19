@@ -85,7 +85,7 @@ async function main() {
   console.log(`   http://localhost:3000/tripcrew/${tripCrew.id}`)
   console.log('\n🌐 View trip at:')
   console.log(`   http://localhost:3000/trip/${trip.id}`)
-  console.log(`   http://localhost:3000/trip/${trip.id}?admin=1`)
+  console.log(`   http://localhost:3000/trip/${trip.id}/admin`)
 }
 
 main()

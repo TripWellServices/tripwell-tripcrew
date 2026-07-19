@@ -109,10 +109,10 @@ export default function AttractionCard({
             </div>
           ) : (
             <Link
-              href={`${pathname}?admin=1`}
+              href={`${pathname}/admin`}
               className="inline-block text-sm font-medium text-sky-600 hover:underline"
             >
-              Enable editing (?admin=1) to add attractions
+              Open setup to add attractions
             </Link>
           )}
         </div>

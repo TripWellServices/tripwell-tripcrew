@@ -210,7 +210,7 @@ export default function TripCrewPage() {
             {tripCrew.trips.map((trip) => (
               <Link
                 key={trip.id}
-                href={`/trip/${trip.id}?admin=1`}
+                href={`/trip/${trip.id}/admin`}
                 className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition"
               >
                 <div className="w-full h-48 bg-gradient-to-br from-sky-400 to-blue-500"></div>

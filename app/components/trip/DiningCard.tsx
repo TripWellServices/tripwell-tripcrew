@@ -109,10 +109,10 @@ export default function DiningCard({
             </div>
           ) : (
             <Link
-              href={`${pathname}?admin=1`}
+              href={`${pathname}/admin`}
               className="inline-block text-sm font-medium text-sky-600 hover:underline"
             >
-              Enable editing (?admin=1) to add restaurants
+              Open setup to add restaurants
             </Link>
           )}
         </div>

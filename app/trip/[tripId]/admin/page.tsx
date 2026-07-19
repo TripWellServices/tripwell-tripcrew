@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import TripSetupWizard from '@/app/components/trip/setup/TripSetupWizard'
 import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
@@ -49,7 +49,7 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
   const result = await getTrip(tripId)
 
   if (!result.success) {
-    if (result.code === 'NOT_FOUND') redirect('/')
+    if (result.code === 'NOT_FOUND') notFound()
     throw new Error(result.error)
   }
 

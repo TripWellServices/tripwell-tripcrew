@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
-import { concertsIngestPath } from '@/lib/experience-routes'
+import { tripSetupIngestPath } from '@/lib/experience-routes'
 
 export default function PlanScratchRedirectPage() {
-  redirect(concertsIngestPath())
+  redirect(tripSetupIngestPath())
 }

@@ -30,8 +30,8 @@ export function experiencePaths() {
     enter: '/experiences/enter',
     wishlist: '/wishlist',
     destinations: '/destinations',
-    planFork: concertsIngest,
-    planGotPlan: concertsIngest,
+    planFork: tripSetupIngestPath(),
+    planGotPlan: tripSetupIngestPath(),
     planDestination: (mode: 'trip' | 'season', citySlug?: string) => {
       const base = '/plan/destination'
       const q = new URLSearchParams({ mode })

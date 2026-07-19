@@ -36,6 +36,11 @@ import {
   parseConcertEventWindow,
   type ConcertScheduleItemInput,
 } from '@/lib/concert-event-window'
+import { tripTextLooksLikeConcert } from '@/lib/trip/detectConcertTrip'
+import {
+  scheduleConcertOnTripDay,
+  scheduleDaySlotOnTripDay,
+} from '@/lib/trip-ingest-schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,7 +55,7 @@ function normEnum<T extends string>(v: unknown, allowed: T[]): T | null {
 
 /**
  * POST /api/traveler/trips/ingest-plan
- * Concert-first ingest: Trip shell + FK anchors (no TripDayExperience placement in Pass 2).
+ * Trip ingest: shell + FK anchors + optional day scheduling for concerts and day slots.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -237,6 +242,16 @@ export async function POST(request: NextRequest) {
         ? TripSetupOrigin.GENERIC
         : TripSetupOrigin.CONCERT_INGEST
 
+    if (!concertCore?.name?.trim() && setupOrigin === TripSetupOrigin.CONCERT_INGEST) {
+      concertCore = {
+        name: tripName,
+        city: cityT,
+        state: stateT,
+        country: countryT,
+        isFestival: tripTextLooksLikeConcert(tripName, purpose),
+      }
+    }
+
     const { daysTotal, season } = computeTripMetadata(start, end)
     const sameCalendarDay =
       start.getUTCFullYear() === end.getUTCFullYear() &&
@@ -321,6 +336,12 @@ export async function POST(request: NextRequest) {
         endDate: end,
       })
 
+      const tripDays = await tx.tripDay.findMany({
+        where: { tripId: t.id },
+        orderBy: { dayNumber: 'asc' },
+        select: { id: true, dayNumber: true, date: true },
+      })
+
       if (cityIdForCatalogue) {
         await seedDestinationFromConcertCity(tx, {
           tripId: t.id,
@@ -397,6 +418,20 @@ export async function POST(request: NextRequest) {
           role: concertCore.isFestival ? 'festival' : 'primary',
           notes: eventAnchor?.ticketStatus ?? null,
         })
+
+        const window = parseConcertEventWindow(concertCore)
+        const eventYmd =
+          window.eventStartDate?.toISOString().slice(0, 10) ??
+          concertCore.eventDate ??
+          concertCore.eventStartDate ??
+          null
+        await scheduleConcertOnTripDay(tx, {
+          concertId,
+          tripDays,
+          eventDateYmd: eventYmd,
+          startTime: concertCore.eventStartTime,
+          endTime: concertCore.eventEndTime,
+        })
       }
 
       if (wishlistPoi.length) {
@@ -416,11 +451,26 @@ export async function POST(request: NextRequest) {
       }
 
       for (const slot of daySlots) {
-        await ingestDaySlotAsWishlist(tx, {
+        const created = await ingestDaySlotAsWishlist(tx, {
           tripId: t.id,
           cityId: cityIdForCatalogue,
           slot,
         })
+        if (created?.kind === 'dining') {
+          await scheduleDaySlotOnTripDay(tx, {
+            tripDays,
+            tripStart: start,
+            slot,
+            diningId: created.id,
+          })
+        } else if (created?.kind === 'attraction') {
+          await scheduleDaySlotOnTripDay(tx, {
+            tripDays,
+            tripStart: start,
+            slot,
+            attractionId: created.id,
+          })
+        }
       }
 
       return t.id

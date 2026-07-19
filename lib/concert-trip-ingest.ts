@@ -295,6 +295,11 @@ export async function ingestExperienceSpecsAsWishlist(
   }
 }
 
+export type IngestDaySlotResult =
+  | { kind: 'logistic' }
+  | { kind: 'dining'; id: string }
+  | { kind: 'attraction'; id: string }
+
 export async function ingestDaySlotAsWishlist(
   tx: Prisma.TransactionClient,
   params: {
@@ -302,7 +307,7 @@ export async function ingestDaySlotAsWishlist(
     cityId: string | null
     slot: ParsedDaySlot
   }
-): Promise<void> {
+): Promise<IngestDaySlotResult | null> {
   const { tripId, cityId, slot } = params
 
   if (slot.type === 'logistic') {
@@ -314,12 +319,12 @@ export async function ingestDaySlotAsWishlist(
         detail: detail || null,
       },
     })
-    return
+    return { kind: 'logistic' }
   }
 
   if (slot.type === 'dining') {
     const dmeta = daySlotDiningMetadata(slot) as Prisma.InputJsonValue
-    await createWishlistDining(tx, {
+    const id = await createWishlistDining(tx, {
       tripId,
       cityId,
       title: slot.title,
@@ -328,11 +333,11 @@ export async function ingestDaySlotAsWishlist(
       description: slot.description?.trim() || slot.notes?.trim() || null,
       metadata: dmeta,
     })
-    return
+    return { kind: 'dining', id }
   }
 
   const ameta = daySlotAttractionMetadata(slot) as Prisma.InputJsonValue
-  await createWishlistAttraction(tx, {
+  const id = await createWishlistAttraction(tx, {
     tripId,
     cityId,
     title: slot.title,
@@ -341,6 +346,7 @@ export async function ingestDaySlotAsWishlist(
     description: slot.description?.trim() || null,
     metadata: ameta,
   })
+  return { kind: 'attraction', id }
 }
 
 export function parseEventDateForTripDefault(

@@ -40,6 +40,7 @@ interface PersonalTrip {
   dateRange: string | null
   startDate: string | Date
   endDate: string | Date
+  crewId?: string | null
 }
 
 export default function TravelCockpitPage() {
@@ -90,25 +91,44 @@ export default function TravelCockpitPage() {
   }, [router])
 
   async function loadDashboard(tid: string) {
+    setError(null)
     try {
       const [crewRes, tripsRes] = await Promise.all([
         fetch(`/api/tripcrew?travelerId=${tid}`),
         fetch(`/api/traveler/trips?travelerId=${encodeURIComponent(tid)}`),
       ])
-      if (crewRes.ok) {
-        const data = await crewRes.json()
-        setTripCrews(data.tripCrews || [])
+      if (!crewRes.ok) {
+        const data = await crewRes.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to load TripCrews')
       }
-      if (tripsRes.ok) {
-        const trips = await tripsRes.json()
-        setPersonalTrips(Array.isArray(trips) ? trips : [])
+      if (!tripsRes.ok) {
+        const data = await tripsRes.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to load trips')
       }
+      const data = await crewRes.json()
+      setTripCrews(data.tripCrews || [])
+      const trips = await tripsRes.json()
+      setPersonalTrips(Array.isArray(trips) ? trips : [])
     } catch (err) {
       console.error('Error loading dashboard:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard')
     } finally {
       setLoading(false)
     }
   }
+
+  const personalTripsOnly = useMemo(
+    () => personalTrips.filter((trip) => !trip.crewId),
+    [personalTrips]
+  )
+
+  const crewTripIds = useMemo(() => {
+    const ids = new Set<string>()
+    tripCrews.forEach((crew) => {
+      ;(crew.trips || []).forEach((trip) => ids.add(trip.id))
+    })
+    return ids
+  }, [tripCrews])
 
   const upcomingCrewTrips = useMemo(() => {
     const today = new Date()
@@ -136,8 +156,9 @@ export default function TravelCockpitPage() {
   const upcomingPersonalTrips = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    return personalTrips
+    return personalTripsOnly
       .filter((trip) => {
+        if (crewTripIds.has(trip.id)) return false
         if (!trip.endDate) return true
         const end = new Date(trip.endDate)
         end.setHours(0, 0, 0, 0)
@@ -148,9 +169,9 @@ export default function TravelCockpitPage() {
         if (!b.startDate) return -1
         return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
       })
-  }, [personalTrips])
+  }, [personalTripsOnly, crewTripIds])
 
-  const pastPersonalTripsCount = personalTrips.length - upcomingPersonalTrips.length
+  const pastPersonalTripsCount = personalTripsOnly.length - upcomingPersonalTrips.length
 
   if (loading) {
     return (
@@ -190,7 +211,7 @@ export default function TravelCockpitPage() {
           </h2>
           {upcomingPersonalTrips.length === 0 ? (
             <div className="flex-1 text-sm text-gray-600">
-              {personalTrips.length === 0 ? (
+              {personalTripsOnly.length === 0 ? (
                 <p>No personal trips yet.</p>
               ) : (
                 <>
@@ -281,7 +302,7 @@ export default function TravelCockpitPage() {
 
       {upcomingPersonalTrips.length === 0 &&
       upcomingCrewTrips.length === 0 &&
-      personalTrips.length === 0 ? (
+      personalTripsOnly.length === 0 ? (
         <p className="mt-6 text-sm text-gray-500">
           <Link href={tripSetupIngestPath()} className="text-sky-600 font-medium hover:underline">
             Start a trip

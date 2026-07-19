@@ -64,7 +64,7 @@ export default function WeatherCard({ tripId }: WeatherCardProps) {
           <p className="text-gray-600 text-sm mb-2">
             {error || 'Forecast needs a pinned location — usually from your lodging address.'}
           </p>
-          <Link href={`${pathname}?admin=1`} className="text-sm font-medium text-sky-600 hover:underline">
+          <Link href={`${pathname}/admin`} className="text-sm font-medium text-sky-600 hover:underline">
             Add lodging in trip admin
           </Link>
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getFirebaseAuth } from '@/lib/firebase'
+import { postHydrateTraveler } from '@/lib/hydrateTravelerClient'
 import { LocalStorageAPI } from '@/lib/localStorage'
 import { onAuthStateChanged } from 'firebase/auth'
 import SendToTripCrew from '@/app/components/trip/SendToTripCrew'
@@ -31,14 +32,38 @@ export default function MyTripsPage() {
 
   useEffect(() => {
     const auth = getFirebaseAuth()
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push('/')
         return
       }
       const tid = LocalStorageAPI.getTravelerId()
-      if (tid) void loadTrips(tid)
-      else setLoading(false)
+      if (tid) {
+        void loadTrips(tid)
+        return
+      }
+      try {
+        const response = await postHydrateTraveler(user, {
+          email: user.email,
+          name: user.displayName,
+          picture: user.photoURL,
+        })
+        if (response.ok) {
+          const data = await response.json()
+          const hydrated = data.traveler
+          const hydratedId = hydrated?.id ?? null
+          if (hydratedId && hydrated) {
+            LocalStorageAPI.setFullHydrationModel(hydrated)
+            void loadTrips(hydratedId)
+            return
+          }
+        }
+        setError('Failed to load your account')
+      } catch {
+        setError('Failed to load your account')
+      } finally {
+        setLoading(false)
+      }
     })
     return () => unsub()
   }, [router])

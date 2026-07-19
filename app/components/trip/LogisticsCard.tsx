@@ -115,7 +115,7 @@ export default function LogisticsCard({
             Track flights, transfers, and reminders here.
           </p>
           {!isAdmin ? (
-            <Link href={`${pathname}?admin=1`} className="text-sm font-medium text-sky-600 hover:underline">
+            <Link href={`${pathname}/admin`} className="text-sm font-medium text-sky-600 hover:underline">
               Enable editing to add logistics items
             </Link>
           ) : (

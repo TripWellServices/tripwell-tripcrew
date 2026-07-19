@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import TripHeader from '@/app/components/trip/TripHeader'
 import LodgingCard from '@/app/components/trip/LodgingCard'
 import DiningCard from '@/app/components/trip/DiningCard'
@@ -22,7 +22,11 @@ interface PageProps {
 }
 
 export default async function TripPage({ params, searchParams }: PageProps) {
-  const isAdmin = searchParams.admin === '1'
+  if (searchParams.admin === '1') {
+    redirect(`/trip/${params.tripId}/admin`)
+  }
+
+  const isAdmin = false
   const googleApiKey = process.env.GOOGLE_PLACES_API_KEY || ''
 
   // Use server action for safe hydration
@@ -103,7 +107,13 @@ export default async function TripPage({ params, searchParams }: PageProps) {
 
         {!isAdmin && (
           <div className="mt-8 text-center text-gray-500 text-sm">
-            <p>View-only mode. Add ?admin=1 to the URL to edit.</p>
+            <p>
+              View-only mode.{' '}
+              <a href={`/trip/${params.tripId}/admin`} className="text-sky-600 hover:underline">
+                Open setup
+              </a>{' '}
+              to edit this trip.
+            </p>
           </div>
         )}
     </div>
