@@ -126,6 +126,7 @@ model Traveler {
   hometownCity     String?
   homeState        String?
   homeAddress      String? // full street address for drive-time / day plans
+  preferredAirportCode String?
   persona          String? // "Art", "Food", "History", "Adventure"
   planningStyle    String? // "Spontaneous", "Mix of spontaneous and planned", "Set a plan and stick to it!"
   dreamDestination String?
@@ -755,6 +756,7 @@ model TripFlight {
   arrivalAirportCode   String?
   departureTime        DateTime?
   arrivalTime          DateTime?
+  durationMinutes      Int?
   confirmationCode     String?
   notes                String?
   sortOrder            Int                 @default(0)

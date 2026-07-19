@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         hometownCity: true,
         homeState: true,
         homeAddress: true,
+        preferredAirportCode: true,
       },
     })
 
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
       hometownCity: traveler.hometownCity,
       homeState: traveler.homeState,
       homeAddress: traveler.homeAddress,
+      preferredAirportCode: traveler.preferredAirportCode,
     })
   } catch (error) {
     console.error('PROFILE GET error:', error)
@@ -55,6 +57,7 @@ export async function PUT(request: NextRequest) {
       hometownCity,
       state,
       homeAddress,
+      preferredAirportCode,
       persona,
       planningStyle,
       dreamDestination,
@@ -87,6 +90,12 @@ export async function PUT(request: NextRequest) {
               ? homeAddress.trim() || null
               : null
             : undefined,
+        preferredAirportCode:
+          preferredAirportCode !== undefined
+            ? typeof preferredAirportCode === 'string'
+              ? preferredAirportCode.trim().toUpperCase().slice(0, 4) || null
+              : null
+            : undefined,
         persona: persona || undefined,
         planningStyle: planningStyle || undefined,
         dreamDestination: dreamDestination || undefined,
@@ -101,6 +110,10 @@ export async function PUT(request: NextRequest) {
         homeState: state || null,
         homeAddress:
           typeof homeAddress === 'string' ? homeAddress.trim() || null : null,
+        preferredAirportCode:
+          typeof preferredAirportCode === 'string'
+            ? preferredAirportCode.trim().toUpperCase().slice(0, 4) || null
+            : null,
         persona: persona || null,
         planningStyle: planningStyle || null,
         dreamDestination: dreamDestination || null,

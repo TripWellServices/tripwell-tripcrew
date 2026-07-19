@@ -21,8 +21,67 @@ export default async function TripPlanPage({ params }: PageProps) {
 
   const { trip } = result
 
+  const scheduled = new Set<string>()
+  for (const day of trip.tripDays ?? []) {
+    for (const exp of day.experiences ?? []) {
+      if (exp.dining?.id) scheduled.add(`dining:${exp.dining.id}`)
+      if (exp.attraction?.id) scheduled.add(`attraction:${exp.attraction.id}`)
+      if (exp.adventure?.id) scheduled.add(`adventure:${exp.adventure.id}`)
+      if (exp.concert?.id) scheduled.add(`concert:${exp.concert.id}`)
+    }
+  }
+
+  const savedItems = [
+    ...trip.dining
+      .filter((item) => !scheduled.has(`dining:${item.id}`))
+      .map((item) => ({
+        kind: 'dining' as const,
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        description: item.description,
+        address: item.address,
+      })),
+    ...trip.attractions
+      .filter((item) => !scheduled.has(`attraction:${item.id}`))
+      .map((item) => ({
+        kind: 'attraction' as const,
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        description: item.description,
+        address: item.address,
+      })),
+    ...(trip.adventures ?? [])
+      .filter((item) => !scheduled.has(`adventure:${item.id}`))
+      .map((item) => ({
+        kind: 'adventure' as const,
+        id: item.id,
+        title: item.name,
+        category: item.category,
+        description: item.notes,
+        address: null,
+      })),
+    ...(trip.concertAnchors ?? [])
+      .map((anchor) => anchor.concert)
+      .filter((concert): concert is NonNullable<typeof concert> => Boolean(concert))
+      .filter((concert) => !scheduled.has(`concert:${concert.id}`))
+      .map((concert) => ({
+        kind: 'concert' as const,
+        id: concert.id,
+        title: concert.name,
+        category: concert.isFestival ? 'Festival' : 'Concert',
+        description: concert.description,
+        address: concert.venue,
+      })),
+  ]
+
   const hasWishlist =
-    trip.dining.length > 0 || trip.attractions.length > 0 || (trip.adventures?.length ?? 0) > 0
+    savedItems.length > 0 ||
+    trip.dining.length > 0 ||
+    trip.attractions.length > 0 ||
+    (trip.adventures?.length ?? 0) > 0 ||
+    (trip.concertAnchors?.length ?? 0) > 0
   const hasScheduled =
     (trip.tripDays?.some((d) => (d.experiences?.length ?? 0) > 0) ?? false)
 
@@ -71,6 +130,7 @@ export default async function TripPlanPage({ params }: PageProps) {
           endDate={trip.endDate}
           tripId={trip.id}
           isAdmin={true}
+          savedItems={savedItems}
         />
       </section>
     </div>

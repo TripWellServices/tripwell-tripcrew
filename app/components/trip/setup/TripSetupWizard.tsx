@@ -79,6 +79,7 @@ type TripFlightItem = {
   arrivalAirportCode?: string | null
   departureTime?: string | Date | null
   arrivalTime?: string | Date | null
+  durationMinutes?: number | null
   confirmationCode?: string | null
   notes?: string | null
   sortOrder?: number
@@ -90,6 +91,7 @@ export type TripSetupWizardProps = {
   catalogueCityId: string | null
   setupContext: TripSetupContextProps
   defaultLeavingFrom: string | null
+  preferredAirportCode: string | null
   initial: {
     title: string | null
     purpose: string
@@ -148,6 +150,7 @@ function buildInitialForm(
       arrivalAirportCode: f.arrivalAirportCode ?? null,
       departureTime: f.departureTime ? new Date(f.departureTime) : null,
       arrivalTime: f.arrivalTime ? new Date(f.arrivalTime) : null,
+      durationMinutes: f.durationMinutes ?? null,
       confirmationCode: f.confirmationCode ?? null,
       notes: f.notes ?? null,
       sortOrder: f.sortOrder ?? 0,
@@ -208,6 +211,7 @@ export default function TripSetupWizard({
   catalogueCityId,
   setupContext,
   defaultLeavingFrom,
+  preferredAirportCode,
   initial,
 }: TripSetupWizardProps) {
   const router = useRouter()
@@ -447,11 +451,6 @@ export default function TripSetupWizard({
     startingLocation: form.startingLocation,
   })
 
-  const flightHasSaveableData =
-    form.flightRows.some(flightRowHasData) ||
-    Boolean(form.flightNotes.trim()) ||
-    form.flightCount > 0
-
   const coreAutosave = useTripSetupAutosave({
     enabled: activeStep === 'coreDetails',
     watchKey: coreWatchKey,
@@ -467,7 +466,7 @@ export default function TripSetupWizard({
   })
 
   const flightAutosave = useTripSetupAutosave({
-    enabled: activeStep === 'flightInfo' && flightHasSaveableData,
+    enabled: activeStep === 'flightInfo',
     watchKey: flightWatchKey,
     onSave: persistFlightInfo,
     mode: 'debounced',
@@ -525,11 +524,11 @@ export default function TripSetupWizard({
               flightRows={form.flightRows}
               flightNotes={form.flightNotes}
               startingLocation={form.startingLocation}
+              preferredAirportCode={preferredAirportCode}
               legacyFlightItems={initial.logistics}
               onChangeFlights={(flightRows) => patchForm({ flightRows })}
               onChangeNotes={(flightNotes) => patchForm({ flightNotes })}
               onChangeStartingLocation={(startingLocation) => patchForm({ startingLocation })}
-              onAfterApply={() => void flightAutosave.saveNow()}
               error={error}
             />
             <AutosaveStatusBar

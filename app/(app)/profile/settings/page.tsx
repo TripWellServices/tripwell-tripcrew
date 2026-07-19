@@ -35,6 +35,7 @@ export default function ProfileSettingsPage() {
     hometownCity: '',
     state: '',
     homeAddress: '',
+    preferredAirportCode: '',
     persona: '',
     planningStyle: '',
     dreamDestination: '',
@@ -68,6 +69,7 @@ export default function ProfileSettingsPage() {
             hometownCity: hydratedTraveler.hometownCity || '',
             state: hydratedTraveler.homeState || '',
             homeAddress: hydratedTraveler.homeAddress || '',
+            preferredAirportCode: hydratedTraveler.preferredAirportCode || '',
             persona: hydratedTraveler.persona || '',
             planningStyle: hydratedTraveler.planningStyle || '',
             dreamDestination: hydratedTraveler.dreamDestination || '',
@@ -218,6 +220,25 @@ export default function ProfileSettingsPage() {
               }
               placeholder="123 Main St, Nashville, TN 37201"
               className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="font-semibold text-gray-700">Preferred airport</label>
+            <p className="text-xs text-gray-500">
+              Used to tell outbound from return flights when parsing confirmations. Optional.
+            </p>
+            <input
+              value={formData.preferredAirportCode}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  preferredAirportCode: e.target.value.toUpperCase().slice(0, 4),
+                })
+              }
+              placeholder="IAD"
+              maxLength={4}
+              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase"
             />
           </div>
 

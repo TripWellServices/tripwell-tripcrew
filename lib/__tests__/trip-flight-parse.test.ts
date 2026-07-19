@@ -7,6 +7,7 @@ import {
   parsedTripLegToFormRow,
   splitFlightNumber,
 } from '../trip-flight-parse'
+import { classifyFlightDirections, normalizeDurationMinutes } from '../trip-flight'
 
 describe('trip-flight-parse', () => {
   it('splits combined flight numbers', () => {
@@ -36,6 +37,7 @@ describe('trip-flight-parse', () => {
           departureAirportCode: 'bos',
           arrivalAirportCode: 'yul',
           departureTime: '2026-07-29T08:15',
+          durationMinutes: 82,
           confirmationCode: 'ABC123',
         },
         {
@@ -54,6 +56,7 @@ describe('trip-flight-parse', () => {
     assert.equal(result.flights[0].direction, 'OUTBOUND')
     assert.equal(result.flights[0].departureAirportCode, 'BOS')
     assert.equal(result.flights[0].confirmationCode, 'ABC123')
+    assert.equal(result.flights[0].durationMinutes, 82)
     assert.equal(result.startingLocation, 'Boston, MA')
   })
 
@@ -90,6 +93,7 @@ describe('trip-flight-parse', () => {
         arrivalAirportCode: 'YUL',
         departureTime: '2026-07-31T09:45',
         arrivalTime: '2026-07-31T11:27',
+        durationMinutes: 102,
         confirmationCode: 'NSNWG7',
         notes: 'Expedia itinerary 73439608776468; operated by Air Canada; Economy / Coach (K); 1h 42m',
       },
@@ -99,5 +103,47 @@ describe('trip-flight-parse', () => {
     assert.equal(rows[0].flightNumber, '8083')
     assert.equal(rows[1].direction, 'RETURN')
     assert.equal(rows[1].flightNumber, '')
+  })
+
+  it('parses text durations into minutes', () => {
+    assert.equal(normalizeDurationMinutes('1h 42m'), 102)
+    assert.equal(normalizeDurationMinutes('102 minutes'), 102)
+  })
+
+  it('classifies outbound and return from home airport context', () => {
+    const rows = classifyFlightDirections(
+      [
+        {
+          direction: 'OUTBOUND',
+          airlineName: 'United Airlines',
+          airlineCode: 'UA',
+          flightNumber: '8663',
+          departureAirportCode: 'YUL',
+          arrivalAirportCode: 'IAD',
+          departureTime: '',
+          arrivalTime: '',
+          durationMinutes: null,
+          confirmationCode: 'NSNWMM',
+          notes: '',
+        },
+        {
+          direction: 'RETURN',
+          airlineName: 'United Airlines',
+          airlineCode: 'UA',
+          flightNumber: '8083',
+          departureAirportCode: 'IAD',
+          arrivalAirportCode: 'YUL',
+          departureTime: '',
+          arrivalTime: '',
+          durationMinutes: null,
+          confirmationCode: 'NSNWMM',
+          notes: '',
+        },
+      ],
+      { preferredAirportCode: 'IAD', startingLocation: 'Arlington, VA' }
+    )
+
+    assert.equal(rows[0].direction, 'RETURN')
+    assert.equal(rows[1].direction, 'OUTBOUND')
   })
 })

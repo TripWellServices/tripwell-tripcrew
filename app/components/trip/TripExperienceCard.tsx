@@ -1,6 +1,8 @@
 'use client'
 
 import { format } from 'date-fns'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   summarizeAttractionMetadata,
   summarizeDiningMetadata,
@@ -42,12 +44,22 @@ export type TripExperienceRow = {
   cruise?: { id: string; name: string } | null
 }
 
+export type SavedTripListItem = {
+  kind: 'dining' | 'attraction' | 'adventure' | 'concert'
+  id: string
+  title: string
+  category?: string | null
+  description?: string | null
+  address?: string | null
+}
+
 interface TripExperienceCardProps {
   tripDays: TripDayRow[]
   startDate: Date | null
   endDate: Date | null
   tripId: string
   isAdmin: boolean
+  savedItems?: SavedTripListItem[]
 }
 
 function experienceLabel(
@@ -98,13 +110,32 @@ function chipClass(emoji: string): string {
   return 'bg-gray-100 text-gray-800'
 }
 
+function savedItemEmoji(kind: SavedTripListItem['kind']): string {
+  if (kind === 'dining') return '🍽'
+  if (kind === 'attraction') return '🎯'
+  if (kind === 'concert') return '🎵'
+  return '🧗'
+}
+
+function dateForApi(day: TripDayRow): string {
+  const d = new Date(day.date)
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const dayOfMonth = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${dayOfMonth}`
+}
+
 export default function TripExperienceCard({
   tripDays,
   startDate,
   endDate,
   tripId,
   isAdmin,
+  savedItems = [],
 }: TripExperienceCardProps) {
+  const router = useRouter()
+  const [schedulingKey, setSchedulingKey] = useState<string | null>(null)
+
   const handleRemoveExperience = async (experienceId: string) => {
     try {
       const res = await fetch(`/api/trip/${tripId}/itinerary-items/${experienceId}`, {
@@ -115,9 +146,40 @@ export default function TripExperienceCard({
         console.error('Remove itinerary item failed:', err)
         return
       }
-      window.location.reload()
+      router.refresh()
     } catch (error) {
       console.error('Error removing experience:', error)
+    }
+  }
+
+  const handleScheduleSavedItem = async (item: SavedTripListItem, day: TripDayRow) => {
+    const key = `${item.kind}:${item.id}:${day.id}`
+    setSchedulingKey(key)
+    try {
+      const body: Record<string, string> = {
+        date: dateForApi(day),
+        title: item.title,
+      }
+      if (item.kind === 'dining') body.diningId = item.id
+      if (item.kind === 'attraction') body.attractionId = item.id
+      if (item.kind === 'adventure') body.adventureId = item.id
+      if (item.kind === 'concert') body.concertId = item.id
+
+      const res = await fetch(`/api/trip/${tripId}/itinerary-items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('Schedule saved item failed:', err)
+        return
+      }
+      router.refresh()
+    } catch (error) {
+      console.error('Error scheduling saved item:', error)
+    } finally {
+      setSchedulingKey(null)
     }
   }
 
@@ -135,6 +197,65 @@ export default function TripExperienceCard({
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Day plan</h2>
+
+      {isAdmin && savedItems.length > 0 ? (
+        <div className="mb-6 rounded-lg border border-sky-100 bg-sky-50/60 p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-sky-950">Saved trip list</h3>
+            <p className="text-xs text-sky-800 mt-0.5">
+              These were saved in Setup. Add them to a day to build the itinerary.
+            </p>
+          </div>
+          <ul className="space-y-3">
+            {savedItems.map((item) => (
+              <li
+                key={`${item.kind}:${item.id}`}
+                className="rounded-lg border border-white bg-white p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <span
+                    className={`px-2 py-1 text-xs rounded shrink-0 ${chipClass(savedItemEmoji(item.kind))}`}
+                  >
+                    {savedItemEmoji(item.kind)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-gray-900">{item.title}</div>
+                    {item.category ? (
+                      <div className="text-xs text-gray-600">{item.category}</div>
+                    ) : null}
+                    {item.address ? (
+                      <div className="text-xs text-gray-500 line-clamp-1">{item.address}</div>
+                    ) : null}
+                    {item.description ? (
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                        {item.description}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {sortedDays.map((day) => {
+                        const key = `${item.kind}:${item.id}:${day.id}`
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            disabled={schedulingKey === key}
+                            onClick={() => void handleScheduleSavedItem(item, day)}
+                            className="px-2.5 py-1 text-xs font-medium rounded-md border border-sky-200 text-sky-800 hover:bg-sky-100 disabled:opacity-50"
+                          >
+                            {schedulingKey === key
+                              ? 'Adding...'
+                              : `Add to Day ${day.dayNumber}`}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {sortedDays.length === 0 ? (
         <p className="text-gray-500">No trip days yet. Days are created when you set the trip dates.</p>
@@ -239,8 +360,8 @@ export default function TripExperienceCard({
       )}
 
       <p className="mt-6 text-sm text-gray-500">
-        Each block is a TripDay experience (time + dining, attraction, concert, etc.). Add from
-        Plan, Discover, or paste a timed itinerary on got-plan.
+        Each block is a TripDay experience (time + dining, attraction, concert, etc.). Save items
+        in Setup, then schedule them here.
       </p>
     </div>
   )

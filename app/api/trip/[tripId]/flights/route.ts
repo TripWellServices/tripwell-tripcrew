@@ -34,6 +34,10 @@ function rowFromBody(raw: unknown, fallbackDirection: TripFlightDirection): Trip
       typeof o.arrivalAirportCode === 'string' ? o.arrivalAirportCode : '',
     departureTime: typeof o.departureTime === 'string' ? o.departureTime : '',
     arrivalTime: typeof o.arrivalTime === 'string' ? o.arrivalTime : '',
+    durationMinutes:
+      typeof o.durationMinutes === 'number' && Number.isFinite(o.durationMinutes)
+        ? Math.round(o.durationMinutes)
+        : null,
     confirmationCode: typeof o.confirmationCode === 'string' ? o.confirmationCode : '',
     notes: typeof o.notes === 'string' ? o.notes : '',
   }

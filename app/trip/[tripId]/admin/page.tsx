@@ -32,6 +32,7 @@ function defaultLeavingFrom(traveler: {
   homeAddress: string | null
   hometownCity: string | null
   homeState: string | null
+  preferredAirportCode?: string | null
 } | null): string | null {
   if (!traveler) return null
   if (traveler.homeAddress?.trim()) return traveler.homeAddress.trim()
@@ -61,6 +62,7 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
           homeAddress: true,
           hometownCity: true,
           homeState: true,
+          preferredAirportCode: true,
         },
       })
     : null
@@ -105,6 +107,7 @@ export default async function AdminPage({ params, searchParams }: PageProps) {
         catalogueCityId={catalogueCityId}
         setupContext={setupContext}
         defaultLeavingFrom={defaultLeavingFrom(traveler)}
+        preferredAirportCode={traveler?.preferredAirportCode ?? null}
         initial={{
           title: trip.title,
           purpose: trip.purpose,

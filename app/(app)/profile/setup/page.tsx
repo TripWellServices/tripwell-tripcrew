@@ -34,6 +34,7 @@ export default function ProfileSetupPage() {
     email: '',
     hometownCity: '',
     state: '',
+    preferredAirportCode: '',
     persona: '',
     planningStyle: '',
     dreamDestination: '',
@@ -67,6 +68,7 @@ export default function ProfileSetupPage() {
             email: hydratedTraveler.email || firebaseUser.email || '',
             hometownCity: hydratedTraveler.hometownCity || '',
             state: hydratedTraveler.homeState || '',
+            preferredAirportCode: hydratedTraveler.preferredAirportCode || '',
             persona: hydratedTraveler.persona || '',
             planningStyle: hydratedTraveler.planningStyle || '',
             dreamDestination: hydratedTraveler.dreamDestination || '',
@@ -211,6 +213,25 @@ export default function ProfileSetupPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="font-semibold text-gray-700">Preferred airport</label>
+            <p className="text-gray-600 text-sm">
+              Optional. Helps detect outbound vs return flights when you paste confirmations.
+            </p>
+            <input
+              value={formData.preferredAirportCode}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  preferredAirportCode: e.target.value.toUpperCase().slice(0, 4),
+                })
+              }
+              placeholder="IAD"
+              maxLength={4}
+              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase"
+            />
           </div>
 
           <div className="space-y-4">

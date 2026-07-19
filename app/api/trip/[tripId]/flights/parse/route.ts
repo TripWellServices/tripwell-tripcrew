@@ -4,10 +4,40 @@ import {
   parseFlightConfirmationImage,
   parseFlightConfirmationText,
 } from '@/lib/trip-flight-parse'
+import { prisma } from '@/lib/prisma'
+import { classifyFlightDirections } from '@/lib/trip-flight'
 
 export const dynamic = 'force-dynamic'
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
+
+async function flightDirectionContext(tripId: string, travelerId: string) {
+  const [traveler, trip] = await Promise.all([
+    prisma.traveler.findUnique({
+      where: { id: travelerId },
+      select: {
+        preferredAirportCode: true,
+        homeAddress: true,
+        hometownCity: true,
+        homeState: true,
+      },
+    }),
+    prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { startingLocation: true },
+    }),
+  ])
+
+  return {
+    preferredAirportCode: traveler?.preferredAirportCode ?? null,
+    startingLocation:
+      trip?.startingLocation ??
+      traveler?.homeAddress ??
+      [traveler?.hometownCity, traveler?.homeState].filter(Boolean).join(', ') ??
+      null,
+    homeState: traveler?.homeState ?? null,
+  }
+}
 
 /**
  * POST /api/trip/[tripId]/flights/parse
@@ -56,8 +86,12 @@ export async function POST(
         mimeType,
         text || null
       )
+      const context = await flightDirectionContext(params.tripId, travelerId)
 
-      return NextResponse.json(parsed)
+      return NextResponse.json({
+        ...parsed,
+        flights: classifyFlightDirections(parsed.flights, context),
+      })
     }
 
     const body = await request.json().catch(() => ({}))
@@ -80,7 +114,11 @@ export async function POST(
     }
 
     const parsed = await parseFlightConfirmationText(text)
-    return NextResponse.json(parsed)
+    const context = await flightDirectionContext(params.tripId, travelerId.trim())
+    return NextResponse.json({
+      ...parsed,
+      flights: classifyFlightDirections(parsed.flights, context),
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Parse failed'
     if (message.includes('OPENAI_API_KEY')) {

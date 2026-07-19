@@ -3,6 +3,7 @@ import {
   COMMON_AIRLINES,
   emptyFlightRow,
   normalizeAirportCode,
+  normalizeDurationMinutes,
   type TripFlightFormRow,
 } from '@/lib/trip-flight'
 import type { ParsedTripLeg } from '@/lib/trip-plan-types'
@@ -21,6 +22,7 @@ Return ONLY valid JSON:
       "arrivalAirportCode": string | null,
       "departureTime": string | null,
       "arrivalTime": string | null,
+      "durationMinutes": number | null,
       "confirmationCode": string | null,
       "notes": string | null
     }
@@ -33,11 +35,12 @@ Rules:
 - Use 3-letter IATA airport codes when visible (BOS, YUL, JFK).
 - Split combined flight numbers: AA1234 -> airlineCode AA, flightNumber 1234.
 - departureTime/arrivalTime as ISO 8601 or YYYY-MM-DDTHH:mm when possible.
+- durationMinutes as a number when visible. Example: 1h 42m -> 102.
 - Do not invent confirmation codes or flight numbers not present in the source.
 - For one-way trips with a single leg, return exactly ONE flight row — do not duplicate legs.
 - For round trips: first leg OUTBOUND, return leg RETURN when obvious; otherwise null direction.
 - confirmationCode is the booking/record locator (PNR), shared across legs if one code applies to all.
-- Put extra metadata in notes when not mapped to fields: Expedia/itinerary numbers, operated-by carrier, cabin/fare class, duration (e.g. "1h 42m"), booking provider.`
+- Put extra metadata in notes when not mapped to fields: Expedia/itinerary numbers, operated-by carrier, cabin/fare class, booking provider.`
 
 export type FlightParseResult = {
   flights: TripFlightFormRow[]
@@ -159,6 +162,7 @@ export function normalizeAiFlightRow(
     arrivalAirportCode: normalizeAirportCode(optionalStr(o.arrivalAirportCode) ?? ''),
     departureTime: isoToDatetimeLocal(optionalStr(o.departureTime)),
     arrivalTime: isoToDatetimeLocal(optionalStr(o.arrivalTime)),
+    durationMinutes: normalizeDurationMinutes(o.durationMinutes ?? o.duration),
     confirmationCode: optionalStr(o.confirmationCode ?? o.recordLocator ?? o.pnr) ?? '',
     notes: optionalStr(o.notes) ?? '',
   }
@@ -192,6 +196,7 @@ export function ensureOutboundReturnShape(rows: TripFlightFormRow[]): TripFlight
       r.arrivalAirportCode.trim() ||
       r.departureTime.trim() ||
       r.arrivalTime.trim() ||
+      r.durationMinutes != null ||
       r.confirmationCode.trim()
   )
 
@@ -234,6 +239,7 @@ export function parsedTripLegToFormRow(
     arrivalAirportCode: normalizeAirportCode(leg.destination ?? ''),
     departureTime: isoToDatetimeLocal(leg.depart),
     arrivalTime: isoToDatetimeLocal(leg.arrive),
+    durationMinutes: null,
     confirmationCode: leg.recordLocator?.trim() ?? '',
     notes: leg.summary?.trim() ?? '',
   }

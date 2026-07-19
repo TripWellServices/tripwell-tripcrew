@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   COMMON_AIRLINES,
   emptyFlightRow,
   flightRowHasData,
+  formatDurationMinutes,
+  normalizeDurationMinutes,
   type TripFlightFormRow,
 } from '@/lib/trip-flight'
 import { LocalStorageAPI } from '@/lib/localStorage'
@@ -22,11 +24,11 @@ type FlightInfoStepProps = {
   flightRows: TripFlightFormRow[]
   flightNotes: string
   startingLocation: string
+  preferredAirportCode: string | null
   legacyFlightItems: LogisticItem[]
   onChangeFlights: (rows: TripFlightFormRow[]) => void
   onChangeNotes: (notes: string) => void
   onChangeStartingLocation: (value: string) => void
-  onAfterApply?: () => void
   error: string | null
 }
 
@@ -65,7 +67,10 @@ function FlightCard({
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold text-gray-900">{directionLabel(row.direction)}</h4>
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900">{directionLabel(row.direction)}</h4>
+          <p className="text-xs text-gray-500">Leg {index + 1}</p>
+        </div>
         {canRemove && onRemove ? (
           <button
             type="button"
@@ -78,6 +83,19 @@ function FlightCard({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="block sm:col-span-2">
+          <span className="block text-xs font-medium text-gray-600 mb-1">Direction</span>
+          <select
+            value={row.direction}
+            onChange={(e) => onPatch({ direction: e.target.value as TripFlightDirection })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          >
+            <option value="OUTBOUND">Outbound</option>
+            <option value="RETURN">Return</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </label>
+
         <label className="block sm:col-span-2">
           <span className="block text-xs font-medium text-gray-600 mb-1">Airline</span>
           <input
@@ -184,6 +202,19 @@ function FlightCard({
           />
         </label>
 
+        <label className="block sm:col-span-2">
+          <span className="block text-xs font-medium text-gray-600 mb-1">Duration</span>
+          <input
+            type="text"
+            value={formatDurationMinutes(row.durationMinutes)}
+            onChange={(e) =>
+              onPatch({ durationMinutes: normalizeDurationMinutes(e.target.value) })
+            }
+            placeholder="e.g. 1h 42m"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          />
+        </label>
+
         {row.notes.trim() ? (
           <div className="sm:col-span-2 text-xs text-gray-600 bg-white border border-gray-100 rounded-lg px-3 py-2">
             <span className="font-medium text-gray-700">Notes: </span>
@@ -200,11 +231,11 @@ export default function FlightInfoStep({
   flightRows,
   flightNotes,
   startingLocation,
+  preferredAirportCode,
   legacyFlightItems,
   onChangeFlights,
   onChangeNotes,
   onChangeStartingLocation,
-  onAfterApply,
   error,
 }: FlightInfoStepProps) {
   const [parseTab, setParseTab] = useState<'paste' | 'upload'>('paste')
@@ -212,11 +243,14 @@ export default function FlightInfoStep({
   const [showPasteSource, setShowPasteSource] = useState(true)
   const [parseBusy, setParseBusy] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
-  const [parseDraft, setParseDraft] = useState<TripFlightFormRow[] | null>(null)
-  const [parseDraftStartingLocation, setParseDraftStartingLocation] = useState<string | null>(
-    null
-  )
   const [parseSuccess, setParseSuccess] = useState<string | null>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => {
+    if (activeIndex >= flightRows.length) {
+      setActiveIndex(Math.max(0, flightRows.length - 1))
+    }
+  }, [activeIndex, flightRows.length])
 
   const otherItems = legacyFlightItems.filter(
     (i) =>
@@ -230,19 +264,9 @@ export default function FlightInfoStep({
   }
 
   function addFlight() {
-    onChangeFlights([...flightRows, emptyFlightRow('OTHER')])
-  }
-
-  function applyParseDraft() {
-    if (!parseDraft?.length) return
-    onChangeFlights(parseDraft)
-    if (parseDraftStartingLocation?.trim()) {
-      onChangeStartingLocation(parseDraftStartingLocation.trim())
-    }
-    setParseDraft(null)
-    setParseDraftStartingLocation(null)
-    setParseSuccess('Applied to flight form — edits auto-save.')
-    onAfterApply?.()
+    const next = [...flightRows, emptyFlightRow('OTHER')]
+    onChangeFlights(next)
+    setActiveIndex(next.length - 1)
   }
 
   async function runParse(body: FormData | { text: string }) {
@@ -282,14 +306,15 @@ export default function FlightInfoStep({
         throw new Error('No flight details found — try a clearer paste or photo.')
       }
 
-      setParseDraft(parsedRows)
-      setParseDraftStartingLocation(
-        typeof data.startingLocation === 'string' ? data.startingLocation.trim() : null
-      )
+      onChangeFlights(parsedRows)
+      if (typeof data.startingLocation === 'string' && data.startingLocation.trim()) {
+        onChangeStartingLocation(data.startingLocation.trim())
+      }
       setPasteText('')
       setShowPasteSource(false)
+      setActiveIndex(Math.max(0, parsedRows.findIndex(flightRowHasData)))
       const summary = withData.map(formatParsedSummary).join('; ')
-      setParseSuccess(`Parsed for review — ${summary}`)
+      setParseSuccess(`Parsed into fields — autosaving. ${summary}`)
     } catch (err) {
       setParseError(err instanceof Error ? err.message : 'Parse failed')
     } finally {
@@ -316,8 +341,8 @@ export default function FlightInfoStep({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Flights</h3>
         <p className="text-sm text-gray-600">
-          Where you leave from, structured flight legs, and other travel notes. Parse first, apply
-          to the form, then edits auto-save.
+          Where you leave from, structured flight legs, and other travel notes. Parse confirmations
+          into the fields below, then edits auto-save.
         </p>
       </div>
 
@@ -338,6 +363,7 @@ export default function FlightInfoStep({
         />
         <span className="block text-xs text-gray-500 mt-1">
           Prefilled from your profile when available — helps frame outbound flights.
+          {preferredAirportCode ? ` Preferred airport: ${preferredAirportCode}.` : ''}
         </span>
       </label>
 
@@ -355,11 +381,11 @@ export default function FlightInfoStep({
           <div>
             <h4 className="text-sm font-semibold text-gray-900">Paste or upload confirmation</h4>
             <p className="text-xs text-gray-600 mt-0.5">
-              Expedia email, airline confirmation, or screenshot — parsed results stay in review
-              until you apply them.
+              Expedia email, airline confirmation, or screenshot — parsed results fill the fields
+              below and autosave.
             </p>
           </div>
-          {!showPasteSource && parseDraft ? (
+          {!showPasteSource ? (
             <button
               type="button"
               onClick={() => setShowPasteSource(true)}
@@ -448,55 +474,67 @@ export default function FlightInfoStep({
           </p>
         ) : null}
 
-        {parseDraft ? (
-          <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-3">
-            <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">
-              Parsed draft — not saved yet
-            </p>
-            <ul className="space-y-1 text-sm text-gray-800">
-              {parseDraft.filter(flightRowHasData).map((row, i) => (
-                <li key={`draft-${i}`}>{formatParsedSummary(row)}</li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={applyParseDraft}
-                className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700"
-              >
-                Apply parsed flights
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setParseDraft(null)
-                  setParseDraftStartingLocation(null)
-                  setParseSuccess(null)
-                }}
-                className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50"
-              >
-                Discard draft
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
 
-      <div className="space-y-4">
-        {flightRows.map((row, index) => (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {flightRows.map((row, index) => {
+            const label = row.direction === 'OUTBOUND' ? 'Outbound' : row.direction === 'RETURN' ? 'Return' : `Leg ${index + 1}`
+            const route =
+              row.departureAirportCode && row.arrivalAirportCode
+                ? ` ${row.departureAirportCode}->${row.arrivalAirportCode}`
+                : ''
+            return (
+              <button
+                key={`${row.direction}-${index}-${row.id ?? 'new'}-tab`}
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full border ${
+                  activeIndex === index
+                    ? 'bg-sky-600 text-white border-sky-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {label}
+                {route}
+              </button>
+            )
+          })}
+        </div>
+
+        {flightRows[activeIndex] ? (
           <FlightCard
-            key={`${row.direction}-${index}-${row.id ?? 'new'}`}
-            row={row}
-            index={index}
-            onPatch={(patch) => patchRow(index, patch)}
+            key={`${flightRows[activeIndex].direction}-${activeIndex}-${flightRows[activeIndex].id ?? 'new'}`}
+            row={flightRows[activeIndex]}
+            index={activeIndex}
+            onPatch={(patch) => patchRow(activeIndex, patch)}
             onRemove={
-              row.direction === 'OTHER'
-                ? () => onChangeFlights(flightRows.filter((_, i) => i !== index))
+              flightRows[activeIndex].direction === 'OTHER'
+                ? () => onChangeFlights(flightRows.filter((_, i) => i !== activeIndex))
                 : undefined
             }
-            canRemove={row.direction === 'OTHER'}
+            canRemove={flightRows[activeIndex].direction === 'OTHER'}
           />
-        ))}
+        ) : null}
+
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
+            disabled={activeIndex <= 0}
+            className="text-sm text-gray-600 font-medium hover:underline disabled:opacity-40"
+          >
+            Previous leg
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveIndex((i) => Math.min(flightRows.length - 1, i + 1))}
+            disabled={activeIndex >= flightRows.length - 1}
+            className="text-sm text-gray-600 font-medium hover:underline disabled:opacity-40"
+          >
+            Next leg
+          </button>
+        </div>
       </div>
 
       <button

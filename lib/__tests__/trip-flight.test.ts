@@ -28,6 +28,7 @@ describe('trip-flight', () => {
         arrivalAirportCode: 'BOS',
         departureTime: new Date('2026-07-31T12:00:00'),
         arrivalTime: new Date('2026-07-31T14:00:00'),
+        durationMinutes: null,
         confirmationCode: null,
         notes: null,
         sortOrder: 1,
@@ -45,6 +46,7 @@ describe('trip-flight', () => {
         arrivalAirportCode: 'YUL',
         departureTime: new Date('2026-07-29T08:00:00'),
         arrivalTime: new Date('2026-07-29T10:00:00'),
+        durationMinutes: 120,
         confirmationCode: null,
         notes: null,
         sortOrder: 0,
@@ -56,6 +58,7 @@ describe('trip-flight', () => {
     assert.equal(rows[0].direction, 'OUTBOUND')
     assert.equal(rows[1].direction, 'RETURN')
     assert.equal(rows[0].departureAirportCode, 'BOS')
+    assert.equal(rows[0].durationMinutes, 120)
   })
 
   it('normalizes airport codes', () => {

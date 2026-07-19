@@ -10,8 +10,15 @@ export type TripFlightFormRow = {
   arrivalAirportCode: string
   departureTime: string
   arrivalTime: string
+  durationMinutes: number | null
   confirmationCode: string
   notes: string
+}
+
+export type FlightDirectionContext = {
+  preferredAirportCode?: string | null
+  startingLocation?: string | null
+  homeState?: string | null
 }
 
 export const COMMON_AIRLINES: { name: string; code: string }[] = [
@@ -40,6 +47,7 @@ export function emptyFlightRow(
     arrivalAirportCode: '',
     departureTime: '',
     arrivalTime: '',
+    durationMinutes: null,
     confirmationCode: '',
     notes: '',
   }
@@ -68,6 +76,7 @@ export function flightRowFromDb(flight: TripFlight): TripFlightFormRow {
     arrivalAirportCode: flight.arrivalAirportCode ?? '',
     departureTime: toDatetimeLocalValue(flight.departureTime),
     arrivalTime: toDatetimeLocalValue(flight.arrivalTime),
+    durationMinutes: flight.durationMinutes ?? null,
     confirmationCode: flight.confirmationCode ?? '',
     notes: flight.notes ?? '',
   }
@@ -102,6 +111,7 @@ export function flightRowsFromInitial(
     | 'arrivalAirportCode'
     | 'departureTime'
     | 'arrivalTime'
+    | 'durationMinutes'
     | 'confirmationCode'
     | 'notes'
     | 'sortOrder'
@@ -129,6 +139,7 @@ export function flightRowHasData(row: TripFlightFormRow): boolean {
       row.arrivalAirportCode.trim() ||
       row.departureTime.trim() ||
       row.arrivalTime.trim() ||
+      row.durationMinutes != null ||
       row.confirmationCode.trim() ||
       row.notes.trim()
   )
@@ -145,6 +156,79 @@ export function normalizeAirportCode(value: string): string {
   return value.trim().toUpperCase().slice(0, 4)
 }
 
+export function normalizeDurationMinutes(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const rounded = Math.round(value)
+    return rounded > 0 ? rounded : null
+  }
+  if (typeof value !== 'string') return null
+  const t = value.trim().toLowerCase()
+  if (!t) return null
+
+  const hours = t.match(/(\d+(?:\.\d+)?)\s*h(?:ours?|rs?)?/)
+  const mins = t.match(/(\d+)\s*m(?:in(?:ute)?s?)?/)
+  if (hours || mins) {
+    const h = hours ? Number(hours[1]) : 0
+    const m = mins ? Number(mins[1]) : 0
+    const total = Math.round(h * 60 + m)
+    return total > 0 ? total : null
+  }
+
+  const minutesOnly = t.match(/^(\d+)\s*(?:minutes?|mins?|m)?$/)
+  if (minutesOnly) {
+    const total = Number(minutesOnly[1])
+    return total > 0 ? total : null
+  }
+
+  return null
+}
+
+export function formatDurationMinutes(value: number | null | undefined): string {
+  if (!value || value <= 0) return ''
+  const h = Math.floor(value / 60)
+  const m = value % 60
+  if (h && m) return `${h}h ${m}m`
+  if (h) return `${h}h`
+  return `${m}m`
+}
+
+export function homeAirportCodesFromContext(
+  context: FlightDirectionContext
+): Set<string> {
+  const codes = new Set<string>()
+  const preferred = normalizeAirportCode(context.preferredAirportCode ?? '')
+  if (preferred.length === 3) codes.add(preferred)
+
+  const text = [context.startingLocation, context.homeState].filter(Boolean).join(' ')
+  if (/\barlington\b/i.test(text) || /\bVA\b/i.test(text) || /\bvirginia\b/i.test(text)) {
+    codes.add('IAD')
+    codes.add('DCA')
+    codes.add('BWI')
+  }
+
+  return codes
+}
+
+export function classifyFlightDirections(
+  rows: TripFlightFormRow[],
+  context: FlightDirectionContext
+): TripFlightFormRow[] {
+  const homeAirports = homeAirportCodesFromContext(context)
+  if (homeAirports.size === 0) return rows
+
+  return rows.map((row) => {
+    const dep = normalizeAirportCode(row.departureAirportCode)
+    const arr = normalizeAirportCode(row.arrivalAirportCode)
+    if (dep && homeAirports.has(dep) && arr && !homeAirports.has(arr)) {
+      return { ...row, direction: 'OUTBOUND' }
+    }
+    if (arr && homeAirports.has(arr) && dep && !homeAirports.has(dep)) {
+      return { ...row, direction: 'RETURN' }
+    }
+    return row
+  })
+}
+
 /** DB payload for TripFlight.create from a form row. */
 export function formRowToDbData(row: TripFlightFormRow, sortOrder: number) {
   return {
@@ -156,6 +240,7 @@ export function formRowToDbData(row: TripFlightFormRow, sortOrder: number) {
     arrivalAirportCode: normalizeAirportCode(row.arrivalAirportCode) || null,
     departureTime: parseDatetimeLocal(row.departureTime),
     arrivalTime: parseDatetimeLocal(row.arrivalTime),
+    durationMinutes: row.durationMinutes,
     confirmationCode: row.confirmationCode.trim() || null,
     notes: row.notes.trim() || null,
     sortOrder,

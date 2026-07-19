@@ -403,7 +403,7 @@ export default function PoiStep({
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Things to do</h3>
         <p className="text-sm text-gray-600">
           Angela suggests a top 5 blend for {cityLabel || 'your trip city'} — save picks to your trip
-          list, then build your itinerary on the Plan tab.
+          list, then schedule them on the Itinerary tab.
         </p>
       </div>
 
@@ -482,7 +482,7 @@ export default function PoiStep({
             href={`/trip/${tripId}/plan`}
             className="text-sm text-sky-700 font-medium hover:underline"
           >
-            Build itinerary →
+            Schedule saved items →
           </Link>
         </div>
 
