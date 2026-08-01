@@ -592,7 +592,7 @@ export default function TripExperienceCard({
                     <span className="mt-1 block text-xs font-medium text-sky-800">
                       {dayIsOpen
                         ? 'Day is open - add saved places and edit time slots below'
-                        : 'Tap to open this day and build its schedule'}
+                        : `Use Build Day ${day.dayNumber} to add places and times`}
                     </span>
                   </span>
                   <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -627,7 +627,7 @@ export default function TripExperienceCard({
                                 onClick={() => beginScheduleSavedItem(item, day)}
                                 className="shrink-0 rounded-md border border-sky-200 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50"
                               >
-                                {draftActive ? 'Planning...' : 'Add here + time'}
+                                {draftActive ? 'Planning...' : `Set time & add to Day ${day.dayNumber}`}
                               </button>
                             </div>
                             {draftActive ? (
@@ -702,11 +702,22 @@ export default function TripExperienceCard({
                 ) : null}
 
                 {experiences.length === 0 ? (
-                  <p className="text-gray-500 text-sm">
-                    {dayIsOpen
-                      ? `No plans yet. Add a saved place to Day ${day.dayNumber} above.`
-                      : `No plans yet. Open Day ${day.dayNumber} to add saved places and times.`}
-                  </p>
+                  <div className="rounded-lg border border-dashed border-gray-200 bg-white p-4">
+                    <p className="text-gray-500 text-sm">
+                      {dayIsOpen
+                        ? `No plans yet. Add a saved place to Day ${day.dayNumber} above.`
+                        : `No plans yet. Build Day ${day.dayNumber} to add saved places and times.`}
+                    </p>
+                    {!dayIsOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => setOpenDayId(day.id)}
+                        className="mt-3 w-full rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700"
+                      >
+                        Build Day {day.dayNumber}
+                      </button>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {experiences.map((exp) => {
