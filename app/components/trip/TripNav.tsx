@@ -25,7 +25,7 @@ export default function TripNav({ tripId }: TripNavProps) {
   return (
     <nav className="p-2 flex gap-2 overflow-x-auto border-b border-gray-200 lg:block lg:space-y-1">
       <Link href={`${base}/admin`} className={tabClass(isSetup)}>
-        <span>Setup</span>
+        <span>Details</span>
       </Link>
       <Link href={`${base}/plan`} className={tabClass(isItinerary)}>
         <span>Itinerary</span>
