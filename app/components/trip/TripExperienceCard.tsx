@@ -3,6 +3,7 @@
 import { format } from 'date-fns'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   googleMapsUrlFromMetadata,
   summarizeAttractionMetadata,
@@ -158,7 +159,6 @@ export default function TripExperienceCard({
   const [expandedSavedItemKey, setExpandedSavedItemKey] = useState<string | null>(null)
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
-  const [openDayId, setOpenDayId] = useState<string | null>(null)
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
   const [scheduledSavedItemKeys, setScheduledSavedItemKeys] = useState<Set<string>>(
     () => new Set()
@@ -308,6 +308,7 @@ export default function TripExperienceCard({
     (item) => !scheduledSavedItemKeys.has(`${item.kind}:${item.id}`)
   )
   const showTopSavedList = false
+  const showInlineDayBuilder = false
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -568,21 +569,15 @@ export default function TripExperienceCard({
             const experiences = [...(day.experiences ?? []), ...optimisticExperiences].sort(
               (a, b) => a.orderIndex - b.orderIndex
             )
-            const dayIsOpen =
-              openDayId === day.id ||
-              (openDayId === null && day.dayNumber === sortedDays[0]?.dayNumber)
+            const dayHref = `/trip/${tripId}/day/${day.dayNumber}`
 
             return (
               <div
                 key={day.id}
-                className={`rounded-lg border p-4 ${
-                  dayIsOpen ? 'border-sky-200 bg-sky-50/30' : 'border-gray-200'
-                }`}
+                className="rounded-lg border border-gray-200 p-4"
               >
-                <button
-                  type="button"
-                  onClick={() => setOpenDayId(dayIsOpen ? '' : day.id)}
-                  aria-expanded={dayIsOpen}
+                <Link
+                  href={dayHref}
                   className="mb-3 flex w-full items-start justify-between gap-3 rounded-lg text-left"
                 >
                   <span>
@@ -590,17 +585,17 @@ export default function TripExperienceCard({
                       {format(dayDate, 'EEEE, MMM d')}
                     </span>
                     <span className="mt-1 block text-xs font-medium text-sky-800">
-                      {dayIsOpen
-                        ? 'Day is open - add saved places and edit time slots below'
-                        : `Use Build Day ${day.dayNumber} to add places and times`}
+                      Open the Day {day.dayNumber} builder to add places and edit time slots.
                     </span>
                   </span>
                   <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
                     Day {day.dayNumber}
                   </span>
-                </button>
+                </Link>
 
-                {dayIsOpen && canScheduleSavedItems && visibleSavedItems.length > 0 ? (
+                {showInlineDayBuilder &&
+                canScheduleSavedItems &&
+                visibleSavedItems.length > 0 ? (
                   <div className="mb-4 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
                     <h4 className="text-sm font-semibold text-sky-950">
                       Saved places to schedule
@@ -705,19 +700,15 @@ export default function TripExperienceCard({
                 {experiences.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-gray-200 bg-white p-4">
                     <p className="text-gray-500 text-sm">
-                      {dayIsOpen
-                        ? `Timed itinerary is empty. Set a time above to create the Day ${day.dayNumber} item.`
-                        : `Timed itinerary is empty. Build Day ${day.dayNumber} to add saved places and times.`}
+                      Timed itinerary is empty. Build Day {day.dayNumber} to add saved places and
+                      times.
                     </p>
-                    {!dayIsOpen ? (
-                      <button
-                        type="button"
-                        onClick={() => setOpenDayId(day.id)}
+                    <Link
+                        href={dayHref}
                         className="mt-3 w-full rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700"
                       >
                         Build Day {day.dayNumber}
-                      </button>
-                    ) : null}
+                    </Link>
                   </div>
                 ) : (
                   <div className="space-y-2">
