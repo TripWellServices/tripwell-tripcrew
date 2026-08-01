@@ -290,7 +290,7 @@ export default function TripExperienceCard({
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-sky-950">Saved trip list</h3>
             <p className="text-xs text-sky-800 mt-0.5">
-              Add these saved restaurants and places to a day when you know where they belong.
+              Tap a day to choose start time, end time, and notes before it lands on the itinerary.
             </p>
           </div>
           <ul className="space-y-3">
@@ -419,7 +419,7 @@ export default function TripExperienceCard({
                             >
                               {draftActive
                                 ? `Planning Day ${day.dayNumber}`
-                                : `Add to Day ${day.dayNumber}`}
+                                : `Plan Day ${day.dayNumber} + time`}
                             </button>
                           )
                         })}
@@ -427,7 +427,7 @@ export default function TripExperienceCard({
                       {scheduleDraft?.itemKey === itemKey ? (
                         <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
                           <div className="mb-2 text-xs font-semibold text-sky-950">
-                            Schedule on{' '}
+                            Set the time slot for{' '}
                             {draftDay
                               ? format(new Date(draftDay.date), 'EEE, MMM d')
                               : 'a trip day'}
@@ -535,8 +535,8 @@ export default function TripExperienceCard({
 
                 {experiences.length === 0 ? (
                   <p className="text-gray-500 text-sm">
-                    No plans on this date yet. Add restaurants or places above, then tap Add to Day{' '}
-                    {day.dayNumber}.
+                    No plans on this date yet. Pick a saved restaurant or place above, then plan Day{' '}
+                    {day.dayNumber} with a start/end time.
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -694,8 +694,8 @@ export default function TripExperienceCard({
       )}
 
       <p className="mt-6 text-sm text-gray-500">
-        Save restaurants and places to the trip, add them to a date, then use Edit to adjust time
-        and notes.
+        Save restaurants and places to the trip, plan them into a day with times, then use Edit on
+        the day item to adjust the time or notes later.
       </p>
     </div>
   )
