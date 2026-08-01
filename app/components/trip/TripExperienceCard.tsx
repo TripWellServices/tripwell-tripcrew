@@ -603,10 +603,10 @@ export default function TripExperienceCard({
                 {dayIsOpen && canScheduleSavedItems && visibleSavedItems.length > 0 ? (
                   <div className="mb-4 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
                     <h4 className="text-sm font-semibold text-sky-950">
-                      Add saved places to Day {day.dayNumber}
+                      Saved places for Day {day.dayNumber}
                     </h4>
                     <p className="mt-0.5 text-xs text-sky-800">
-                      Pick a saved restaurant or place, set its time, and it will land in this day.
+                      Pick one, set its time, and save it into this day's itinerary.
                     </p>
                     <div className="mt-3 space-y-2">
                       {visibleSavedItems.map((item) => {
@@ -627,7 +627,7 @@ export default function TripExperienceCard({
                                 onClick={() => beginScheduleSavedItem(item, day)}
                                 className="shrink-0 rounded-md border border-sky-200 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50"
                               >
-                                {draftActive ? 'Planning...' : `Set time & add to Day ${day.dayNumber}`}
+                                {draftActive ? 'Setting time...' : 'Set time'}
                               </button>
                             </div>
                             {draftActive ? (
@@ -682,7 +682,7 @@ export default function TripExperienceCard({
                                   >
                                     {schedulingKey === `${item.kind}:${item.id}:${day.id}`
                                       ? 'Adding...'
-                                      : `Add to Day ${day.dayNumber}`}
+                                      : `Save to Day ${day.dayNumber} itinerary`}
                                   </button>
                                   <button
                                     type="button"
@@ -705,8 +705,8 @@ export default function TripExperienceCard({
                   <div className="rounded-lg border border-dashed border-gray-200 bg-white p-4">
                     <p className="text-gray-500 text-sm">
                       {dayIsOpen
-                        ? `No plans yet. Add a saved place to Day ${day.dayNumber} above.`
-                        : `No plans yet. Build Day ${day.dayNumber} to add saved places and times.`}
+                        ? `No timed itinerary items yet. Set a time on a saved place above to lock it into Day ${day.dayNumber}.`
+                        : `No timed itinerary items yet. Build Day ${day.dayNumber} to add saved places and times.`}
                     </p>
                     {!dayIsOpen ? (
                       <button
