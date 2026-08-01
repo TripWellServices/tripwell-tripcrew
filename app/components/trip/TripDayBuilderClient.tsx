@@ -68,6 +68,14 @@ function experienceSub(exp: TripExperienceRow): string | null {
   )
 }
 
+function savedItemKeyFromExperience(exp: TripExperienceRow): string | null {
+  if (exp.dining?.id) return `dining:${exp.dining.id}`
+  if (exp.attraction?.id) return `attraction:${exp.attraction.id}`
+  if (exp.adventure?.id) return `adventure:${exp.adventure.id}`
+  if (exp.concert?.id) return `concert:${exp.concert.id}`
+  return null
+}
+
 export default function TripDayBuilderClient({
   tripId,
   day,
@@ -79,7 +87,12 @@ export default function TripDayBuilderClient({
     [...(day.experiences ?? [])].sort((a, b) => a.orderIndex - b.orderIndex)
   )
   const [scheduledSavedItemKeys, setScheduledSavedItemKeys] = useState<Set<string>>(
-    () => new Set()
+    () =>
+      new Set(
+        (day.experiences ?? [])
+          .map(savedItemKeyFromExperience)
+          .filter((key): key is string => Boolean(key))
+      )
   )
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -186,7 +199,16 @@ export default function TripDayBuilderClient({
       setError('Could not remove itinerary item')
       return
     }
+    const removed = experiences.find((exp) => exp.id === experienceId)
+    const removedKey = removed ? savedItemKeyFromExperience(removed) : null
     setExperiences((prev) => prev.filter((exp) => exp.id !== experienceId))
+    if (removedKey) {
+      setScheduledSavedItemKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(removedKey)
+        return next
+      })
+    }
     router.refresh()
   }
 
@@ -329,9 +351,15 @@ export default function TripDayBuilderClient({
           <p className="mt-1 text-sm text-sky-800">Pick from restaurants and places already saved to this trip.</p>
           <div className="mt-4 space-y-3">
             {visibleSavedItems.length === 0 ? (
-              <p className="rounded-lg bg-white p-4 text-sm text-gray-600">
-                No unscheduled saved places left for this day.
-              </p>
+              <div className="rounded-lg bg-white p-4 text-sm text-gray-600">
+                <p>No unscheduled saved places left for this day.</p>
+                <Link
+                  href={`/trip/${tripId}`}
+                  className="mt-3 inline-flex rounded-md border border-sky-200 px-3 py-1.5 text-sm font-medium text-sky-800 hover:bg-sky-50"
+                >
+                  Add more saved places
+                </Link>
+              </div>
             ) : (
               visibleSavedItems.map((item) => {
                 const itemKey = `${item.kind}:${item.id}`
