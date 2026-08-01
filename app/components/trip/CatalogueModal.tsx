@@ -23,6 +23,7 @@ interface CatalogueModalProps {
   tripItemIds: string[]
   open: boolean
   onClose: () => void
+  onAdded?: (item: { type: CatalogueModalType; title: string }) => void
 }
 
 export default function CatalogueModal({
@@ -32,6 +33,7 @@ export default function CatalogueModal({
   tripItemIds,
   open,
   onClose,
+  onAdded,
 }: CatalogueModalProps) {
   const router = useRouter()
   const [items, setItems] = useState<CatalogueRow[]>([])
@@ -111,6 +113,7 @@ export default function CatalogueModal({
         setErr(typeof p.error === 'string' ? p.error : 'Could not add to trip')
         return
       }
+      onAdded?.({ type, title: row.title })
       router.refresh()
       onClose()
     } catch {

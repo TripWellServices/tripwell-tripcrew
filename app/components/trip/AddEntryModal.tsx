@@ -29,6 +29,7 @@ interface AddEntryModalProps {
   /** Appended to short Google queries so trip searches stay destination-aware. */
   googleSearchContext?: string | null
   locationBias?: LocationBias | null
+  onSaved?: (item: { type: AddEntryType; title: string }) => void
 }
 
 export default function AddEntryModal({
@@ -39,6 +40,7 @@ export default function AddEntryModal({
   catalogueCityId,
   googleSearchContext,
   locationBias,
+  onSaved,
 }: AddEntryModalProps) {
   const router = useRouter()
   const [tab, setTab] = useState<AddEntryTab>('google')
@@ -133,6 +135,10 @@ export default function AddEntryModal({
         setErr(typeof data.error === 'string' ? data.error : `Could not save ${entityLabel}`)
         return
       }
+      onSaved?.({
+        type,
+        title: typeof data.title === 'string' ? data.title : result.name,
+      })
       onClose()
       router.refresh()
     } finally {
@@ -165,6 +171,10 @@ export default function AddEntryModal({
         setErr(typeof data.error === 'string' ? data.error : 'Could not save')
         return
       }
+      onSaved?.({
+        type,
+        title: typeof data.title === 'string' ? data.title : t,
+      })
       onClose()
       router.refresh()
     } finally {

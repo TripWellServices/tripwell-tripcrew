@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  googleMapsUrlFromMetadata,
   summarizeAttractionMetadata,
   summarizeDiningMetadata,
 } from '@/lib/trip-experience-display'
@@ -51,6 +52,10 @@ export type SavedTripListItem = {
   category?: string | null
   description?: string | null
   address?: string | null
+  website?: string | null
+  phone?: string | null
+  rating?: number | null
+  metadata?: unknown
 }
 
 interface TripExperienceCardProps {
@@ -139,6 +144,8 @@ export default function TripExperienceCard({
   const [schedulingKey, setSchedulingKey] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [savingEditId, setSavingEditId] = useState<string | null>(null)
+  const [expandedSavedItemKey, setExpandedSavedItemKey] = useState<string | null>(null)
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState({
     startTime: '',
     endTime: '',
@@ -184,6 +191,8 @@ export default function TripExperienceCard({
         console.error('Schedule saved item failed:', err)
         return
       }
+      setScheduleMessage(`Added ${item.title} to ${format(new Date(day.date), 'EEE, MMM d')}.`)
+      window.setTimeout(() => setScheduleMessage(null), 7000)
       router.refresh()
     } catch (error) {
       console.error('Error scheduling saved item:', error)
@@ -242,6 +251,15 @@ export default function TripExperienceCard({
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Day plan</h2>
 
+      {scheduleMessage ? (
+        <div
+          className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          role="status"
+        >
+          {scheduleMessage}
+        </div>
+      ) : null}
+
       {canScheduleSavedItems && savedItems.length > 0 ? (
         <div className="mb-6 rounded-lg border border-sky-100 bg-sky-50/60 p-4">
           <div className="mb-3">
@@ -251,52 +269,135 @@ export default function TripExperienceCard({
             </p>
           </div>
           <ul className="space-y-3">
-            {savedItems.map((item) => (
-              <li
-                key={`${item.kind}:${item.id}`}
-                className="rounded-lg border border-white bg-white p-3"
-              >
-                <div className="flex items-start gap-2">
-                  <span
-                    className={`px-2 py-1 text-xs rounded shrink-0 ${chipClass(savedItemEmoji(item.kind))}`}
-                  >
-                    {savedItemEmoji(item.kind)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-gray-900">{item.title}</div>
-                    {item.category ? (
-                      <div className="text-xs text-gray-600">{item.category}</div>
-                    ) : null}
-                    {item.address ? (
-                      <div className="text-xs text-gray-500 line-clamp-1">{item.address}</div>
-                    ) : null}
-                    {item.description ? (
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                        {item.description}
-                      </p>
-                    ) : null}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {sortedDays.map((day) => {
-                        const key = `${item.kind}:${item.id}:${day.id}`
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            disabled={schedulingKey === key}
-                            onClick={() => void handleScheduleSavedItem(item, day)}
-                            className="px-2.5 py-1 text-xs font-medium rounded-md border border-sky-200 text-sky-800 hover:bg-sky-100 disabled:opacity-50"
-                          >
-                            {schedulingKey === key
-                              ? 'Adding...'
-                              : `Add to Day ${day.dayNumber}`}
-                          </button>
-                        )
-                      })}
+            {savedItems.map((item) => {
+              const itemKey = `${item.kind}:${item.id}`
+              const expanded = expandedSavedItemKey === itemKey
+              const mapsUrl = googleMapsUrlFromMetadata(item.metadata)
+              const metadataLines =
+                item.kind === 'dining'
+                  ? summarizeDiningMetadata(item.metadata)
+                  : item.kind === 'attraction'
+                    ? summarizeAttractionMetadata(item.metadata)
+                    : []
+
+              return (
+                <li
+                  key={itemKey}
+                  className="rounded-lg border border-white bg-white p-3"
+                >
+                  <div className="flex items-start gap-2">
+                    <span
+                      className={`px-2 py-1 text-xs rounded shrink-0 ${chipClass(savedItemEmoji(item.kind))}`}
+                    >
+                      {savedItemEmoji(item.kind)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedSavedItemKey(expanded ? null : itemKey)
+                          }
+                          className="min-w-0 text-left"
+                        >
+                          <div className="font-medium text-gray-900 underline-offset-2 hover:underline">
+                            {item.title}
+                          </div>
+                          {item.category ? (
+                            <div className="text-xs text-gray-600">{item.category}</div>
+                          ) : null}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedSavedItemKey(expanded ? null : itemKey)
+                          }
+                          className="shrink-0 text-xs font-medium text-sky-700 hover:underline"
+                        >
+                          {expanded ? 'Hide details' : 'Details'}
+                        </button>
+                      </div>
+                      {item.address ? (
+                        <div className="text-xs text-gray-500 line-clamp-1">{item.address}</div>
+                      ) : null}
+                      {item.description ? (
+                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                          {item.description}
+                        </p>
+                      ) : null}
+
+                      {expanded ? (
+                        <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs text-gray-700">
+                          {typeof item.rating === 'number' ? (
+                            <p className="font-medium text-amber-700">
+                              Google rating {item.rating.toFixed(1)}
+                            </p>
+                          ) : null}
+                          {item.address ? <p className="mt-1">{item.address}</p> : null}
+                          {item.description ? (
+                            <p className="mt-2 text-gray-700">{item.description}</p>
+                          ) : null}
+                          {metadataLines.map((line, i) => (
+                            <p key={i} className="mt-1 text-gray-600">
+                              {line}
+                            </p>
+                          ))}
+                          <div className="mt-3 flex flex-wrap gap-3">
+                            {mapsUrl ? (
+                              <a
+                                href={mapsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-blue-600 hover:underline"
+                              >
+                                Google Maps
+                              </a>
+                            ) : null}
+                            {item.website ? (
+                              <a
+                                href={item.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-blue-600 hover:underline"
+                              >
+                                Website
+                              </a>
+                            ) : null}
+                            {item.phone ? (
+                              <a
+                                href={`tel:${item.phone}`}
+                                className="font-medium text-blue-600 hover:underline"
+                              >
+                                Call
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {sortedDays.map((day) => {
+                          const key = `${item.kind}:${item.id}:${day.id}`
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              disabled={schedulingKey === key}
+                              onClick={() => void handleScheduleSavedItem(item, day)}
+                              className="px-2.5 py-1 text-xs font-medium rounded-md border border-sky-200 text-sky-800 hover:bg-sky-100 disabled:opacity-50"
+                            >
+                              {schedulingKey === key
+                                ? 'Adding...'
+                                : `Add to Day ${day.dayNumber}`}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         </div>
       ) : null}

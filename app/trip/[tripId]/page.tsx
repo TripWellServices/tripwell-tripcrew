@@ -67,6 +67,10 @@ export default async function TripPage({ params, searchParams }: PageProps) {
         category: item.category,
         description: item.description,
         address: item.address,
+        website: item.website,
+        phone: item.phone,
+        rating: item.rating,
+        metadata: item.metadata,
       })),
     ...trip.attractions
       .filter((item) => !scheduledAttractionIds.has(item.id))
@@ -77,6 +81,10 @@ export default async function TripPage({ params, searchParams }: PageProps) {
         category: item.category,
         description: item.description,
         address: item.address,
+        website: item.website,
+        phone: item.phone,
+        rating: item.rating,
+        metadata: item.metadata,
       })),
   ]
 

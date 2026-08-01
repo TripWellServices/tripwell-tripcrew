@@ -28,6 +28,12 @@ export default function TripQuickAddPanel({
 }: TripQuickAddPanelProps) {
   const [entryType, setEntryType] = useState<AddEntryType | null>(null)
   const [catalogueType, setCatalogueType] = useState<CatalogueModalType | null>(null)
+  const [savedMessage, setSavedMessage] = useState<string | null>(null)
+
+  function showSavedMessage(item: { type: AddEntryType | CatalogueModalType; title: string }) {
+    setSavedMessage(`Saved ${item.title} to this trip. Add it to a day below when you are ready.`)
+    window.setTimeout(() => setSavedMessage(null), 7000)
+  }
 
   return (
     <section className="mt-6 rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
@@ -81,6 +87,15 @@ export default function TripQuickAddPanel({
         </div>
       </div>
 
+      {savedMessage ? (
+        <div
+          className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          role="status"
+        >
+          {savedMessage}
+        </div>
+      ) : null}
+
       <AddEntryModal
         type={entryType ?? 'dining'}
         tripId={tripId}
@@ -89,6 +104,7 @@ export default function TripQuickAddPanel({
         catalogueCityId={catalogueCityId}
         googleSearchContext={destinationLabel}
         locationBias={locationBias}
+        onSaved={showSavedMessage}
       />
       <CatalogueModal
         type={catalogueType ?? 'dining'}
@@ -97,6 +113,7 @@ export default function TripQuickAddPanel({
         tripItemIds={catalogueType === 'attraction' ? attractionIds : diningIds}
         open={catalogueType !== null}
         onClose={() => setCatalogueType(null)}
+        onAdded={showSavedMessage}
       />
     </section>
   )
