@@ -4,6 +4,20 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export type AddEntryType = 'dining' | 'attraction'
+type AddEntryTab = 'google' | 'manual' | 'paste'
+
+type LocationBias = {
+  lat: number
+  lng: number
+  radiusMeters?: number
+}
+
+type GoogleSearchResult = {
+  place_id: string
+  name: string
+  formatted_address?: string
+  rating?: number
+}
 
 interface AddEntryModalProps {
   type: AddEntryType
@@ -12,6 +26,9 @@ interface AddEntryModalProps {
   onClose: () => void
   /** When resolved, new manual entries can be tagged to the city catalogue. */
   catalogueCityId?: string | null
+  /** Appended to short Google queries so trip searches stay destination-aware. */
+  googleSearchContext?: string | null
+  locationBias?: LocationBias | null
 }
 
 export default function AddEntryModal({
@@ -20,23 +37,33 @@ export default function AddEntryModal({
   open,
   onClose,
   catalogueCityId,
+  googleSearchContext,
+  locationBias,
 }: AddEntryModalProps) {
   const router = useRouter()
-  const [tab, setTab] = useState<'manual' | 'paste'>('manual')
+  const [tab, setTab] = useState<AddEntryTab>('google')
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
   const [notes, setNotes] = useState('')
   const [pasteText, setPasteText] = useState('')
+  const [googleQuery, setGoogleQuery] = useState('')
+  const [googleResults, setGoogleResults] = useState<GoogleSearchResult[]>([])
+  const [searchingGoogle, setSearchingGoogle] = useState(false)
+  const [hydratingPlaceId, setHydratingPlaceId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) {
-      setTab('manual')
+      setTab('google')
       setTitle('')
       setCategory('')
       setNotes('')
       setPasteText('')
+      setGoogleQuery('')
+      setGoogleResults([])
+      setSearchingGoogle(false)
+      setHydratingPlaceId(null)
       setErr(null)
       setBusy(false)
     }
@@ -46,6 +73,72 @@ export default function AddEntryModal({
 
   const entityLabel = type === 'dining' ? 'restaurant' : 'attraction'
   const apiPath = type === 'dining' ? '/api/dining' : '/api/attractions'
+  const hydratePath = type === 'dining' ? '/api/hydrate/dining' : '/api/hydrate/attractions'
+
+  function googleQueryForTrip() {
+    const q = googleQuery.trim()
+    const context = googleSearchContext?.trim()
+    if (!q || !context) return q
+    return q.toLowerCase().includes(context.toLowerCase()) ? q : `${q} ${context}`
+  }
+
+  async function searchGoogle() {
+    setErr(null)
+    const q = googleQueryForTrip()
+    if (!q) {
+      setErr('Search text is required')
+      return
+    }
+
+    setSearchingGoogle(true)
+    try {
+      const body: Record<string, unknown> = { query: q }
+      if (locationBias) body.locationBias = locationBias
+
+      const res = await fetch('/api/places/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErr(typeof data.error === 'string' ? data.error : 'Google search failed')
+        setGoogleResults([])
+        return
+      }
+      setGoogleResults(Array.isArray(data.results) ? data.results : [])
+    } finally {
+      setSearchingGoogle(false)
+    }
+  }
+
+  async function saveGooglePlace(result: GoogleSearchResult) {
+    setErr(null)
+    setHydratingPlaceId(result.place_id)
+    try {
+      const body: Record<string, unknown> = {
+        placeId: result.place_id,
+        tripId,
+      }
+      if (catalogueCityId) body.cityId = catalogueCityId
+      if (type === 'dining' && category.trim()) body.categoryLabel = category.trim()
+
+      const res = await fetch(hydratePath, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErr(typeof data.error === 'string' ? data.error : `Could not save ${entityLabel}`)
+        return
+      }
+      onClose()
+      router.refresh()
+    } finally {
+      setHydratingPlaceId(null)
+    }
+  }
 
   async function save() {
     setErr(null)
@@ -132,6 +225,17 @@ export default function AddEntryModal({
         <div className="px-5 pt-3 flex gap-2 border-b border-gray-100">
           <button
             type="button"
+            onClick={() => setTab('google')}
+            className={`px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px ${
+              tab === 'google'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Google
+          </button>
+          <button
+            type="button"
             onClick={() => setTab('manual')}
             className={`px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px ${
               tab === 'manual'
@@ -157,7 +261,83 @@ export default function AddEntryModal({
         <div className="px-5 py-4 space-y-4">
           {err ? <p className="text-sm text-red-600">{err}</p> : null}
 
-          {tab === 'paste' ? (
+          {tab === 'google' ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Google Places
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={googleQuery}
+                    onChange={(e) => setGoogleQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void searchGoogle()
+                      }
+                    }}
+                    placeholder={`Search for a ${entityLabel}`}
+                    className="min-w-0 flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void searchGoogle()}
+                    disabled={searchingGoogle || googleQuery.trim().length < 2}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {searchingGoogle ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                {googleSearchContext ? (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Searching near {googleSearchContext}.
+                  </p>
+                ) : null}
+              </div>
+
+              {googleResults.length > 0 ? (
+                <ul className="space-y-2">
+                  {googleResults.map((result) => (
+                    <li
+                      key={result.place_id}
+                      className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900">{result.name}</div>
+                          {result.formatted_address ? (
+                            <div className="text-xs text-gray-600 mt-0.5">
+                              {result.formatted_address}
+                            </div>
+                          ) : null}
+                          {typeof result.rating === 'number' ? (
+                            <div className="text-xs text-amber-700 mt-1">
+                              ★ {result.rating.toFixed(1)}
+                            </div>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void saveGooglePlace(result)}
+                          disabled={hydratingPlaceId !== null}
+                          className="shrink-0 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {hydratingPlaceId === result.place_id ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : !searchingGoogle && googleQuery.trim() ? (
+                <p className="text-xs text-gray-500">
+                  Search results will appear here. If Google is not configured, use Manual or AI
+                  paste.
+                </p>
+              ) : null}
+            </div>
+          ) : tab === 'paste' ? (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Paste notes, a review, or a blurb about the {entityLabel}

@@ -102,6 +102,8 @@ export async function POST(request: NextRequest) {
         googlePlaceId: placeId,
       },
       update: {
+        tripId,
+        ...(typeof cityId === 'string' && cityId.trim() ? { cityId: cityId.trim() } : {}),
         title: place.name ?? existing?.title ?? 'Attraction',
         category,
         address: place.formatted_address,

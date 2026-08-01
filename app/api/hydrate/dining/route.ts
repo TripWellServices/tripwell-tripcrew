@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { placeId, tripId, categoryLabel } = await request.json()
+    const { placeId, tripId, categoryLabel, cityId } = await request.json()
 
     if (!placeId || !tripId) {
       return NextResponse.json(
@@ -99,6 +99,8 @@ export async function POST(request: NextRequest) {
         googlePlaceId: placeId,
       },
       update: {
+        tripId,
+        ...(typeof cityId === 'string' && cityId.trim() ? { cityId: cityId.trim() } : {}),
         title: place.name ?? existing?.title ?? 'Restaurant',
         category,
         address: place.formatted_address,
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
       },
       create: {
         tripId,
+        cityId: typeof cityId === 'string' && cityId.trim() ? cityId.trim() : null,
         googlePlaceId: placeId,
         title: place.name ?? 'Restaurant',
         category,
