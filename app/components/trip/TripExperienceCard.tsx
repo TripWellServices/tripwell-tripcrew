@@ -152,7 +152,14 @@ export default function TripExperienceCard({
   const [savingEditId, setSavingEditId] = useState<string | null>(null)
   const [expandedSavedItemKey, setExpandedSavedItemKey] = useState<string | null>(null)
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
+  const [scheduledSavedItemKeys, setScheduledSavedItemKeys] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [optimisticExperiencesByDay, setOptimisticExperiencesByDay] = useState<
+    Record<string, TripExperienceRow[]>
+  >({})
   const [editDraft, setEditDraft] = useState({
     startTime: '',
     endTime: '',
@@ -176,6 +183,7 @@ export default function TripExperienceCard({
   }
 
   const beginScheduleSavedItem = (item: SavedTripListItem, day: TripDayRow) => {
+    setScheduleError(null)
     setExpandedSavedItemKey(`${item.kind}:${item.id}`)
     setScheduleDraft({
       itemKey: `${item.kind}:${item.id}`,
@@ -192,7 +200,9 @@ export default function TripExperienceCard({
     draft: ScheduleDraft
   ) => {
     const key = `${item.kind}:${item.id}:${day.id}`
+    const itemKey = `${item.kind}:${item.id}`
     setSchedulingKey(key)
+    setScheduleError(null)
     try {
       const body: Record<string, string> = {
         date: dateForApi(day),
@@ -213,8 +223,25 @@ export default function TripExperienceCard({
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         console.error('Schedule saved item failed:', err)
+        setScheduleError(
+          typeof err.error === 'string'
+            ? err.error
+            : `Could not add ${item.title} to Day ${day.dayNumber}.`
+        )
         return
       }
+      const created = (await res.json().catch(() => null)) as TripExperienceRow | null
+      if (created?.id) {
+        setOptimisticExperiencesByDay((prev) => ({
+          ...prev,
+          [day.id]: [...(prev[day.id] ?? []), created],
+        }))
+      }
+      setScheduledSavedItemKeys((prev) => {
+        const next = new Set(prev)
+        next.add(itemKey)
+        return next
+      })
       setScheduleDraft(null)
       setScheduleMessage(`Added ${item.title} to ${format(new Date(day.date), 'EEE, MMM d')}.`)
       window.setTimeout(() => setScheduleMessage(null), 7000)
@@ -271,6 +298,9 @@ export default function TripExperienceCard({
   }
 
   const sortedDays = [...tripDays].sort((a, b) => a.dayNumber - b.dayNumber)
+  const visibleSavedItems = savedItems.filter(
+    (item) => !scheduledSavedItemKeys.has(`${item.kind}:${item.id}`)
+  )
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -285,7 +315,16 @@ export default function TripExperienceCard({
         </div>
       ) : null}
 
-      {canScheduleSavedItems && savedItems.length > 0 ? (
+      {scheduleError ? (
+        <div
+          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          role="alert"
+        >
+          {scheduleError}
+        </div>
+      ) : null}
+
+      {canScheduleSavedItems && visibleSavedItems.length > 0 ? (
         <div className="mb-6 rounded-lg border border-sky-100 bg-sky-50/60 p-4">
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-sky-950">Saved trip list</h3>
@@ -294,7 +333,7 @@ export default function TripExperienceCard({
             </p>
           </div>
           <ul className="space-y-3">
-            {savedItems.map((item) => {
+            {visibleSavedItems.map((item) => {
               const itemKey = `${item.kind}:${item.id}`
               const expanded = expandedSavedItemKey === itemKey
               const mapsUrl = googleMapsUrlFromMetadata(item.metadata)
@@ -518,7 +557,8 @@ export default function TripExperienceCard({
         <div className="space-y-6">
           {sortedDays.map((day) => {
             const dayDate = new Date(day.date)
-            const experiences = [...(day.experiences ?? [])].sort(
+            const optimisticExperiences = optimisticExperiencesByDay[day.id] ?? []
+            const experiences = [...(day.experiences ?? []), ...optimisticExperiences].sort(
               (a, b) => a.orderIndex - b.orderIndex
             )
 
