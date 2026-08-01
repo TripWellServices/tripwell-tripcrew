@@ -158,6 +158,7 @@ export default function TripExperienceCard({
   const [expandedSavedItemKey, setExpandedSavedItemKey] = useState<string | null>(null)
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const [openDayId, setOpenDayId] = useState<string | null>(null)
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
   const [scheduledSavedItemKeys, setScheduledSavedItemKeys] = useState<Set<string>>(
     () => new Set()
@@ -306,6 +307,7 @@ export default function TripExperienceCard({
   const visibleSavedItems = savedItems.filter(
     (item) => !scheduledSavedItemKeys.has(`${item.kind}:${item.id}`)
   )
+  const showTopSavedList = false
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -329,7 +331,7 @@ export default function TripExperienceCard({
         </div>
       ) : null}
 
-      {canScheduleSavedItems && visibleSavedItems.length > 0 ? (
+      {showTopSavedList && canScheduleSavedItems && visibleSavedItems.length > 0 ? (
         <div className="mb-6 rounded-lg border border-sky-100 bg-sky-50/60 p-4">
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-sky-950">Saved trip list</h3>
@@ -566,6 +568,8 @@ export default function TripExperienceCard({
             const experiences = [...(day.experiences ?? []), ...optimisticExperiences].sort(
               (a, b) => a.orderIndex - b.orderIndex
             )
+            const dayIsOpen =
+              openDayId === day.id || (openDayId === null && day.dayNumber === sortedDays[0]?.dayNumber)
 
             return (
               <div key={day.id} className="border border-gray-200 rounded-lg p-4">
@@ -577,11 +581,120 @@ export default function TripExperienceCard({
                     Day {day.dayNumber}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setOpenDayId(dayIsOpen ? '' : day.id)}
+                  className="mb-3 rounded-md border border-sky-200 px-3 py-1.5 text-xs font-medium text-sky-800 hover:bg-sky-50"
+                >
+                  {dayIsOpen ? 'Close day' : `Open Day ${day.dayNumber}`}
+                </button>
+
+                {dayIsOpen && canScheduleSavedItems && visibleSavedItems.length > 0 ? (
+                  <div className="mb-4 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
+                    <h4 className="text-sm font-semibold text-sky-950">
+                      Add saved places to Day {day.dayNumber}
+                    </h4>
+                    <p className="mt-0.5 text-xs text-sky-800">
+                      Pick a saved restaurant or place, set its time, and it will land in this day.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {visibleSavedItems.map((item) => {
+                        const itemKey = `${item.kind}:${item.id}`
+                        const draftActive =
+                          scheduleDraft?.itemKey === itemKey && scheduleDraft.dayId === day.id
+                        return (
+                          <div key={itemKey} className="rounded-md bg-white p-3 ring-1 ring-sky-100">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900">{item.title}</p>
+                                {item.category ? (
+                                  <p className="text-xs text-gray-600">{item.category}</p>
+                                ) : null}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => beginScheduleSavedItem(item, day)}
+                                className="shrink-0 rounded-md border border-sky-200 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50"
+                              >
+                                {draftActive ? 'Planning...' : 'Add here + time'}
+                              </button>
+                            </div>
+                            {draftActive ? (
+                              <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <label className="block text-xs font-medium text-gray-600">
+                                    Start time
+                                    <input
+                                      type="time"
+                                      value={scheduleDraft.startTime}
+                                      onChange={(e) =>
+                                        setScheduleDraft((prev) =>
+                                          prev ? { ...prev, startTime: e.target.value } : prev
+                                        )
+                                      }
+                                      className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                                    />
+                                  </label>
+                                  <label className="block text-xs font-medium text-gray-600">
+                                    End time
+                                    <input
+                                      type="time"
+                                      value={scheduleDraft.endTime}
+                                      onChange={(e) =>
+                                        setScheduleDraft((prev) =>
+                                          prev ? { ...prev, endTime: e.target.value } : prev
+                                        )
+                                      }
+                                      className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                                    />
+                                  </label>
+                                </div>
+                                <label className="mt-3 block text-xs font-medium text-gray-600">
+                                  Notes
+                                  <textarea
+                                    value={scheduleDraft.notes}
+                                    onChange={(e) =>
+                                      setScheduleDraft((prev) =>
+                                        prev ? { ...prev, notes: e.target.value } : prev
+                                      )
+                                    }
+                                    rows={2}
+                                    className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                                  />
+                                </label>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={schedulingKey === `${item.kind}:${item.id}:${day.id}`}
+                                    onClick={() => void handleScheduleSavedItem(item, day, scheduleDraft)}
+                                    className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                                  >
+                                    {schedulingKey === `${item.kind}:${item.id}:${day.id}`
+                                      ? 'Adding...'
+                                      : `Add to Day ${day.dayNumber}`}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setScheduleDraft(null)}
+                                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
 
                 {experiences.length === 0 ? (
                   <p className="text-gray-500 text-sm">
-                    No plans on this date yet. Pick a saved restaurant or place above, then plan Day{' '}
-                    {day.dayNumber} with a start/end time.
+                    {dayIsOpen
+                      ? `No plans yet. Add a saved place to Day ${day.dayNumber} above.`
+                      : `No plans yet. Open Day ${day.dayNumber} to add saved places and times.`}
                   </p>
                 ) : (
                   <div className="space-y-2">
