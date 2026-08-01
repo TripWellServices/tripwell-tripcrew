@@ -57,6 +57,10 @@ npm run dev
 
 ## Usage
 
+For a focused map of trip IDs, date metadata, plan ingest, restaurant ingestion,
+Google Places hydration, and mobile/Safari-facing trip routes, see
+[`docs/TRIP_METADATA_INGEST_AND_PLACES.md`](docs/TRIP_METADATA_INGEST_AND_PLACES.md).
+
 ### View a Trip
 Navigate to `/trip/[tripId]` to view a trip in read-only mode.
 
