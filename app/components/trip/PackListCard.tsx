@@ -11,13 +11,11 @@ interface PackItem {
 interface PackListCardProps {
   items: PackItem[]
   tripId: string
-  isAdmin: boolean
 }
 
 export default function PackListCard({
   items,
   tripId,
-  isAdmin,
 }: PackListCardProps) {
   const [newTitle, setNewTitle] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -99,25 +97,23 @@ export default function PackListCard({
         </div>
       )}
 
-      {isAdmin && (
-        <div className="mb-4 flex gap-2">
-          <input
-            type="text"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-            placeholder="Add item to pack..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={isAdding || !newTitle.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-          >
-            Add
-          </button>
-        </div>
-      )}
+      <div className="mb-4 flex gap-2">
+        <input
+          type="text"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder="Add item to pack..."
+          className="flex-1 px-3 py-2 border border-gray-300 rounded"
+        />
+        <button
+          onClick={handleAdd}
+          disabled={isAdding || !newTitle.trim()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          Add
+        </button>
+      </div>
 
       {items.length === 0 ? (
         <p className="text-gray-500">No items to pack yet.</p>
@@ -143,14 +139,12 @@ export default function PackListCard({
               >
                 {item.title}
               </span>
-              {isAdmin && (
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="text-red-500 hover:text-red-700 text-xl"
-                >
-                  ×
-                </button>
-              )}
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="text-red-500 hover:text-red-700 text-xl"
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>

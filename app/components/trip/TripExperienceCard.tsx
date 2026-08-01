@@ -71,7 +71,6 @@ interface TripExperienceCardProps {
   startDate: Date | null
   endDate: Date | null
   tripId: string
-  isAdmin: boolean
   savedItems?: SavedTripListItem[]
   canScheduleSavedItems?: boolean
 }
@@ -144,9 +143,8 @@ export default function TripExperienceCard({
   startDate,
   endDate,
   tripId,
-  isAdmin,
   savedItems = [],
-  canScheduleSavedItems = isAdmin,
+  canScheduleSavedItems = true,
 }: TripExperienceCardProps) {
   const router = useRouter()
   const [schedulingKey, setSchedulingKey] = useState<string | null>(null)
@@ -602,24 +600,22 @@ export default function TripExperienceCard({
                               </div>
                             )}
                           </div>
-                          {isAdmin && (
-                            <div className="flex shrink-0 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => beginEditExperience(exp)}
-                                className="text-sky-600 hover:text-sky-800 text-sm"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveExperience(exp.id)}
-                                className="text-red-500 hover:text-red-700 text-sm"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex shrink-0 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => beginEditExperience(exp)}
+                              className="text-sky-600 hover:text-sky-800 text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExperience(exp.id)}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
                           </div>
                           {editingId === exp.id ? (
                           <div className="mt-2 rounded-lg border border-sky-100 bg-white p-3">

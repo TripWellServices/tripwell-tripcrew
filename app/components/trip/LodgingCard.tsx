@@ -91,14 +91,12 @@ export type LodgingCardLodging = {
 interface LodgingCardProps {
   lodging: LodgingCardLodging | null
   tripId: string
-  isAdmin: boolean
   googleApiKey: string
 }
 
 export default function LodgingCard({
   lodging,
   tripId,
-  isAdmin,
   googleApiKey,
 }: LodgingCardProps) {
   const [isHydrating, setIsHydrating] = useState(false)
@@ -156,15 +154,11 @@ export default function LodgingCard({
     }
   }
 
-  if (!lodging && !isAdmin) {
-    return null
-  }
-
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-gray-800">Lodging</h2>
-        {isAdmin && !lodging && (
+        {!lodging && (
           <button
             type="button"
             onClick={() => setShowSearch(!showSearch)}
@@ -176,7 +170,7 @@ export default function LodgingCard({
         )}
       </div>
 
-      {showSearch && isAdmin && (
+      {showSearch && (
         <div className="mb-4">
           <GoogleSearchBar
             onPlaceSelect={handlePlaceSelect}
@@ -268,18 +262,16 @@ export default function LodgingCard({
           </div>
         </div>
       ) : (
-        isAdmin && (
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
-            <p className="text-gray-600 text-sm mb-3">No lodging yet — search to add a hotel or rental.</p>
-            <button
-              type="button"
-              onClick={() => setShowSearch(true)}
-              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
-            >
-              Search lodging
-            </button>
-          </div>
-        )
+        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
+          <p className="text-gray-600 text-sm mb-3">No lodging yet — search to add a hotel or rental.</p>
+          <button
+            type="button"
+            onClick={() => setShowSearch(true)}
+            className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
+          >
+            Search lodging
+          </button>
+        </div>
       )}
     </div>
   )

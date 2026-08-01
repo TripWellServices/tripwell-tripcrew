@@ -26,14 +26,12 @@ interface Dining {
 interface DiningCardProps {
   dining: Dining[]
   tripId: string
-  isAdmin: boolean
   catalogueCityId?: string | null
 }
 
 export default function DiningCard({
   dining,
   tripId,
-  isAdmin,
   catalogueCityId,
 }: DiningCardProps) {
   const [addOpen, setAddOpen] = useState(false)
@@ -45,24 +43,22 @@ export default function DiningCard({
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 className="text-2xl font-bold text-gray-800">Dining</h2>
-        {isAdmin && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setAddOpen(true)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={() => setCatalogueOpen(true)}
-              className="px-4 py-2 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 text-sm font-medium"
-            >
-              View catalogue
-            </button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+          >
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => setCatalogueOpen(true)}
+            className="px-4 py-2 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 text-sm font-medium"
+          >
+            View catalogue
+          </button>
+        </div>
       </div>
 
       <AddEntryModal
@@ -87,28 +83,22 @@ export default function DiningCard({
             No restaurants yet — add manually, paste text for AI extraction, or pick from the
             regional catalogue.
           </p>
-          {isAdmin ? (
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setAddOpen(true)}
-                className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                onClick={() => setCatalogueOpen(true)}
-                className="px-4 py-2 border border-gray-300 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-50"
-              >
-                View catalogue
-              </button>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">
-              Use Add restaurant above to save restaurants to this trip.
-            </p>
-          )}
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAddOpen(true)}
+              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => setCatalogueOpen(true)}
+              className="px-4 py-2 border border-gray-300 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-50"
+            >
+              View catalogue
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

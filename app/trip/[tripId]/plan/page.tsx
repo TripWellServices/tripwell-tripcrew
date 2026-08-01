@@ -150,7 +150,6 @@ export default async function TripPlanPage({ params }: PageProps) {
           startDate={trip.startDate}
           endDate={trip.endDate}
           tripId={trip.id}
-          isAdmin={true}
           savedItems={savedItems}
         />
       </section>

@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import TripHeader from '@/app/components/trip/TripHeader'
 import LodgingCard from '@/app/components/trip/LodgingCard'
 import DiningCard from '@/app/components/trip/DiningCard'
@@ -22,15 +22,9 @@ export const dynamic = 'force-dynamic'
 
 interface PageProps {
   params: { tripId: string }
-  searchParams: { admin?: string; ingested?: string }
 }
 
-export default async function TripPage({ params, searchParams }: PageProps) {
-  if (searchParams.admin === '1') {
-    redirect(`/trip/${params.tripId}/admin`)
-  }
-
-  const isAdmin = false
+export default async function TripPage({ params }: PageProps) {
   const googleApiKey = resolveGooglePlacesApiKey() || ''
 
   // Use server action for safe hydration
@@ -115,21 +109,18 @@ export default async function TripPage({ params, searchParams }: PageProps) {
             <LodgingCard
               lodging={trip.lodging}
               tripId={trip.id}
-              isAdmin={isAdmin}
               googleApiKey={googleApiKey}
             />
 
             <DiningCard
               dining={trip.dining}
               tripId={trip.id}
-              isAdmin={isAdmin}
               catalogueCityId={catalogueCityId}
             />
 
             <AttractionCard
               attractions={trip.attractions}
               tripId={trip.id}
-              isAdmin={isAdmin}
               catalogueCityId={catalogueCityId}
             />
 
@@ -138,12 +129,11 @@ export default async function TripPage({ params, searchParams }: PageProps) {
               startDate={trip.startDate}
               endDate={trip.endDate}
               tripId={trip.id}
-              isAdmin
               savedItems={unscheduledSavedItems}
               canScheduleSavedItems
             />
 
-            <TripMemoriesCard tripId={trip.id} isAdmin={isAdmin} />
+            <TripMemoriesCard tripId={trip.id} />
           </div>
 
           <div className="space-y-6">
@@ -152,13 +142,11 @@ export default async function TripPage({ params, searchParams }: PageProps) {
             <LogisticsCard
               items={trip.logistics}
               tripId={trip.id}
-              isAdmin={isAdmin}
             />
 
             <PackListCard
               items={trip.packItems}
               tripId={trip.id}
-              isAdmin={isAdmin}
             />
           </div>
         </div>

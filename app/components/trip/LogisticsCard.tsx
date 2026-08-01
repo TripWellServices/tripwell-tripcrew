@@ -1,8 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 
 interface LogisticItem {
   id: string
@@ -14,15 +12,12 @@ interface LogisticItem {
 interface LogisticsCardProps {
   items: LogisticItem[]
   tripId: string
-  isAdmin: boolean
 }
 
 export default function LogisticsCard({
   items,
   tripId,
-  isAdmin,
 }: LogisticsCardProps) {
-  const pathname = usePathname()
   const [newTitle, setNewTitle] = useState('')
   const [newDetail, setNewDetail] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -83,44 +78,36 @@ export default function LogisticsCard({
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Logistics</h2>
 
-      {isAdmin && (
-        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-          <input
-            type="text"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="Item title..."
-            className="w-full px-3 py-2 border border-gray-300 rounded mb-2"
-          />
-          <textarea
-            value={newDetail}
-            onChange={(e) => setNewDetail(e.target.value)}
-            placeholder="Details (optional)..."
-            className="w-full px-3 py-2 border border-gray-300 rounded mb-2"
-            rows={2}
-          />
-          <button
-            onClick={handleAdd}
-            disabled={isAdding || !newTitle.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-          >
-            Add Item
-          </button>
-        </div>
-      )}
+      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+        <input
+          type="text"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          placeholder="Item title..."
+          className="w-full px-3 py-2 border border-gray-300 rounded mb-2"
+        />
+        <textarea
+          value={newDetail}
+          onChange={(e) => setNewDetail(e.target.value)}
+          placeholder="Details (optional)..."
+          className="w-full px-3 py-2 border border-gray-300 rounded mb-2"
+          rows={2}
+        />
+        <button
+          onClick={handleAdd}
+          disabled={isAdding || !newTitle.trim()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          Add Item
+        </button>
+      </div>
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
           <p className="text-gray-600 text-sm mb-2">
             Track flights, transfers, and reminders here.
           </p>
-          {!isAdmin ? (
-            <Link href={`${pathname}/admin`} className="text-sm font-medium text-sky-600 hover:underline">
-              Enable editing to add logistics items
-            </Link>
-          ) : (
-            <p className="text-xs text-gray-500">Use the form above to add your first item.</p>
-          )}
+          <p className="text-xs text-gray-500">Use the form above to add your first item.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -134,7 +121,6 @@ export default function LogisticsCard({
                 checked={item.isComplete}
                 onChange={() => handleToggle(item.id, item.isComplete)}
                 className="mt-1"
-                disabled={!isAdmin}
               />
               <div className="flex-1">
                 <p
@@ -150,14 +136,12 @@ export default function LogisticsCard({
                   <p className="text-sm text-gray-600 mt-1">{item.detail}</p>
                 )}
               </div>
-              {isAdmin && (
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  ×
-                </button>
-              )}
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="text-red-500 hover:text-red-700"
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>

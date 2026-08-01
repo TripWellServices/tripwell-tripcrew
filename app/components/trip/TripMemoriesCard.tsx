@@ -39,10 +39,9 @@ type TripMemoryRow = {
 
 interface TripMemoriesCardProps {
   tripId: string
-  isAdmin: boolean
 }
 
-export default function TripMemoriesCard({ tripId, isAdmin }: TripMemoriesCardProps) {
+export default function TripMemoriesCard({ tripId }: TripMemoriesCardProps) {
   const [travelerId, setTravelerId] = useState<string | null>(null)
   const [memories, setMemories] = useState<TripMemoryRow[]>([])
   const [suggestedRecipientEmails, setSuggestedRecipientEmails] = useState<string[]>([])
@@ -228,50 +227,48 @@ export default function TripMemoriesCard({ tripId, isAdmin }: TripMemoriesCardPr
         </p>
       )}
 
-      {isAdmin && (
-        <div className="mt-4 space-y-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/80 p-4">
-          <label className="block text-sm font-medium text-gray-700">New reflection</label>
-          <textarea
-            value={newBody}
-            onChange={(e) => setNewBody(e.target.value)}
-            rows={4}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      <div className="mt-4 space-y-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/80 p-4">
+        <label className="block text-sm font-medium text-gray-700">New reflection</label>
+        <textarea
+          value={newBody}
+          onChange={(e) => setNewBody(e.target.value)}
+          rows={4}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Photos (JPEG, PNG, WebP)</label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="mt-1 block w-full text-sm text-gray-600"
+            onChange={(e) => setFiles(e.target.files)}
           />
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Photos (JPEG, PNG, WebP)</label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              className="mt-1 block w-full text-sm text-gray-600"
-              onChange={(e) => setFiles(e.target.files)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Extra recipients (optional)
-            </label>
-            <input
-              type="text"
-              value={shareExtra}
-              onChange={(e) => setShareExtra(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Comma-separated emails, used when you click Share on a memory below (merged with crew
-              list).
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={creating}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {creating ? 'Saving…' : 'Save memory'}
-          </button>
         </div>
-      )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Extra recipients (optional)
+          </label>
+          <input
+            type="text"
+            value={shareExtra}
+            onChange={(e) => setShareExtra(e.target.value)}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Comma-separated emails, used when you click Share on a memory below (merged with crew
+            list).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleCreate()}
+          disabled={creating}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {creating ? 'Saving…' : 'Save memory'}
+        </button>
+      </div>
 
       <div className="mt-6 space-y-4">
         {loading ? (
