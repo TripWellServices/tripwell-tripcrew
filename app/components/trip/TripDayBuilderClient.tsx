@@ -390,21 +390,36 @@ export default function TripDayBuilderClient({
         <aside className="rounded-xl border border-sky-100 bg-sky-50/70 p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-sky-950">Saved globally</h2>
           <p className="mt-1 text-sm text-sky-800">Pick from restaurants and places already saved to this trip.</p>
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+          <div className="mt-4 grid grid-cols-1 gap-2">
             <button
               type="button"
               onClick={() => setAddModalType('dining')}
-              className="rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+              className="rounded-lg border border-sky-200 bg-white p-3 text-left hover:bg-sky-50"
             >
-              Add restaurant for Day {day.dayNumber}
+              <span className="block text-sm font-semibold text-gray-900">Dining</span>
+              <span className="mt-1 block text-xs text-gray-600">
+                Find or manually add a restaurant, then schedule it into Day {day.dayNumber}.
+              </span>
             </button>
             <button
               type="button"
               onClick={() => setAddModalType('attraction')}
-              className="rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
+              className="rounded-lg border border-sky-200 bg-white p-3 text-left hover:bg-sky-50"
             >
-              Add place for Day {day.dayNumber}
+              <span className="block text-sm font-semibold text-gray-900">Attraction / Place</span>
+              <span className="mt-1 block text-xs text-gray-600">
+                Find a place, save it globally, then schedule it into this day.
+              </span>
             </button>
+            <Link
+              href="/experiences"
+              className="rounded-lg border border-sky-200 bg-white p-3 text-left hover:bg-sky-50"
+            >
+              <span className="block text-sm font-semibold text-gray-900">Experience / Concert</span>
+              <span className="mt-1 block text-xs text-gray-600">
+                Add or find an experience, then return here to schedule it into a day.
+              </span>
+            </Link>
           </div>
           <div className="mt-4 space-y-3">
             {visibleSavedItems.length === 0 ? (

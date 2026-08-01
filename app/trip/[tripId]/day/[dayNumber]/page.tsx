@@ -56,6 +56,17 @@ export default async function TripDayPage({ params }: PageProps) {
       rating: item.rating,
       metadata: item.metadata,
     })),
+    ...(trip.concertAnchors ?? [])
+      .map((anchor) => anchor.concert)
+      .filter((concert): concert is NonNullable<typeof concert> => Boolean(concert))
+      .map((concert) => ({
+        kind: 'concert' as const,
+        id: concert.id,
+        title: concert.name,
+        category: concert.isFestival ? 'Festival' : 'Concert',
+        description: concert.description,
+        address: concert.venue,
+      })),
   ]
 
   return (
