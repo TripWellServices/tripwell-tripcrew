@@ -34,8 +34,8 @@ export default async function TripLayout({ children, params }: LayoutProps) {
       : tripDateRangeLabel(trip.startDate, trip.endDate)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+      <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shrink-0 lg:overflow-y-auto">
         <div className="p-4 border-b border-gray-200">
           {hasCrew ? (
             <Link

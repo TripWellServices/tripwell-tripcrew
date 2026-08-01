@@ -16,14 +16,14 @@ export default function TripNav({ tripId }: TripNavProps) {
   const isDiscover = pathname === `${base}/discover`
 
   const tabClass = (active: boolean) =>
-    `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${
+    `shrink-0 lg:w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${
       active
         ? 'bg-sky-100 text-sky-800'
         : 'text-gray-700 hover:bg-sky-50 hover:text-sky-700'
     }`
 
   return (
-    <nav className="p-2 space-y-1 border-b border-gray-200">
+    <nav className="p-2 flex gap-2 overflow-x-auto border-b border-gray-200 lg:block lg:space-y-1">
       <Link href={`${base}/admin`} className={tabClass(isSetup)}>
         <span>Setup</span>
       </Link>

@@ -60,6 +60,7 @@ interface TripExperienceCardProps {
   tripId: string
   isAdmin: boolean
   savedItems?: SavedTripListItem[]
+  canScheduleSavedItems?: boolean
 }
 
 function experienceLabel(
@@ -132,6 +133,7 @@ export default function TripExperienceCard({
   tripId,
   isAdmin,
   savedItems = [],
+  canScheduleSavedItems = isAdmin,
 }: TripExperienceCardProps) {
   const router = useRouter()
   const [schedulingKey, setSchedulingKey] = useState<string | null>(null)
@@ -198,12 +200,12 @@ export default function TripExperienceCard({
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Day plan</h2>
 
-      {isAdmin && savedItems.length > 0 ? (
+      {canScheduleSavedItems && savedItems.length > 0 ? (
         <div className="mb-6 rounded-lg border border-sky-100 bg-sky-50/60 p-4">
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-sky-950">Saved trip list</h3>
             <p className="text-xs text-sky-800 mt-0.5">
-              These were saved in Setup. Add them to a day to build the itinerary.
+              Add these saved restaurants and places to a day when you know where they belong.
             </p>
           </div>
           <ul className="space-y-3">
@@ -361,7 +363,7 @@ export default function TripExperienceCard({
 
       <p className="mt-6 text-sm text-gray-500">
         Each block is a TripDay experience (time + dining, attraction, concert, etc.). Save items
-        in Setup, then schedule them here.
+        to the trip, then schedule them here.
       </p>
     </div>
   )

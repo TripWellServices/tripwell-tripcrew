@@ -7,9 +7,12 @@ import AttractionCard from '@/app/components/trip/AttractionCard'
 import LogisticsCard from '@/app/components/trip/LogisticsCard'
 import PackListCard from '@/app/components/trip/PackListCard'
 import WeatherCard from '@/app/components/trip/WeatherCard'
-import TripExperienceCard from '@/app/components/trip/TripExperienceCard'
+import TripExperienceCard, {
+  type SavedTripListItem,
+} from '@/app/components/trip/TripExperienceCard'
 import TripMemoriesCard from '@/app/components/trip/TripMemoriesCard'
 import PostIngestNextSteps from '@/app/components/trip/PostIngestNextSteps'
+import TripQuickAddPanel from '@/app/components/trip/TripQuickAddPanel'
 import { resolveGooglePlacesApiKey } from '@/lib/google-places-config'
 import { getTrip } from '@/lib/actions/trip'
 import { resolveCityId } from '@/lib/city-mapper'
@@ -41,6 +44,41 @@ export default async function TripPage({ params, searchParams }: PageProps) {
   const { trip } = result
 
   const catalogueCityId = await resolveCityId(trip.city, trip.state, trip.country)
+  const destinationLabel = [trip.city, trip.state, trip.country].filter(Boolean).join(', ')
+  const locationBias =
+    typeof trip.lodging?.lat === 'number' && typeof trip.lodging?.lng === 'number'
+      ? { lat: trip.lodging.lat, lng: trip.lodging.lng, radiusMeters: 25_000 }
+      : null
+  const scheduledDiningIds = new Set<string>()
+  const scheduledAttractionIds = new Set<string>()
+  for (const day of trip.tripDays) {
+    for (const experience of day.experiences) {
+      if (experience.dining?.id) scheduledDiningIds.add(experience.dining.id)
+      if (experience.attraction?.id) scheduledAttractionIds.add(experience.attraction.id)
+    }
+  }
+  const unscheduledSavedItems: SavedTripListItem[] = [
+    ...trip.dining
+      .filter((item) => !scheduledDiningIds.has(item.id))
+      .map((item) => ({
+        kind: 'dining' as const,
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        description: item.description,
+        address: item.address,
+      })),
+    ...trip.attractions
+      .filter((item) => !scheduledAttractionIds.has(item.id))
+      .map((item) => ({
+        kind: 'attraction' as const,
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        description: item.description,
+        address: item.address,
+      })),
+  ]
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -54,6 +92,15 @@ export default async function TripPage({ params, searchParams }: PageProps) {
         <Suspense fallback={null}>
           <PostIngestNextSteps />
         </Suspense>
+
+        <TripQuickAddPanel
+          tripId={trip.id}
+          catalogueCityId={catalogueCityId}
+          destinationLabel={destinationLabel || null}
+          diningIds={trip.dining.map((item) => item.id)}
+          attractionIds={trip.attractions.map((item) => item.id)}
+          locationBias={locationBias}
+        />
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -84,6 +131,8 @@ export default async function TripPage({ params, searchParams }: PageProps) {
               endDate={trip.endDate}
               tripId={trip.id}
               isAdmin={isAdmin}
+              savedItems={unscheduledSavedItems}
+              canScheduleSavedItems
             />
 
             <TripMemoriesCard tripId={trip.id} isAdmin={isAdmin} />
@@ -106,17 +155,13 @@ export default async function TripPage({ params, searchParams }: PageProps) {
           </div>
         </div>
 
-        {!isAdmin && (
-          <div className="mt-8 text-center text-gray-500 text-sm">
-            <p>
-              View-only mode.{' '}
-              <a href={`/trip/${params.tripId}/admin`} className="text-sky-600 hover:underline">
-                Open setup
-              </a>{' '}
-              to edit this trip.
-            </p>
-          </div>
-        )}
+        <div className="mt-8 text-center text-gray-500 text-sm">
+          Need core details, lodging, flights, or the full wizard?{' '}
+          <a href={`/trip/${params.tripId}/admin`} className="text-sky-600 hover:underline">
+            Open setup
+          </a>
+          .
+        </div>
     </div>
   )
 }
