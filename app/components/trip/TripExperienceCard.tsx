@@ -138,6 +138,11 @@ function dateForApi(day: TripDayRow): string {
   return `${y}-${m}-${dayOfMonth}`
 }
 
+function dateForDisplay(day: Pick<TripDayRow, 'date'>): Date {
+  const d = new Date(day.date)
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+}
+
 export default function TripExperienceCard({
   tripDays,
   startDate,
@@ -243,7 +248,7 @@ export default function TripExperienceCard({
         return next
       })
       setScheduleDraft(null)
-      setScheduleMessage(`Added ${item.title} to ${format(new Date(day.date), 'EEE, MMM d')}.`)
+      setScheduleMessage(`Added ${item.title} to ${format(dateForDisplay(day), 'EEE, MMM d')}.`)
       window.setTimeout(() => setScheduleMessage(null), 7000)
       router.refresh()
     } catch (error) {
@@ -468,7 +473,7 @@ export default function TripExperienceCard({
                           <div className="mb-2 text-xs font-semibold text-sky-950">
                             Set the time slot for{' '}
                             {draftDay
-                              ? format(new Date(draftDay.date), 'EEE, MMM d')
+                              ? format(dateForDisplay(draftDay), 'EEE, MMM d')
                               : 'a trip day'}
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -556,7 +561,7 @@ export default function TripExperienceCard({
       ) : (
         <div className="space-y-6">
           {sortedDays.map((day) => {
-            const dayDate = new Date(day.date)
+            const dayDate = dateForDisplay(day)
             const optimisticExperiences = optimisticExperiencesByDay[day.id] ?? []
             const experiences = [...(day.experiences ?? []), ...optimisticExperiences].sort(
               (a, b) => a.orderIndex - b.orderIndex
