@@ -9,6 +9,7 @@ import type {
   TripDayRow,
   TripExperienceRow,
 } from '@/app/components/trip/TripExperienceCard'
+import AddEntryModal, { type AddEntryType } from '@/app/components/trip/AddEntryModal'
 
 type ScheduleDraft = {
   itemKey: string
@@ -28,6 +29,13 @@ interface TripDayBuilderClientProps {
   day: TripDayRow
   savedItems: SavedTripListItem[]
   backHref: string
+  catalogueCityId?: string | null
+  destinationLabel?: string | null
+  locationBias?: {
+    lat: number
+    lng: number
+    radiusMeters?: number
+  } | null
 }
 
 function dateForApi(day: TripDayRow): string {
@@ -81,6 +89,9 @@ export default function TripDayBuilderClient({
   day,
   savedItems,
   backHref,
+  catalogueCityId,
+  destinationLabel,
+  locationBias,
 }: TripDayBuilderClientProps) {
   const router = useRouter()
   const [experiences, setExperiences] = useState(
@@ -95,6 +106,8 @@ export default function TripDayBuilderClient({
       )
   )
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
+  const [extraSavedItems, setExtraSavedItems] = useState<SavedTripListItem[]>([])
+  const [addModalType, setAddModalType] = useState<AddEntryType | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<EditDraft>({
     startTime: '',
@@ -106,9 +119,37 @@ export default function TripDayBuilderClient({
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const visibleSavedItems = savedItems.filter(
+  const allSavedItems = [...extraSavedItems, ...savedItems]
+  const visibleSavedItems = allSavedItems.filter(
     (item) => !scheduledSavedItemKeys.has(`${item.kind}:${item.id}`)
   )
+
+  const handleDayAwareSavedItem = (item: { type: AddEntryType; id: string; title: string }) => {
+    if (!item.id) {
+      setMessage(`${item.title} was saved. Refresh if it does not appear here.`)
+      return
+    }
+    const kind = item.type
+    const itemKey = `${kind}:${item.id}`
+    const savedItem: SavedTripListItem = {
+      kind,
+      id: item.id,
+      title: item.title,
+      category: kind === 'dining' ? 'Restaurant' : 'Place',
+    }
+    setExtraSavedItems((prev) =>
+      prev.some((existing) => `${existing.kind}:${existing.id}` === itemKey)
+        ? prev
+        : [savedItem, ...prev]
+    )
+    setScheduleDraft({
+      itemKey,
+      startTime: '',
+      endTime: '',
+      notes: '',
+    })
+    setMessage(`${item.title} was saved. Set a time to add it to Day ${day.dayNumber}.`)
+  }
 
   const beginEdit = (exp: TripExperienceRow) => {
     setEditingId(exp.id)
@@ -349,6 +390,22 @@ export default function TripDayBuilderClient({
         <aside className="rounded-xl border border-sky-100 bg-sky-50/70 p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-sky-950">Saved globally</h2>
           <p className="mt-1 text-sm text-sky-800">Pick from restaurants and places already saved to this trip.</p>
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <button
+              type="button"
+              onClick={() => setAddModalType('dining')}
+              className="rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+            >
+              Add restaurant for Day {day.dayNumber}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddModalType('attraction')}
+              className="rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
+            >
+              Add place for Day {day.dayNumber}
+            </button>
+          </div>
           <div className="mt-4 space-y-3">
             {visibleSavedItems.length === 0 ? (
               <div className="rounded-lg bg-white p-4 text-sm text-gray-600">
@@ -457,6 +514,19 @@ export default function TripDayBuilderClient({
           </div>
         </aside>
       </div>
+
+      {addModalType ? (
+        <AddEntryModal
+          type={addModalType}
+          tripId={tripId}
+          open={Boolean(addModalType)}
+          onClose={() => setAddModalType(null)}
+          catalogueCityId={catalogueCityId}
+          googleSearchContext={destinationLabel}
+          locationBias={locationBias}
+          onSaved={handleDayAwareSavedItem}
+        />
+      ) : null}
     </div>
   )
 }

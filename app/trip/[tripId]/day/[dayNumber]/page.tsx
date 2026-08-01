@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import TripDayBuilderClient from '@/app/components/trip/TripDayBuilderClient'
 import type { SavedTripListItem } from '@/app/components/trip/TripExperienceCard'
 import { getTrip } from '@/lib/actions/trip'
+import { resolveCityId } from '@/lib/city-mapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,12 @@ export default async function TripDayPage({ params }: PageProps) {
   const { trip } = result
   const day = trip.tripDays.find((tripDay) => tripDay.dayNumber === parsedDayNumber)
   if (!day) notFound()
+  const catalogueCityId = await resolveCityId(trip.city, trip.state, trip.country)
+  const destinationLabel = [trip.city, trip.state, trip.country].filter(Boolean).join(', ')
+  const locationBias =
+    typeof trip.lodging?.lat === 'number' && typeof trip.lodging?.lng === 'number'
+      ? { lat: trip.lodging.lat, lng: trip.lodging.lng, radiusMeters: 25_000 }
+      : null
 
   const savedItems: SavedTripListItem[] = [
     ...trip.dining.map((item) => ({
@@ -57,6 +64,9 @@ export default async function TripDayPage({ params }: PageProps) {
       day={day}
       savedItems={savedItems}
       backHref={`/trip/${trip.id}/plan`}
+      catalogueCityId={catalogueCityId}
+      destinationLabel={destinationLabel || null}
+      locationBias={locationBias}
     />
   )
 }

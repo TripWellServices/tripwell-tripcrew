@@ -29,7 +29,7 @@ interface AddEntryModalProps {
   /** Appended to short Google queries so trip searches stay destination-aware. */
   googleSearchContext?: string | null
   locationBias?: LocationBias | null
-  onSaved?: (item: { type: AddEntryType; title: string }) => void
+  onSaved?: (item: { type: AddEntryType; id: string; title: string }) => void
 }
 
 export default function AddEntryModal({
@@ -137,6 +137,7 @@ export default function AddEntryModal({
       }
       onSaved?.({
         type,
+        id: typeof data.id === 'string' ? data.id : result.place_id,
         title: typeof data.title === 'string' ? data.title : result.name,
       })
       onClose()
@@ -173,6 +174,7 @@ export default function AddEntryModal({
       }
       onSaved?.({
         type,
+        id: typeof data.id === 'string' ? data.id : '',
         title: typeof data.title === 'string' ? data.title : t,
       })
       onClose()
