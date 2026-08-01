@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
 import { prisma } from '@/lib/prisma'
+import { saveAttractionToTrip } from '@/lib/trip-place-saves'
 import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
 export const dynamic = 'force-dynamic'
@@ -39,10 +40,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ attractions })
     }
 
+    if (tripId) {
+      const [legacyAttractions, savedAttractions] = await Promise.all([
+        prisma.attraction.findMany({
+          where: {
+            ...(tripWellEnterpriseId && { tripWellEnterpriseId }),
+            tripId,
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.tripAttractionSave.findMany({
+          where: { tripId },
+          orderBy: { createdAt: 'desc' },
+          include: { attraction: true },
+        }),
+      ])
+      const byId = new Map(legacyAttractions.map((item) => [item.id, item]))
+      for (const save of savedAttractions) byId.set(save.attraction.id, save.attraction)
+      return NextResponse.json(Array.from(byId.values()))
+    }
+
     const attractions = await prisma.attraction.findMany({
       where: {
         ...(tripWellEnterpriseId && { tripWellEnterpriseId }),
-        ...(tripId && { tripId }),
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -91,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     const attraction = await prisma.attraction.create({
       data: {
-        tripId: tripId || null,
+        tripId: null,
         tripWellEnterpriseId: resolveTripWellEnterpriseId(tripWellEnterpriseId),
         cityId: cityId?.trim() || null,
         title: title.trim(),
@@ -114,6 +134,10 @@ export async function POST(request: NextRequest) {
           typeof bestCombinedWith === 'string' ? bestCombinedWith.trim() || null : null,
       },
     })
+
+    if (typeof tripId === 'string' && tripId.trim()) {
+      await saveAttractionToTrip(tripId.trim(), attraction.id)
+    }
 
     return NextResponse.json(attraction)
   } catch (error) {

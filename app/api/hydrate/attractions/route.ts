@@ -10,6 +10,7 @@ import {
   type GooglePlaceResult,
 } from '@/lib/google-places-hydrate'
 import { resolveGooglePlacesApiKey, googlePlacesErrorMessage } from '@/lib/google-places-config'
+import { saveAttractionToTrip } from '@/lib/trip-place-saves'
 
 export const dynamic = 'force-dynamic'
 
@@ -102,7 +103,6 @@ export async function POST(request: NextRequest) {
         googlePlaceId: placeId,
       },
       update: {
-        tripId,
         ...(typeof cityId === 'string' && cityId.trim() ? { cityId: cityId.trim() } : {}),
         title: place.name ?? existing?.title ?? 'Attraction',
         category,
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         metadata: metadata as Prisma.InputJsonValue,
       },
       create: {
-        tripId,
+        tripId: null,
         cityId: typeof cityId === 'string' && cityId.trim() ? cityId.trim() : null,
         googlePlaceId: placeId,
         title: place.name ?? 'Attraction',
@@ -141,6 +141,8 @@ export async function POST(request: NextRequest) {
         metadata: metadata as Prisma.InputJsonValue,
       },
     })
+
+    await saveAttractionToTrip(tripId, attraction.id)
 
     return NextResponse.json(attraction)
   } catch (error) {

@@ -199,7 +199,7 @@ export async function createWishlistAttraction(
 ): Promise<string> {
   const row = await tx.attraction.create({
     data: {
-      tripId: params.tripId,
+      tripId: null,
       cityId: params.cityId,
       title: params.title,
       category: params.category?.trim() || null,
@@ -207,6 +207,19 @@ export async function createWishlistAttraction(
       description: params.description?.trim() || null,
       metadata: params.metadata,
       tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+    },
+  })
+  await tx.tripAttractionSave.upsert({
+    where: {
+      tripId_attractionId: {
+        tripId: params.tripId,
+        attractionId: row.id,
+      },
+    },
+    update: {},
+    create: {
+      tripId: params.tripId,
+      attractionId: row.id,
     },
   })
   return row.id
@@ -226,7 +239,7 @@ export async function createWishlistDining(
 ): Promise<string> {
   const row = await tx.dining.create({
     data: {
-      tripId: params.tripId,
+      tripId: null,
       cityId: params.cityId,
       title: params.title,
       category: params.category?.trim() || null,
@@ -234,6 +247,19 @@ export async function createWishlistDining(
       description: params.description?.trim() || null,
       metadata: params.metadata,
       tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
+    },
+  })
+  await tx.tripDiningSave.upsert({
+    where: {
+      tripId_diningId: {
+        tripId: params.tripId,
+        diningId: row.id,
+      },
+    },
+    update: {},
+    create: {
+      tripId: params.tripId,
+      diningId: row.id,
     },
   })
   return row.id

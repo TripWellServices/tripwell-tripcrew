@@ -250,6 +250,8 @@ model Trip {
   lodging         Lodging?            @relation("TripLodging")
   dining          Dining[]            @relation("TripDining")
   attractions     Attraction[]        @relation("TripAttractions")
+  diningSaves     TripDiningSave[]
+  attractionSaves TripAttractionSave[]
   adventures      Adventure[]         @relation("TripAdventures")
   memories        TripMemory[]
   concertAnchors  TripConcertAnchor[]
@@ -533,6 +535,7 @@ model Dining {
   savedByTravelerId   String?
 
   trip                Trip?     @relation("TripDining", fields: [tripId], references: [id], onDelete: Cascade)
+  tripSaves           TripDiningSave[]
   tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseDining", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
   city                City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   tripDayExperiences  TripDayExperience[]
@@ -546,6 +549,23 @@ model Dining {
   @@index([createdById])
   @@index([wishlistId])
   @@index([savedByTravelerId])
+}
+
+model TripDiningSave {
+  id        String   @id @default(uuid())
+  tripId    String
+  diningId  String
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dining Dining @relation(fields: [diningId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, diningId])
+  @@index([tripId])
+  @@index([diningId])
+  @@map("trip_dining_saves")
 }
 
 model Attraction {
@@ -577,6 +597,7 @@ model Attraction {
   savedByTravelerId    String?
 
   trip                Trip?     @relation("TripAttractions", fields: [tripId], references: [id], onDelete: Cascade)
+  tripSaves           TripAttractionSave[]
   tripWellEnterprise  TripWellEnterprise? @relation("EnterpriseAttractions", fields: [tripWellEnterpriseId], references: [id], onDelete: SetNull)
   city                City?     @relation(fields: [cityId], references: [id], onDelete: SetNull)
   tripDayExperiences  TripDayExperience[]
@@ -590,6 +611,23 @@ model Attraction {
   @@index([createdById])
   @@index([wishlistId])
   @@index([savedByTravelerId])
+}
+
+model TripAttractionSave {
+  id           String   @id @default(uuid())
+  tripId       String
+  attractionId String
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  trip       Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  attraction Attraction @relation(fields: [attractionId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, attractionId])
+  @@index([tripId])
+  @@index([attractionId])
+  @@map("trip_attraction_saves")
 }
 
 // Stuff-to-do catalogue — independent, keyed by city + season (bolt-on from itinerary)

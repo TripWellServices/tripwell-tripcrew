@@ -58,6 +58,14 @@ export type SavedTripListItem = {
   metadata?: unknown
 }
 
+type ScheduleDraft = {
+  itemKey: string
+  dayId: string
+  startTime: string
+  endTime: string
+  notes: string
+}
+
 interface TripExperienceCardProps {
   tripDays: TripDayRow[]
   startDate: Date | null
@@ -146,6 +154,7 @@ export default function TripExperienceCard({
   const [savingEditId, setSavingEditId] = useState<string | null>(null)
   const [expandedSavedItemKey, setExpandedSavedItemKey] = useState<string | null>(null)
   const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
+  const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
   const [editDraft, setEditDraft] = useState({
     startTime: '',
     endTime: '',
@@ -168,18 +177,35 @@ export default function TripExperienceCard({
     }
   }
 
-  const handleScheduleSavedItem = async (item: SavedTripListItem, day: TripDayRow) => {
+  const beginScheduleSavedItem = (item: SavedTripListItem, day: TripDayRow) => {
+    setExpandedSavedItemKey(`${item.kind}:${item.id}`)
+    setScheduleDraft({
+      itemKey: `${item.kind}:${item.id}`,
+      dayId: day.id,
+      startTime: '',
+      endTime: '',
+      notes: '',
+    })
+  }
+
+  const handleScheduleSavedItem = async (
+    item: SavedTripListItem,
+    day: TripDayRow,
+    draft: ScheduleDraft
+  ) => {
     const key = `${item.kind}:${item.id}:${day.id}`
     setSchedulingKey(key)
     try {
       const body: Record<string, string> = {
         date: dateForApi(day),
-        title: item.title,
       }
       if (item.kind === 'dining') body.diningId = item.id
       if (item.kind === 'attraction') body.attractionId = item.id
       if (item.kind === 'adventure') body.adventureId = item.id
       if (item.kind === 'concert') body.concertId = item.id
+      if (draft.startTime.trim()) body.startTime = draft.startTime.trim()
+      if (draft.endTime.trim()) body.endTime = draft.endTime.trim()
+      if (draft.notes.trim()) body.notes = draft.notes.trim()
 
       const res = await fetch(`/api/trip/${tripId}/itinerary-items`, {
         method: 'POST',
@@ -191,6 +217,7 @@ export default function TripExperienceCard({
         console.error('Schedule saved item failed:', err)
         return
       }
+      setScheduleDraft(null)
       setScheduleMessage(`Added ${item.title} to ${format(new Date(day.date), 'EEE, MMM d')}.`)
       window.setTimeout(() => setScheduleMessage(null), 7000)
       router.refresh()
@@ -279,6 +306,10 @@ export default function TripExperienceCard({
                   : item.kind === 'attraction'
                     ? summarizeAttractionMetadata(item.metadata)
                     : []
+              const draftDay =
+                scheduleDraft?.itemKey === itemKey
+                  ? sortedDays.find((day) => day.id === scheduleDraft.dayId) ?? null
+                  : null
 
               return (
                 <li
@@ -378,21 +409,102 @@ export default function TripExperienceCard({
                       <div className="mt-3 flex flex-wrap gap-2">
                         {sortedDays.map((day) => {
                           const key = `${item.kind}:${item.id}:${day.id}`
+                          const draftActive =
+                            scheduleDraft?.itemKey === itemKey && scheduleDraft.dayId === day.id
                           return (
                             <button
                               key={key}
                               type="button"
                               disabled={schedulingKey === key}
-                              onClick={() => void handleScheduleSavedItem(item, day)}
+                              onClick={() => beginScheduleSavedItem(item, day)}
                               className="px-2.5 py-1 text-xs font-medium rounded-md border border-sky-200 text-sky-800 hover:bg-sky-100 disabled:opacity-50"
                             >
-                              {schedulingKey === key
-                                ? 'Adding...'
+                              {draftActive
+                                ? `Planning Day ${day.dayNumber}`
                                 : `Add to Day ${day.dayNumber}`}
                             </button>
                           )
                         })}
                       </div>
+                      {scheduleDraft?.itemKey === itemKey ? (
+                        <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
+                          <div className="mb-2 text-xs font-semibold text-sky-950">
+                            Schedule on{' '}
+                            {draftDay
+                              ? format(new Date(draftDay.date), 'EEE, MMM d')
+                              : 'a trip day'}
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <label className="block text-xs font-medium text-gray-600">
+                              Start time
+                              <input
+                                type="time"
+                                value={scheduleDraft.startTime}
+                                onChange={(e) =>
+                                  setScheduleDraft((prev) =>
+                                    prev ? { ...prev, startTime: e.target.value } : prev
+                                  )
+                                }
+                                className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs font-medium text-gray-600">
+                              End time
+                              <input
+                                type="time"
+                                value={scheduleDraft.endTime}
+                                onChange={(e) =>
+                                  setScheduleDraft((prev) =>
+                                    prev ? { ...prev, endTime: e.target.value } : prev
+                                  )
+                                }
+                                className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                              />
+                            </label>
+                          </div>
+                          <label className="mt-3 block text-xs font-medium text-gray-600">
+                            Notes for this slot
+                            <textarea
+                              value={scheduleDraft.notes}
+                              onChange={(e) =>
+                                setScheduleDraft((prev) =>
+                                  prev ? { ...prev, notes: e.target.value } : prev
+                                )
+                              }
+                              rows={2}
+                              placeholder="Reservation, ticket window, why this belongs here..."
+                              className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                            />
+                          </label>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={
+                                !draftDay ||
+                                schedulingKey === `${item.kind}:${item.id}:${draftDay.id}`
+                              }
+                              onClick={() =>
+                                draftDay
+                                  ? void handleScheduleSavedItem(item, draftDay, scheduleDraft)
+                                  : undefined
+                              }
+                              className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                            >
+                              {draftDay &&
+                              schedulingKey === `${item.kind}:${item.id}:${draftDay.id}`
+                                ? 'Adding...'
+                                : 'Add to itinerary'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setScheduleDraft(null)}
+                              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </li>

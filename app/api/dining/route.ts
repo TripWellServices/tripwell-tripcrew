@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
 import { prisma } from '@/lib/prisma'
+import { saveDiningToTrip } from '@/lib/trip-place-saves'
 import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
 export const dynamic = 'force-dynamic'
@@ -39,10 +40,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ dining })
     }
 
+    if (tripId) {
+      const [legacyDining, savedDining] = await Promise.all([
+        prisma.dining.findMany({
+          where: {
+            ...(tripWellEnterpriseId && { tripWellEnterpriseId }),
+            tripId,
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.tripDiningSave.findMany({
+          where: { tripId },
+          orderBy: { createdAt: 'desc' },
+          include: { dining: true },
+        }),
+      ])
+      const byId = new Map(legacyDining.map((item) => [item.id, item]))
+      for (const save of savedDining) byId.set(save.dining.id, save.dining)
+      return NextResponse.json(Array.from(byId.values()))
+    }
+
     const dining = await prisma.dining.findMany({
       where: {
         ...(tripWellEnterpriseId && { tripWellEnterpriseId }),
-        ...(tripId && { tripId }),
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -89,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     const dining = await prisma.dining.create({
       data: {
-        tripId: tripId || null,
+        tripId: null,
         tripWellEnterpriseId: resolveTripWellEnterpriseId(tripWellEnterpriseId),
         cityId: cityId?.trim() || null,
         title: title.trim(),
@@ -109,6 +129,10 @@ export async function POST(request: NextRequest) {
         description: typeof description === 'string' ? description.trim() || null : null,
       },
     })
+
+    if (typeof tripId === 'string' && tripId.trim()) {
+      await saveDiningToTrip(tripId.trim(), dining.id)
+    }
 
     return NextResponse.json(dining)
   } catch (error) {

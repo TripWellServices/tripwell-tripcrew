@@ -138,7 +138,7 @@ export default async function TripPage({ params, searchParams }: PageProps) {
               startDate={trip.startDate}
               endDate={trip.endDate}
               tripId={trip.id}
-              isAdmin={isAdmin}
+              isAdmin
               savedItems={unscheduledSavedItems}
               canScheduleSavedItems
             />

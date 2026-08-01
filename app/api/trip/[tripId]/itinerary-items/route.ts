@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { TripDayExperienceStatus } from '@prisma/client'
 import { parseFlexibleDateOnly } from '@/lib/trip-plan-dates'
+import { saveAttractionToTrip, saveDiningToTrip } from '@/lib/trip-place-saves'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +57,7 @@ export async function GET(
 }
 
 /**
- * Add an experience to a trip day. Body: { title?, date?, hikeId?, diningId?, attractionId?, concertId?, cruiseId?, sportId?, adventureId?, notes? }
+ * Add an experience to a trip day. Body: { title?, date?, hikeId?, diningId?, attractionId?, concertId?, cruiseId?, sportId?, adventureId?, startTime?, endTime?, notes? }
  * Resolves trip day by `date` (calendar day) or defaults to day 1.
  */
 export async function POST(
@@ -67,7 +68,6 @@ export async function POST(
     const { tripId } = await params
     const body = await request.json()
     const {
-      title,
       date,
       diningId,
       attractionId,
@@ -76,9 +76,10 @@ export async function POST(
       cruiseId,
       sportId,
       adventureId,
+      startTime,
+      endTime,
       notes,
     } = body as {
-      title?: string
       date?: string
       diningId?: string
       attractionId?: string
@@ -87,6 +88,8 @@ export async function POST(
       cruiseId?: string
       sportId?: string
       adventureId?: string
+      startTime?: string | null
+      endTime?: string | null
       notes?: string
     }
 
@@ -148,6 +151,9 @@ export async function POST(
     })
     const orderIndex = (maxOrder._max.orderIndex ?? -1) + 1
 
+    if (diningId) await saveDiningToTrip(tripId, diningId)
+    if (attractionId) await saveAttractionToTrip(tripId, attractionId)
+
     const item = await prisma.tripDayExperience.create({
       data: {
         tripDayId: tripDay.id,
@@ -159,7 +165,9 @@ export async function POST(
         cruiseId: cruiseId || null,
         sportId: sportId || null,
         adventureId: adventureId || null,
-        notes: notes?.trim() || title?.trim() || null,
+        startTime: startTime?.trim() || null,
+        endTime: endTime?.trim() || null,
+        notes: notes?.trim() || null,
         status: TripDayExperienceStatus.PLANNED,
       },
       include: {

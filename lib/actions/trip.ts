@@ -154,7 +154,7 @@ export type GetTripResult =
   | { success: false; error: string; code: 'NOT_FOUND' | 'SERVER_ERROR' }
 
 async function fetchTripById(tripId: string) {
-  return prisma.trip.findUnique({
+  const trip = await prisma.trip.findUnique({
       where: { id: tripId },
       include: {
         crew: {
@@ -243,6 +243,38 @@ async function fetchTripById(tripId: string) {
             savedByTravelerId: true,
           },
         },
+        diningSaves: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            dining: {
+              select: {
+                id: true,
+                tripId: true,
+                tripWellEnterpriseId: true,
+                cityId: true,
+                title: true,
+                category: true,
+                address: true,
+                phone: true,
+                website: true,
+                googlePlaceId: true,
+                imageUrl: true,
+                rating: true,
+                lat: true,
+                lng: true,
+                description: true,
+                metadata: true,
+                distanceFromLodging: true,
+                driveTimeMinutes: true,
+                createdAt: true,
+                updatedAt: true,
+                createdById: true,
+                wishlistId: true,
+                savedByTravelerId: true,
+              },
+            },
+          },
+        },
         attractions: {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
@@ -270,6 +302,38 @@ async function fetchTripById(tripId: string) {
             createdById: true,
             wishlistId: true,
             savedByTravelerId: true,
+          },
+        },
+        attractionSaves: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            attraction: {
+              select: {
+                id: true,
+                tripId: true,
+                tripWellEnterpriseId: true,
+                cityId: true,
+                title: true,
+                category: true,
+                address: true,
+                phone: true,
+                website: true,
+                googlePlaceId: true,
+                imageUrl: true,
+                rating: true,
+                lat: true,
+                lng: true,
+                description: true,
+                metadata: true,
+                distanceFromLodging: true,
+                driveTimeMinutes: true,
+                createdAt: true,
+                updatedAt: true,
+                createdById: true,
+                wishlistId: true,
+                savedByTravelerId: true,
+              },
+            },
           },
         },
         adventures: {
@@ -300,6 +364,24 @@ async function fetchTripById(tripId: string) {
         },
       },
     })
+
+  if (!trip) return null
+
+  const diningById = new Map(trip.dining.map((item) => [item.id, item]))
+  for (const save of trip.diningSaves) {
+    diningById.set(save.dining.id, save.dining)
+  }
+
+  const attractionsById = new Map(trip.attractions.map((item) => [item.id, item]))
+  for (const save of trip.attractionSaves) {
+    attractionsById.set(save.attraction.id, save.attraction)
+  }
+
+  return {
+    ...trip,
+    dining: Array.from(diningById.values()),
+    attractions: Array.from(attractionsById.values()),
+  }
 }
 
 export async function getTrip(tripId: string): Promise<GetTripResult> {

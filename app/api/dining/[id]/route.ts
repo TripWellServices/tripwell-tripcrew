@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { saveDiningToTrip } from '@/lib/trip-place-saves'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,10 +79,8 @@ export async function PATCH(
     if (driveTimeMinutes !== undefined)
       data.driveTimeMinutes =
         typeof driveTimeMinutes === 'number' ? driveTimeMinutes : null
-    if (tripId !== undefined) {
-      data.tripId =
-        typeof tripId === 'string' && tripId.trim() ? tripId.trim() : null
-    }
+    const attachTripId =
+      typeof tripId === 'string' && tripId.trim() ? tripId.trim() : null
     if (description !== undefined) {
       data.description =
         typeof description === 'string' ? description.trim() || null : null
@@ -91,6 +90,10 @@ export async function PATCH(
       where: { id },
       data,
     })
+
+    if (attachTripId) {
+      await saveDiningToTrip(attachTripId, updated.id)
+    }
 
     return NextResponse.json(updated)
   } catch (error) {

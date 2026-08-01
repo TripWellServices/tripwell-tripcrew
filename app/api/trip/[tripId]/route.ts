@@ -64,9 +64,17 @@ export async function GET(
           where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
+        diningSaves: {
+          orderBy: { createdAt: 'desc' },
+          include: { dining: true },
+        },
         attractions: {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
+        },
+        attractionSaves: {
+          orderBy: { createdAt: 'desc' },
+          include: { attraction: true },
         },
         logistics: {
           where: { tripId },
@@ -83,7 +91,19 @@ export async function GET(
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
     }
 
-    return NextResponse.json(trip)
+    const diningById = new Map(trip.dining.map((item) => [item.id, item]))
+    for (const save of trip.diningSaves) diningById.set(save.dining.id, save.dining)
+
+    const attractionsById = new Map(trip.attractions.map((item) => [item.id, item]))
+    for (const save of trip.attractionSaves) {
+      attractionsById.set(save.attraction.id, save.attraction)
+    }
+
+    return NextResponse.json({
+      ...trip,
+      dining: Array.from(diningById.values()),
+      attractions: Array.from(attractionsById.values()),
+    })
   } catch (error) {
     console.error('Trip fetch error:', error)
     return NextResponse.json({ error: 'Failed to fetch trip' }, { status: 500 })
