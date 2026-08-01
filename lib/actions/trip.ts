@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache'
 import { computeTripMetadata } from '@/lib/trip/computeTripMetadata'
 import { seedTripDays } from '@/lib/trip/seedTripDays'
 import { TripType } from '@prisma/client'
+import { isTripPlaceSaveSchemaUnavailable } from '@/lib/trip-place-saves'
 
 export async function upsertTrip(data: {
   id?: string
@@ -243,38 +244,6 @@ async function fetchTripById(tripId: string) {
             savedByTravelerId: true,
           },
         },
-        diningSaves: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            dining: {
-              select: {
-                id: true,
-                tripId: true,
-                tripWellEnterpriseId: true,
-                cityId: true,
-                title: true,
-                category: true,
-                address: true,
-                phone: true,
-                website: true,
-                googlePlaceId: true,
-                imageUrl: true,
-                rating: true,
-                lat: true,
-                lng: true,
-                description: true,
-                metadata: true,
-                distanceFromLodging: true,
-                driveTimeMinutes: true,
-                createdAt: true,
-                updatedAt: true,
-                createdById: true,
-                wishlistId: true,
-                savedByTravelerId: true,
-              },
-            },
-          },
-        },
         attractions: {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
@@ -302,38 +271,6 @@ async function fetchTripById(tripId: string) {
             createdById: true,
             wishlistId: true,
             savedByTravelerId: true,
-          },
-        },
-        attractionSaves: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            attraction: {
-              select: {
-                id: true,
-                tripId: true,
-                tripWellEnterpriseId: true,
-                cityId: true,
-                title: true,
-                category: true,
-                address: true,
-                phone: true,
-                website: true,
-                googlePlaceId: true,
-                imageUrl: true,
-                rating: true,
-                lat: true,
-                lng: true,
-                description: true,
-                metadata: true,
-                distanceFromLodging: true,
-                driveTimeMinutes: true,
-                createdAt: true,
-                updatedAt: true,
-                createdById: true,
-                wishlistId: true,
-                savedByTravelerId: true,
-              },
-            },
           },
         },
         adventures: {
@@ -368,13 +305,36 @@ async function fetchTripById(tripId: string) {
   if (!trip) return null
 
   const diningById = new Map(trip.dining.map((item) => [item.id, item]))
-  for (const save of trip.diningSaves) {
-    diningById.set(save.dining.id, save.dining)
+  try {
+    const diningSaves = await prisma.tripDiningSave.findMany({
+      where: { tripId },
+      orderBy: { createdAt: 'desc' },
+      include: { dining: true },
+    })
+    for (const save of diningSaves) {
+      diningById.set(save.dining.id, save.dining)
+    }
+  } catch (error) {
+    if (!isTripPlaceSaveSchemaUnavailable(error)) throw error
+    console.warn('Trip dining save join table unavailable; using legacy Trip.dining rows', error)
   }
 
   const attractionsById = new Map(trip.attractions.map((item) => [item.id, item]))
-  for (const save of trip.attractionSaves) {
-    attractionsById.set(save.attraction.id, save.attraction)
+  try {
+    const attractionSaves = await prisma.tripAttractionSave.findMany({
+      where: { tripId },
+      orderBy: { createdAt: 'desc' },
+      include: { attraction: true },
+    })
+    for (const save of attractionSaves) {
+      attractionsById.set(save.attraction.id, save.attraction)
+    }
+  } catch (error) {
+    if (!isTripPlaceSaveSchemaUnavailable(error)) throw error
+    console.warn(
+      'Trip attraction save join table unavailable; using legacy Trip.attractions rows',
+      error
+    )
   }
 
   return {

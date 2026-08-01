@@ -15,6 +15,7 @@ import {
   type ParsedEventAnchor,
   type ParsedExperienceSpec,
 } from '@/lib/trip-plan-model'
+import { saveAttractionToTrip, saveDiningToTrip } from '@/lib/trip-place-saves'
 
 export type IngestConcertCore = {
   name?: string
@@ -209,19 +210,7 @@ export async function createWishlistAttraction(
       tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
     },
   })
-  await tx.tripAttractionSave.upsert({
-    where: {
-      tripId_attractionId: {
-        tripId: params.tripId,
-        attractionId: row.id,
-      },
-    },
-    update: {},
-    create: {
-      tripId: params.tripId,
-      attractionId: row.id,
-    },
-  })
+  await saveAttractionToTrip(params.tripId, row.id, tx)
   return row.id
 }
 
@@ -249,19 +238,7 @@ export async function createWishlistDining(
       tripWellEnterpriseId: resolveTripWellEnterpriseId(undefined),
     },
   })
-  await tx.tripDiningSave.upsert({
-    where: {
-      tripId_diningId: {
-        tripId: params.tripId,
-        diningId: row.id,
-      },
-    },
-    update: {},
-    create: {
-      tripId: params.tripId,
-      diningId: row.id,
-    },
-  })
+  await saveDiningToTrip(params.tripId, row.id, tx)
   return row.id
 }
 

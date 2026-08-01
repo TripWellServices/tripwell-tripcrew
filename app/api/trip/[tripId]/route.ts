@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getTripAccess } from '@/lib/trip/assertTripAccess'
 import { tripPersistedMetadata } from '@/lib/trip/computeTripMetadata'
 import { seedTripDays } from '@/lib/trip/seedTripDays'
+import { isTripPlaceSaveSchemaUnavailable } from '@/lib/trip-place-saves'
 import { TripType, TransportMode, WhoWith } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -64,17 +65,9 @@ export async function GET(
           where: { tripId },
           orderBy: { createdAt: 'desc' },
         },
-        diningSaves: {
-          orderBy: { createdAt: 'desc' },
-          include: { dining: true },
-        },
         attractions: {
           where: { tripId },
           orderBy: { createdAt: 'desc' },
-        },
-        attractionSaves: {
-          orderBy: { createdAt: 'desc' },
-          include: { attraction: true },
         },
         logistics: {
           where: { tripId },
@@ -92,11 +85,34 @@ export async function GET(
     }
 
     const diningById = new Map(trip.dining.map((item) => [item.id, item]))
-    for (const save of trip.diningSaves) diningById.set(save.dining.id, save.dining)
+    try {
+      const diningSaves = await prisma.tripDiningSave.findMany({
+        where: { tripId },
+        orderBy: { createdAt: 'desc' },
+        include: { dining: true },
+      })
+      for (const save of diningSaves) diningById.set(save.dining.id, save.dining)
+    } catch (error) {
+      if (!isTripPlaceSaveSchemaUnavailable(error)) throw error
+      console.warn('Trip dining save join table unavailable; using legacy Trip.dining rows', error)
+    }
 
     const attractionsById = new Map(trip.attractions.map((item) => [item.id, item]))
-    for (const save of trip.attractionSaves) {
-      attractionsById.set(save.attraction.id, save.attraction)
+    try {
+      const attractionSaves = await prisma.tripAttractionSave.findMany({
+        where: { tripId },
+        orderBy: { createdAt: 'desc' },
+        include: { attraction: true },
+      })
+      for (const save of attractionSaves) {
+        attractionsById.set(save.attraction.id, save.attraction)
+      }
+    } catch (error) {
+      if (!isTripPlaceSaveSchemaUnavailable(error)) throw error
+      console.warn(
+        'Trip attraction save join table unavailable; using legacy Trip.attractions rows',
+        error
+      )
     }
 
     return NextResponse.json({

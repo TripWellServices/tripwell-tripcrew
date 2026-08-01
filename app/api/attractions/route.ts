@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveTripWellEnterpriseId } from '@/config/tripWellEnterpriseConfig'
 import { prisma } from '@/lib/prisma'
-import { saveAttractionToTrip } from '@/lib/trip-place-saves'
+import { isTripPlaceSaveSchemaUnavailable, saveAttractionToTrip } from '@/lib/trip-place-saves'
 import { wishlistIdForTraveler } from '@/lib/traveler-build-scope'
 
 export const dynamic = 'force-dynamic'
@@ -41,22 +41,28 @@ export async function GET(request: NextRequest) {
     }
 
     if (tripId) {
-      const [legacyAttractions, savedAttractions] = await Promise.all([
-        prisma.attraction.findMany({
-          where: {
-            ...(tripWellEnterpriseId && { tripWellEnterpriseId }),
-            tripId,
-          },
-          orderBy: { createdAt: 'desc' },
-        }),
-        prisma.tripAttractionSave.findMany({
+      const legacyAttractions = await prisma.attraction.findMany({
+        where: {
+          ...(tripWellEnterpriseId && { tripWellEnterpriseId }),
+          tripId,
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      const byId = new Map(legacyAttractions.map((item) => [item.id, item]))
+      try {
+        const savedAttractions = await prisma.tripAttractionSave.findMany({
           where: { tripId },
           orderBy: { createdAt: 'desc' },
           include: { attraction: true },
-        }),
-      ])
-      const byId = new Map(legacyAttractions.map((item) => [item.id, item]))
-      for (const save of savedAttractions) byId.set(save.attraction.id, save.attraction)
+        })
+        for (const save of savedAttractions) byId.set(save.attraction.id, save.attraction)
+      } catch (error) {
+        if (!isTripPlaceSaveSchemaUnavailable(error)) throw error
+        console.warn(
+          'Trip attraction save join table unavailable; listing legacy attraction rows',
+          error
+        )
+      }
       return NextResponse.json(Array.from(byId.values()))
     }
 
