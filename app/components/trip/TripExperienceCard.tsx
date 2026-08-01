@@ -603,10 +603,11 @@ export default function TripExperienceCard({
                 {dayIsOpen && canScheduleSavedItems && visibleSavedItems.length > 0 ? (
                   <div className="mb-4 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
                     <h4 className="text-sm font-semibold text-sky-950">
-                      Saved places for Day {day.dayNumber}
+                      Saved places to schedule
                     </h4>
                     <p className="mt-0.5 text-xs text-sky-800">
-                      Pick one, set its time, and save it into this day's itinerary.
+                      These are not in Day {day.dayNumber} yet. Set a time to create the day
+                      itinerary item.
                     </p>
                     <div className="mt-3 space-y-2">
                       {visibleSavedItems.map((item) => {
@@ -682,7 +683,7 @@ export default function TripExperienceCard({
                                   >
                                     {schedulingKey === `${item.kind}:${item.id}:${day.id}`
                                       ? 'Adding...'
-                                      : `Save to Day ${day.dayNumber} itinerary`}
+                                      : `Create Day ${day.dayNumber} itinerary item`}
                                   </button>
                                   <button
                                     type="button"
@@ -705,8 +706,8 @@ export default function TripExperienceCard({
                   <div className="rounded-lg border border-dashed border-gray-200 bg-white p-4">
                     <p className="text-gray-500 text-sm">
                       {dayIsOpen
-                        ? `No timed itinerary items yet. Set a time on a saved place above to lock it into Day ${day.dayNumber}.`
-                        : `No timed itinerary items yet. Build Day ${day.dayNumber} to add saved places and times.`}
+                        ? `Timed itinerary is empty. Set a time above to create the Day ${day.dayNumber} item.`
+                        : `Timed itinerary is empty. Build Day ${day.dayNumber} to add saved places and times.`}
                     </p>
                     {!dayIsOpen ? (
                       <button
