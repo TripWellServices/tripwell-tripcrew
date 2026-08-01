@@ -569,24 +569,35 @@ export default function TripExperienceCard({
               (a, b) => a.orderIndex - b.orderIndex
             )
             const dayIsOpen =
-              openDayId === day.id || (openDayId === null && day.dayNumber === sortedDays[0]?.dayNumber)
+              openDayId === day.id ||
+              (openDayId === null && day.dayNumber === sortedDays[0]?.dayNumber)
 
             return (
-              <div key={day.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-semibold text-lg text-gray-900">
-                    {format(dayDate, 'EEEE, MMM d')}
-                  </h3>
-                  <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Day {day.dayNumber}
-                  </span>
-                </div>
+              <div
+                key={day.id}
+                className={`rounded-lg border p-4 ${
+                  dayIsOpen ? 'border-sky-200 bg-sky-50/30' : 'border-gray-200'
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => setOpenDayId(dayIsOpen ? '' : day.id)}
-                  className="mb-3 rounded-md border border-sky-200 px-3 py-1.5 text-xs font-medium text-sky-800 hover:bg-sky-50"
+                  aria-expanded={dayIsOpen}
+                  className="mb-3 flex w-full items-start justify-between gap-3 rounded-lg text-left"
                 >
-                  {dayIsOpen ? 'Close day' : `Open Day ${day.dayNumber}`}
+                  <span>
+                    <span className="block font-semibold text-lg text-gray-900">
+                      {format(dayDate, 'EEEE, MMM d')}
+                    </span>
+                    <span className="mt-1 block text-xs font-medium text-sky-800">
+                      {dayIsOpen
+                        ? 'Day is open - add saved places and edit time slots below'
+                        : 'Tap to open this day and build its schedule'}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Day {day.dayNumber}
+                  </span>
                 </button>
 
                 {dayIsOpen && canScheduleSavedItems && visibleSavedItems.length > 0 ? (
@@ -764,7 +775,7 @@ export default function TripExperienceCard({
                               onClick={() => beginEditExperience(exp)}
                               className="text-sky-600 hover:text-sky-800 text-sm"
                             >
-                              Edit
+                              Open / edit time
                             </button>
                             <button
                               type="button"
