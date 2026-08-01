@@ -156,9 +156,9 @@ export default async function TripPage({ params, searchParams }: PageProps) {
         </div>
 
         <div className="mt-8 text-center text-gray-500 text-sm">
-          Need core details, lodging, flights, or the full wizard?{' '}
+          Need lodging, flights, or core trip details?{' '}
           <a href={`/trip/${params.tripId}/admin`} className="text-sky-600 hover:underline">
-            Open setup
+            Open details
           </a>
           .
         </div>

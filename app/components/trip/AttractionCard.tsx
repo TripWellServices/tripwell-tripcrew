@@ -1,7 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import AddEntryModal from './AddEntryModal'
 import CatalogueModal from './CatalogueModal'
@@ -38,7 +36,6 @@ export default function AttractionCard({
   isAdmin,
   catalogueCityId,
 }: AttractionCardProps) {
-  const pathname = usePathname()
   const [addOpen, setAddOpen] = useState(false)
   const [catalogueOpen, setCatalogueOpen] = useState(false)
 
@@ -108,12 +105,9 @@ export default function AttractionCard({
               </button>
             </div>
           ) : (
-            <Link
-              href={`${pathname}/admin`}
-              className="inline-block text-sm font-medium text-sky-600 hover:underline"
-            >
-              Open setup to add attractions
-            </Link>
+            <p className="text-sm text-gray-500">
+              Use Add place above to save places to this trip.
+            </p>
           )}
         </div>
       ) : (

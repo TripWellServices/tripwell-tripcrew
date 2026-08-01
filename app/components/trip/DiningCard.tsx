@@ -1,7 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import AddEntryModal from './AddEntryModal'
 import CatalogueModal from './CatalogueModal'
@@ -38,7 +36,6 @@ export default function DiningCard({
   isAdmin,
   catalogueCityId,
 }: DiningCardProps) {
-  const pathname = usePathname()
   const [addOpen, setAddOpen] = useState(false)
   const [catalogueOpen, setCatalogueOpen] = useState(false)
 
@@ -108,12 +105,9 @@ export default function DiningCard({
               </button>
             </div>
           ) : (
-            <Link
-              href={`${pathname}/admin`}
-              className="inline-block text-sm font-medium text-sky-600 hover:underline"
-            >
-              Open setup to add restaurants
-            </Link>
+            <p className="text-sm text-gray-500">
+              Use Add restaurant above to save restaurants to this trip.
+            </p>
           )}
         </div>
       ) : (

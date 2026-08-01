@@ -24,7 +24,7 @@ function TripReviewCard({
   onChange,
   onCreate,
   creating,
-  createLabel = 'Create trip & open setup',
+  createLabel = 'Create trip',
 }: {
   draft: TripIngestDraft
   onChange: (next: TripIngestDraft) => void
@@ -44,8 +44,7 @@ function TripReviewCard({
       <div>
         <p className="text-sm font-medium text-green-900">Trip draft ready</p>
         <p className="mt-1 text-xs text-green-800">
-          Review title, purpose, destination, and dates — then create the trip and continue in
-          setup wizard.
+          Review title, purpose, destination, and dates — then create the trip and start using it.
         </p>
         {concertDetected ? (
           <p className="mt-2 text-xs font-medium text-purple-900 bg-purple-100 border border-purple-200 rounded-md px-2 py-1 inline-block">
@@ -74,7 +73,7 @@ function TripReviewCard({
             value={draft.purpose}
             onChange={(e) => patch({ purpose: e.target.value })}
             rows={3}
-            placeholder="Why you are going — edit or generate later in setup"
+            placeholder="Why you are going — edit or generate later in trip details"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
           />
         </label>
@@ -208,7 +207,7 @@ export default function TripSetupIngest() {
       if (!res.ok) throw new Error(data.error || 'Failed to create trip')
 
       const tripId = data.tripId as string
-      router.push(`/trip/${tripId}/admin?ingested=1`)
+      router.push(`/trip/${tripId}?ingested=1`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create trip')
     } finally {
@@ -278,10 +277,10 @@ export default function TripSetupIngest() {
         ← Back to dashboard
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900">Trip setup</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Create trip</h1>
       <p className="mt-2 text-sm text-gray-600 max-w-2xl">
-        Start with AI paste, CSV import, or a blank trip — review your draft, then open the setup
-        wizard for flights, stay, essentials, and things to do.
+        Start with AI paste, CSV import, or a blank trip. After creation, add restaurants, places,
+        and day plans from the trip page.
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -392,7 +391,8 @@ export default function TripSetupIngest() {
         <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900">Manual (blank)</h2>
           <p className="mt-1 text-sm text-gray-600">
-            Enter minimal trip details — flights, stay, and POI come next in the setup wizard.
+            Enter minimal trip details. Lodging, flights, and extras can be edited later in Trip
+            details.
           </p>
           <TripReviewCard
             draft={manualDraft}

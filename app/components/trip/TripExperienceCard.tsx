@@ -137,6 +137,13 @@ export default function TripExperienceCard({
 }: TripExperienceCardProps) {
   const router = useRouter()
   const [schedulingKey, setSchedulingKey] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [savingEditId, setSavingEditId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState({
+    startTime: '',
+    endTime: '',
+    notes: '',
+  })
 
   const handleRemoveExperience = async (experienceId: string) => {
     try {
@@ -182,6 +189,41 @@ export default function TripExperienceCard({
       console.error('Error scheduling saved item:', error)
     } finally {
       setSchedulingKey(null)
+    }
+  }
+
+  const beginEditExperience = (exp: TripExperienceRow) => {
+    setEditingId(exp.id)
+    setEditDraft({
+      startTime: exp.startTime ?? '',
+      endTime: exp.endTime ?? '',
+      notes: exp.notes ?? '',
+    })
+  }
+
+  const handleSaveExperienceEdit = async (experienceId: string) => {
+    setSavingEditId(experienceId)
+    try {
+      const res = await fetch(`/api/trip/${tripId}/itinerary-items/${experienceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startTime: editDraft.startTime.trim() || null,
+          endTime: editDraft.endTime.trim() || null,
+          notes: editDraft.notes.trim() || null,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('Update itinerary item failed:', err)
+        return
+      }
+      setEditingId(null)
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating experience:', error)
+    } finally {
+      setSavingEditId(null)
     }
   }
 
@@ -271,12 +313,20 @@ export default function TripExperienceCard({
 
             return (
               <div key={day.id} className="border border-gray-200 rounded-lg p-4">
-                <h3 className="font-semibold text-lg mb-3">
-                  Day {day.dayNumber} — {format(dayDate, 'EEEE, MMM d')}
-                </h3>
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="font-semibold text-lg text-gray-900">
+                    {format(dayDate, 'EEEE, MMM d')}
+                  </h3>
+                  <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Day {day.dayNumber}
+                  </span>
+                </div>
 
                 {experiences.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No experiences scheduled</p>
+                  <p className="text-gray-500 text-sm">
+                    No plans on this date yet. Add restaurants or places above, then tap Add to Day{' '}
+                    {day.dayNumber}.
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {experiences.map((exp) => {
@@ -287,10 +337,8 @@ export default function TripExperienceCard({
                       const isAttraction = Boolean(exp.attraction)
 
                       return (
-                        <div
-                          key={exp.id}
-                          className="flex items-start gap-2 p-2 bg-gray-50 rounded"
-                        >
+                        <div key={exp.id}>
+                          <div className="flex items-start gap-2 p-2 bg-gray-50 rounded">
                           <span
                             className={`px-2 py-1 text-xs rounded shrink-0 ${chipClass(emoji)}`}
                           >
@@ -342,14 +390,89 @@ export default function TripExperienceCard({
                             )}
                           </div>
                           {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveExperience(exp.id)}
-                              className="text-red-500 hover:text-red-700 text-sm shrink-0"
-                            >
-                              Remove
-                            </button>
+                            <div className="flex shrink-0 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => beginEditExperience(exp)}
+                                className="text-sky-600 hover:text-sky-800 text-sm"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveExperience(exp.id)}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           )}
+                          </div>
+                          {editingId === exp.id ? (
+                          <div className="mt-2 rounded-lg border border-sky-100 bg-white p-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <label className="block text-xs font-medium text-gray-600">
+                                Start time
+                                <input
+                                  type="time"
+                                  value={editDraft.startTime}
+                                  onChange={(e) =>
+                                    setEditDraft((prev) => ({
+                                      ...prev,
+                                      startTime: e.target.value,
+                                    }))
+                                  }
+                                  className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                                />
+                              </label>
+                              <label className="block text-xs font-medium text-gray-600">
+                                End time
+                                <input
+                                  type="time"
+                                  value={editDraft.endTime}
+                                  onChange={(e) =>
+                                    setEditDraft((prev) => ({
+                                      ...prev,
+                                      endTime: e.target.value,
+                                    }))
+                                  }
+                                  className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                                />
+                              </label>
+                            </div>
+                            <label className="mt-3 block text-xs font-medium text-gray-600">
+                              Notes
+                              <textarea
+                                value={editDraft.notes}
+                                onChange={(e) =>
+                                  setEditDraft((prev) => ({
+                                    ...prev,
+                                    notes: e.target.value,
+                                  }))
+                                }
+                                rows={2}
+                                className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                              />
+                            </label>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void handleSaveExperienceEdit(exp.id)}
+                                disabled={savingEditId === exp.id}
+                                className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+                              >
+                                {savingEditId === exp.id ? 'Saving...' : 'Save changes'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingId(null)}
+                                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                          ) : null}
                         </div>
                       )
                     })}
@@ -362,8 +485,8 @@ export default function TripExperienceCard({
       )}
 
       <p className="mt-6 text-sm text-gray-500">
-        Each block is a TripDay experience (time + dining, attraction, concert, etc.). Save items
-        to the trip, then schedule them here.
+        Save restaurants and places to the trip, add them to a date, then use Edit to adjust time
+        and notes.
       </p>
     </div>
   )

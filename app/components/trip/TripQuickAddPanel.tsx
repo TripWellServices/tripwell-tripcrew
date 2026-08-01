@@ -76,7 +76,7 @@ export default function TripQuickAddPanel({
             href={`/trip/${tripId}/admin`}
             className="col-span-2 rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-medium text-gray-600 hover:bg-gray-50 sm:col-span-1"
           >
-            Full setup
+            Trip details
           </Link>
         </div>
       </div>

@@ -12,11 +12,10 @@ export default function PostIngestNextSteps() {
 
   return (
     <div className="mb-6 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-4">
-      <p className="text-sm font-semibold text-emerald-950 mb-2">Trip saved — keep building</p>
+      <p className="text-sm font-semibold text-emerald-950 mb-2">Trip saved — ready to use</p>
       <ul className="text-sm text-emerald-900 space-y-2">
         <li>
-          Continue the setup steps below — core details, travel, lodging, essentials, and places to
-          go.
+          Add restaurants, places, and day-by-day plans from the trip or itinerary page.
         </li>
         <li>
           <Link
@@ -25,7 +24,7 @@ export default function PostIngestNextSteps() {
           >
             Open itinerary
           </Link>{' '}
-          — schedule saved places and events onto trip days.
+          — add what you find and schedule saved places onto trip days.
         </li>
         <li>
           <Link

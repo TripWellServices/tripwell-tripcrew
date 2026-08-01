@@ -107,7 +107,7 @@ export default async function TripPlanPage({ params }: PageProps) {
           href={`/trip/${tripId}/admin`}
           className="shrink-0 px-4 py-2 text-sm font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100"
         >
-          Full setup →
+          Trip details →
         </Link>
       </div>
 
@@ -124,7 +124,7 @@ export default async function TripPlanPage({ params }: PageProps) {
         <p className="my-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
           Add restaurants and places above, then schedule them below. Use{' '}
           <Link href={`/trip/${tripId}/admin`} className="font-medium underline">
-            full setup
+            trip details
           </Link>{' '}
           only for lodging, flights, groceries, and core trip details.
         </p>

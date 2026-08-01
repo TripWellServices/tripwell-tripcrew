@@ -601,15 +601,15 @@ export default function TripSetupWizard({
         ) : null}
         <p className="text-sm text-gray-500 mt-2">
           {setupContext.setupOrigin === 'CONCERT_INGEST'
-            ? 'Continue setup — core details, flights, stay, essentials, then things to do.'
-            : 'Set up your trip — core details, flights, stay, essentials, then things to do.'}
+            ? 'Edit the trip details that support your itinerary: core info, flights, stay, essentials, and things to do.'
+            : 'Edit trip details: core info, flights, stay, essentials, and things to do.'}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow border border-gray-200 p-4 sticky top-4">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Setup steps</h2>
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">Detail sections</h2>
             <nav className="space-y-2">
               {steps.map((step, index) => {
                 const isActive = activeStep === step.id
